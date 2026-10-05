@@ -173,4 +173,18 @@ end
     end
 end
 
+# REGENT(LESTB) DBH step for a PLANTed record (FINT≤5 ⇒ LSKIPH, HTG=0): oc/regent.f:285-345 (HK≤4.5 ⇒ DBH=D+0.001·HK; else
+# HTDBH⁻¹, DIAM floor, +0.001·HK, DG=DBH) and op/regent.f:325-406 (HK<4.5 ⇒ D+0.001·HK; else DBH=DG=0 ⇒ DIAM(sp)), then DGBND and
+# ESGENT (esgent.f:20-34, WK4=0.99998 ⇒ DG=DBH). jl left every new record at the strp DBH=0.1 (OC .sum QMD/BA/CCF/SDI off from the
+# birth cycle: OC 24382439010900 plant_cyc 62 cells, OP 22964003010497 plant_cyc 88 cells -> 0).
+@testset "OC/OP REGENT(LESTB) establishment DBH (oc/regent.f:285-345, op/regent.f:325-406, esgent.f)" begin
+    for (v, cn) in (("OC", "24382439010900"), ("OP", "22964003010497"))
+        for r in ("plant_cyc", "plant_cal")
+            c = _case(v, cn, r)
+            @test !c.crashed
+            @test isempty(c.ms)
+        end
+    end
+end
+
 end # module

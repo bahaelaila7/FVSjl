@@ -1104,6 +1104,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         ne_estab = s.variant isa Northeast
         cs_estab = s.variant isa CentralStates
         ls_estab = s.variant isa LakeStates
+        oc_estab = s.variant isa OregonCoast; op_estab = s.variant isa Olympic   # {oc,op}/regent.f REGENT(LESTB) DBH step (FINT≤5)
         local ebau_e, b3_e, avh_e, scale_e, rdiam_e, rnd_e
         local cb1_e, cb2_e, cb3_e, ba_e
         local lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e, rmsqd_e
@@ -1222,6 +1223,37 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 t.dbh[i] = dbhk
                 t.diam_growth[i] = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)
                 esgent_finish!(t, i, htgr, ne_estab ? _NE_ES_HHTMAX[sp] : cs_estab ? _CS_ES_HHTMAX[sp] : _LS_ES_HHTMAX[sp])
+            elseif (oc_estab || op_estab) && per <= 5
+                # {oc,op}/regent.f REGENT(LESTB) for a new record with FINT≤5: LSKIPH ⇒ DGR=HTG(K)=0 (regent.f:234-238, no SMHGDG,
+                # no draw with DGSD=0), HK=H. The DBH step (OC regent.f:285-345, OP regent.f:325-406):
+                #   HK≤4.5 (OC) / HK<4.5 (OP): DG=0, DBH=D+0.001·HK;
+                #   OC HK>4.5: DBH=HTDBH⁻¹(HK) floored to DIAM, +0.001·HK, DG=DBH;
+                #   OP HK≥4.5: DG=DGR·SCALE·WK4=0 ⇒ DBH=DG floored to DIAM(sp).
+                # then DGBND, then ESGENT (esgent.f:20-34: HTG·=WK4; WK4<1 rescales DBH/DG).
+                sp = Int(t.species[i]); h = t.height[i]; d = t.dbh[i]
+                if oc_estab
+                    if h <= 4.5f0
+                        dgk = 0f0; dbhk = d + 0.001f0 * h
+                    else
+                        dbhk = oc_hd_diam(sp, h)
+                        dbhk < OC_REG_DIAM[sp] && (dbhk = OC_REG_DIAM[sp])
+                        dbhk += 0.001f0 * h; dgk = dbhk
+                    end
+                    if (dbhk + dgk) > s.control.sp_size_cap[sp, 1] && s.control.sp_size_cap[sp, 3] < 1.5f0   # oc/dgbnd.f
+                        dgk = s.control.sp_size_cap[sp, 1] - dbhk
+                        dgk < 0.01f0 && (dgk = 0.01f0)
+                    end
+                else
+                    if h < 4.5f0
+                        dgk = 0f0; dbhk = d + 0.001f0 * h
+                    else
+                        dgk = 0f0; dbhk = dgk
+                        dbhk < OP_REG_DIAM[sp] && (dbhk = OP_REG_DIAM[sp])
+                    end
+                    dgk = op_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap)
+                end
+                t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+                esgent_finish!(t, i, 0f0, oc_estab ? _OC_ES_HHTMAX[sp] : _OP_ES_HHTMAX[sp])
             end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding
