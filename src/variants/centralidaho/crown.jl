@@ -106,7 +106,12 @@ end
 function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n
+    # ci/crown.f:131 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` — an all-dead inventory still dubs the dead crowns.
+    if n == 0
+        lstart || return s
+        @goto dead79
+    end
     relden = p.relative_density; sdiac = crown_sdi
     sd = s.coef.species
     p_pccf = s.density.point_ccf
@@ -190,6 +195,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         t.crown_pct[i] = Int32(icri)
     end
     # ci/crown.f:426-462 DO 79 — cycle-0 dead records: 17,19 crown-length form (INT(CR*100.), no rounding), others DUBSCR.
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         sp = Int(t.species[i]); h = t.height[i]
         if sp == 17 || sp == 19

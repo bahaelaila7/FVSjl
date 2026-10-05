@@ -25,7 +25,7 @@ _t5_stand(rows) = (k = 1; [i == 1 ? 1 : (parse(Int, rows[i][1]) < parse(Int, row
 # Known residuals, named (all outside the DG rescale):
 #  • bmt01/cit01 stand 5 (bare ground, PLANT 1992): jl's planted cohort runs one 5-year cycle ahead of live (regent.f LESTB
 #    FNT−5 / LSKIPH when FINT≤5 — the establishment-cycle height growth under 5-year cycles is not ported);
-#  • one-unit print knife-edges in a single volume column: ect01 row 2018 TCuFt, wct01 rows 2010 MCuFt / 2018 BdFt,
+#  • one-unit print knife-edges in a single volume column: wct01 one row (ect01's 2018 TCuFt and one wct01 edge closed on integ-1005c),
 #    cit01 rows 2008/2018 BdFt (its 2060 BdFt edge became exact earlier on this branch).
 const _T5_CASES = [("pnt01_t5", _T5.PacificNorthwest(), Int[], Int[]),
                    ("ect01_t5", _T5.EastCascades(),    Int[], Int[]),
@@ -46,7 +46,7 @@ const _T5_CASES = [("pnt01_t5", _T5.PacificNorthwest(), Int[], Int[]),
             nfull += (jl[i] == lv[i])
         end
         # every full row exact except the named one-unit volume knife-edges
-        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 1, "wct01_t5" => 2, "bmt01_t5" => 0, "cit01_t5" => 0)[stem]
+        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 0, "wct01_t5" => 1, "bmt01_t5" => 0, "cit01_t5" => 0)[stem]
         @test (stem, nfull) == (stem, count(i -> !(st[i] in skip_stands), eachindex(lv)) - nknife)
     end
 end

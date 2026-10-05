@@ -2037,7 +2037,8 @@ function _autoes_prep_sumup!(s::StandState, est, _ntally::Integer, is_ingro::Boo
 end
 
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) || return false
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa CentralIdaho) ||
+        return false
     est = s.estab
     est.es_aut_first = Int32(0); empty!(est.es_aut_plot)   # this cycle's natural-record plot tags (set when booking)
     empty!(est.es_plot_dil); est.es_plot_nph = Int32(0)    # this cycle's PLANT DILATEs (set by the tally)
@@ -2064,7 +2065,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # the cycle-1 latch (line ~1771); catch cycle-1 inline before it's latched. NON-bare stands (INADV=0) keep the
     # original gate exactly ⇒ byte-identical.
     _bare = est.inadv || (Int(s.control.cycle) + 1 == 1 && s.trees.n == 0)
-    if !(est.lautal || est.lingrw || _bare)
+    # esnutr.f:345-359: with the automatic tallies off, a PLANT/NATURAL due this cycle still CALLs ESTAB (NTALLY=99);
+    # with STOADJ<0.0001 its plot loop is the no-stocking branch below — no natural record, but the per-plot ESAVE
+    # chain + EMSQR that the DO 322 keyword trees' ESSUBH heights read (estab.f:957-1075). CI runs this by default
+    # (ci/esinit.f LAUTAL=LINGRW=.FALSE., STOADJ=0.0): MEASURED FVSci_g16 3159852010690 PLANT DF — per-plot EMSQR
+    # 0.219/0.658/0.348… ⇒ HHT 1.19/1.33/1.32…, jl booked the deterministic mean on every plot.
+    _catchall = est.stoadj < 0.0001f0 && s.variant isa CentralIdaho &&
+        (let icyc0 = Int(s.control.cycle) + 1, y1 = Int(current_cycle_year(s)), y2 = y1 + round(Int, fint)
+            any(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+                     ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc0)), s.control.schedule)
+        end)
+    if !(est.lautal || est.lingrw || _bare || _catchall)
         # NOAUTOES stand: FVS ESNUTR still calls ESTAB for a PLANT/NATURAL due this cycle — with NTALLY=99 in the
         # estb family (esnutr.f:353-355), whose estab.f:223-230 then cancels this cycle's site preps.
         estab_prep_npnats_estb!(s)
@@ -2252,7 +2263,9 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         _as0 = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
         _ps = _autoes_prep_sumup!(s, est, _ntally, _ntally == 99, kdt, inv_year, icyc, year, next_year, ihab_code,
                                   _baaa0, _sl0, _as0)
-        if _ntally == 1
+        if _ntally == 99 && s.variant isa CentralIdaho
+            est.es_ipprep = ones(Int32, Int(dupnpt))    # estab.f:222-236 ingrowth: PNONE=1 ⇒ every plot IPREP 1
+        elseif _ntally == 1
             if _ps === nothing
                 est.es_ipprep = ones(Int32, Int(dupnpt))
             else
@@ -2280,6 +2293,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         est.kdtold = Int32(next_year - 1)
         return false                                                          # still ends ESTAB (:1654 KDTOLD=KDT)
     end
+    # CI with a STOCKADJ>0 / AUTALLY / INGROW keyword would reach the stocked tally, whose species routines are CI's
+    # own (ci/espadv.f, espsub.f, espxcs.f, esadvh.f, esdlay.f, esxcsh.f differ from ie's) and are NOT ported: book
+    # nothing rather than IE's species tables (the PLANT/NATURAL keyword trees still get their per-plot heights above).
+    s.variant isa CentralIdaho && return false
     # ESTOCK/species-prob BAA = the per-INVENTORY-POINT basal area BAAA(NNID) (estab.f:482, dense.f:213), NOT the
     # whole-stand BA. After a heavy overstory removal the regen point is bare → BAAA≈0 → TBAAA=max(BAAA,1)=1 →
     # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual

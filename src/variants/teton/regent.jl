@@ -956,7 +956,7 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                         bark = tt_bratio(sp, d)
                         dg = (dk - dkk) * bark
                         dds = dg * (2f0 * bark * d + dg) * scale2
-                        dg = sqrt((d * bark) * (d * bark) + dds) - bark * d
+                        dg = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
                     else
                         dg = 0f0
                     end

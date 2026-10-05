@@ -22,6 +22,18 @@ const _TT_XI2 = 4.5f0
 # trees over-grow. Only touches sp15/18 (ttt01 species use the SBB height, no age). Reuses cr_fndag (IMODTY=4).
 function _tt_dub_ages!(s::StandState)
     p, t = s.plot, s.trees
+    # tt/findag.f also ages CASE(6,14) AS/MM from height (SITAGE=(H·2.54·12/26.9825)**(1/1.1752)) and CASE(13,16) BI/MC
+    # by the SO site-curve search (AGMAX/HTMAX 100/100, 50/20 — the UT 21/20 table); ABIRTH feeds the Climate-FVS DMORT
+    # BIRTHYR (clmorts.f:170). MEASURED FVStt_g16 2750433010690 CLIMATE: AS BIRTHYR 1961/1969 live, jl 2003 (ABIRTH 0)
+    # ⇒ AS dClimMort 0.0045 live / 0.0014 jl.
+    @inbounds for i in 1:t.n
+        sp = Int(t.species[i]); (sp == 6 || sp == 14 || sp == 13 || sp == 16) || continue
+        ab = t.birth_age[i]; (ab > 0f0 && ab <= 999f0) && continue
+        h = t.height[i]
+        sitage = (sp == 6 || sp == 14) ? fpow(h * 2.54f0 * 12f0 / 26.9825f0, 1f0 / 1.1752f0) :
+                 _ut_findag_so(sp == 16 ? 20 : 21, h, p.sp_site_index[sp])[1]
+        sitage > 0f0 && (t.birth_age[i] = sitage)
+    end
     any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n) || return s
     misscr = false
     @inbounds for i in 1:(t.n + t.ndead)

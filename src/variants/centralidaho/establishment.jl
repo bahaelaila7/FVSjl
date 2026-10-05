@@ -94,3 +94,12 @@ function ci_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::In
     fixed >= 0f0 && return fixed
     return fexp(pn + disp*sig)
 end
+
+# ci/esinit.f:84-89 — unlike the IE/EM/KT estb build (esinit.f STOADJ=1.0, LINGRW=LAUTAL=.TRUE.), CI starts with the
+# automatic tallies OFF and STOADJ=0.0: a PLANT/NATURAL keyword reaches ESTAB only through the esnutr.f:345-359
+# catch-all (NTALLY=99), whose plot loop takes the estab.f:504/:653-675 no-stocking branch (MEASURED FVSci_g16
+# 3159852010690 PLANT: "NTALLY=99", per-plot ESAVE seeds 43303→95909→85537 = the no-stock body 16+3·19+2·MAXTPP(5)).
+function esinit_defaults!(est, ::CentralIdaho)
+    est.lautal = false; est.lingrw = false; est.stoadj = 0f0
+    return est
+end
