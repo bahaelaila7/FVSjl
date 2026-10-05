@@ -121,7 +121,7 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
     aved = dsum / wprob
     # metric stand values (morts.f:476-492): BAX (m²/ha), SPH (stems/ha), BA-class
     bax = ba * BC_FT2pACRtoM2pHA
@@ -150,16 +150,16 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
             rip = c[1] + c[2] / dx + c[3] * dx + c[4] * dx * dx +
                   c[5] * reldbh + c[6] * bal + c[7] * sqrtbax + c[8] * sph
             rip = max(-70f0, min(70f0, rip))
-            rip = 1f0 - (1f0 / (1f0 + exp(rip)))
+            rip = 1f0 - (1f0 / (1f0 + fexp(rip)))
         else                                              # no estimate → complete mortality
-            rip = 1f0 - (1f0 / (1f0 + exp(min(70f0, 99f0))))
+            rip = 1f0 - (1f0 / (1f0 + fexp(min(70f0, 99f0))))
         end
         # BAMAX-approach RIPP (morts.f:632-637) — identical to shared western driver
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)              # X=1 (no MORTMULT/estab window)
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint))              # X=1 (no MORTMULT/estab window)
         gsc = (t.diam_growth[i] / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
@@ -210,8 +210,8 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     # MORCON constants (NI case, ITYPE=IFOR=4; morts.f:1016-1030)
     poten1 = BC_POT[BC_MORT_IPDG_44]; poten2 = BC_POT[BC_MORT_IPDG2_44]
     gmult1 = 0.90f0 / poten1; gmult2 = 2.50f0 / poten2
-    rein1  = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    rein2  = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    rein1  = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    rein2  = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     # stand sums (imperial; morts.f:436-472): DQ10, AVED (BA-weighted mean DBH, in)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
@@ -225,7 +225,7 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
     aved = dsum / wprob
     sqrtba = sqrt(ba)
     sc = s.control.sp_size_cap
@@ -247,14 +247,14 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqrtba + 11.2007f0 * g -
               0.554421f0 / dd + BC_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rip = clamp(rip, -70f0, 70f0)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))
         rip *= (ip == 1 ? rein1 : rein2)
         # shared BAMAX-approach RIPP (morts.f:632-637) + WKI + size-cap + climate-death
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint))
         gsc = (dgcur / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)

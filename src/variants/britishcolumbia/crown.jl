@@ -35,10 +35,10 @@ D in inches, P = trees/acre. NI equations for sp 1-10/14 (:175-183), PN equation
     if ic < 1
         haskey(BC_CCF_PN, Int(sp)) || return 0f0
         r1, r2, r3 = BC_CCF_PN[Int(sp)]
-        ccf = D >= 1f0 ? r1 + r2 * D + r3 * D * D : D * (r1 + r2 + r3)
+        ccf = D >= 1f0 ? r1 + r2 * D + r3 * fpow(D, 2.0f0) : D * (r1 + r2 + r3)   # ccfcal.f:215 pnRD3*D**2.0 (powf)
     else
         ccf = D >= 10f0 ? BC_CCF_RD1[ic] + D*BC_CCF_RD2[ic] + D*D*BC_CCF_RD3[ic] :
-                          BC_CCF_RDA[ic] * (D ^ BC_CCF_RDB[ic])
+                          BC_CCF_RDA[ic] * fpow(D, BC_CCF_RDB[ic])          # ccfcal.f:179 RDA*(D**RDB) (powf)
     end
     ccf < 0.001f0 && (ccf = 0.001f0)
     return ccf * Float32(p)
@@ -74,7 +74,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
     ba = p.basal_area; relden = p.relative_density
     reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end
-    lnrd = log(max(0.01f0, relden))
+    lnrd = flog(max(0.01f0, relden))
     ba_a = c.bark_a; ba_b = c.bark_b
     bc_lmhtdub = nothing
     dgsd = s.control.dg_sd
@@ -190,8 +190,8 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
     ba = p.basal_area; relden = p.relative_density
     reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end          # crown.f:344-348 (no density impact if RDM1<100)
-    lnba = log(ba); lnrd = log(relden)
-    x1 = oba > 0f0 ? log(oba) : 0f0; x2 = rdm1 > 0f0 ? log(rdm1) : 0f0
+    lnba = flog(ba); lnrd = flog(relden)
+    x1 = oba > 0f0 ? flog(oba) : 0f0; x2 = rdm1 > 0f0 ? flog(rdm1) : 0f0
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     it = BC_V2_ITYPE
     @inbounds for i in 1:t.n
@@ -209,9 +209,9 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
         xcrcon = crcon + prm[1]*ba + prm[2]*ba*ba + prm[3]*lnba +
                  prm[4]*relden + prm[5]*relden*relden + prm[6]*lnrd
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
-        pcr = xcrcon + prm[7]*d + prm[8]*d*d + prm[9]*log(d) + prm[10]*h + prm[11]*h*h +
-              prm[12]*log(h) + prm[13]*pp + prm[14]*log(pp)
-        exppcr = exp(pcr)
+        pcr = xcrcon + prm[7]*d + prm[8]*d*d + prm[9]*flog(d) + prm[10]*h + prm[11]*h*h +
+              prm[12]*flog(h) + prm[13]*pp + prm[14]*flog(pp)
+        exppcr = fexp(pcr)
         expdcr = 0f0
         if !lstart
             dcrcon = crcon + prm[1]*oba + prm[2]*oba*oba + prm[3]*x1 +
@@ -221,9 +221,9 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
             pb = t.old_crown_pct[i]                                          # crown.f:469-470 (see above)
             (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
-            dcr = dcrcon + prm[7]*db + prm[8]*db*db + prm[9]*log(db) + prm[10]*hb + prm[11]*hb*hb +
-                  prm[12]*log(hb) + prm[13]*pb + prm[14]*log(pb)
-            expdcr = exp(dcr)
+            dcr = dcrcon + prm[7]*db + prm[8]*db*db + prm[9]*flog(db) + prm[10]*hb + prm[11]*hb*hb +
+                  prm[12]*flog(hb) + prm[13]*pb + prm[14]*flog(pb)
+            expdcr = fexp(dcr)
         end
         chg = exppcr - expdcr
         if !lstart || icr > 0

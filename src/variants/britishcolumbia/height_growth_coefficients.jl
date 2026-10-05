@@ -77,12 +77,13 @@ function bc_v3_htg(sp::Integer, ip::Integer, ht_ft::Real, dbh_in::Real, dg_in::R
     HTM = Float32(ht_ft)  * BC_FTtoM
     D   = Float32(dbh_in) * BC_INtoCM
     DGM = Float32(dg_in)  * BC_INtoCM
+    # htgf.f:2101-2109: REAL**REAL = powf, EXP = expf; the NEW-model DG terms are parenthesised as one addend.
     htgm = if sp in (7, 8, 11, 12, 13, 15)     # NEW v3
-        (L.CN + L.CNSI + L.DG*DGM + L.DG2*DGM*DGM) *
-            (HTM ^ (L.DBH1 + L.DBH2*D)) * exp(L.HT2*HTM*HTM)
+        (L.CN + L.CNSI + (L.DG*DGM + L.DG2*DGM*DGM)) *
+            fpow(HTM, L.DBH1 + L.DBH2*D) * fexp(L.HT2*HTM*HTM)
     else                                        # OLD v3
         A1, B1, B2 = BC_LTSP[sp,1], BC_LTSP[sp,2], BC_LTSP[sp,3]
-        (A1 + L.SI) * (HTM ^ (B1 + B2*D + L.B3*DGM)) * exp(L.C*HTM*HTM)
+        (A1 + L.SI) * fpow(HTM, B1 + B2*D + L.B3*DGM) * fexp(L.C*HTM*HTM)
     end
     return htgm * 3.28084f0 * Float32(mlt)      # MtoFT
 end

@@ -112,12 +112,13 @@ end
 Port of DGCONS (canada/bc/dgf.f:2200): site-dependent constant, resolved once/stand/species.
 PELEV = elev_ft*FTtoM (m); white-pine (sp1) caller clamps PELEV∈[5,12] — pass clamped elev for sp1.
 """
-function bc_dgcon(ip::Integer, jp::Integer, elev_ft::Real, aspect::Real, slope::Real)
+function bc_dgcon(ip::Integer, jp::Integer, elev_ft::Real, aspect::Real, slope::Real; wp::Bool = false)
     (ip < 1 || jp < 1) && return 0f0
     z = BC_ZNKONST[ip]; ss = BC_SSKONST[jp]
     pelev = Float32(elev_ft) * BC_FTtoM
+    wp && (pelev = min(max(pelev, 5f0), 12f0))             # dgf.f:2196-2198 white pine PELEV∈[5,12] (in place)
     return ss.CON + z.CON + z.EL*pelev + z.EL2*(pelev^2) +
-           z.SASP*sin(Float32(aspect))*Float32(slope) + z.CASP*cos(Float32(aspect))*Float32(slope)
+           z.SASP*fsin(Float32(aspect))*Float32(slope) + z.CASP*fcos(Float32(aspect))*Float32(slope)   # SIN/COS = sinf/cosf
 end
 
 """
@@ -135,10 +136,11 @@ function bc_v3_dds(sp::Integer, ip::Integer, zone::AbstractString,
     CR  = Float32(cr_frac)
     D2  = max(D, 1f0)
     bald1 = BAL / D2
-    _power() = z.LD * (D2 ^ (z.DBAL1 + z.DBAL2 * bald1)) * exp(z.DSQ * D2 * D2)
-    _linexp() = exp(max(-9.21f0,
+    # dgf.f:1943-1975: REAL**REAL/EXP/ALOG/LOG are glibc powf/expf/logf
+    _power() = z.LD * fpow(D2, z.DBAL1 + z.DBAL2 * bald1) * fexp(z.DSQ * D2 * D2)
+    _linexp() = fexp(max(-9.21f0,
         Float32(conspp) + z.LD*D + z.DSQ*D*D + z.BAL*BAL +
-        z.DBAL1*(BAL/D) + z.DBAL2*(BAL/log(D+1f0)) + z.CR*CR))
+        z.DBAL1*(BAL/D) + z.DBAL2*(BAL/flog(D+1f0)) + z.CR*CR))
     dds = if (sp == 11 || sp == 15)
         occursin("IDF", zone) ? _power() : _linexp()
     elseif (sp == 12 || sp == 13)
@@ -148,5 +150,5 @@ function bc_v3_dds(sp::Integer, ip::Integer, zone::AbstractString,
     end
     # CM DG → ln(DDS) inches via DIB (dgf.f:1987)
     dds = (dds*dds + 2f0*dds*D*Float32(brat)) * BC_CMtoIN * BC_CMtoIN
-    return max(-9.21f0, log(max(0.001f0, dds)))
+    return max(-9.21f0, flog(max(0.001f0, dds)))
 end

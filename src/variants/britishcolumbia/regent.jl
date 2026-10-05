@@ -19,7 +19,7 @@ function bc_regcons!(s::StandState)
     @inbounds for sp in 1:nsp
         ip[sp] = bc_resolve_stcoef(sp, series, zone)
         # V3 RHCON (regent.f:2112): 0 base, ln(RCOR2) when small-tree HT calibrated (default RCOR2=1 ⇒ 0)
-        rhcon[sp] = (ctl.regh_cor2_on && ctl.regh_cor2[sp] > 0f0) ? log(ctl.regh_cor2[sp]) : 0f0
+        rhcon[sp] = (ctl.regh_cor2_on && ctl.regh_cor2[sp] > 0f0) ? flog(ctl.regh_cor2[sp]) : 0f0
     end
     return ip, rhcon
 end
@@ -69,7 +69,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
             bi = (b2 - b1) / 10f0; ci = (c2 - c1) / 10f0
             k = 0
             for j in 2:nper
-                k += kper[j-1]; pn = pr * 0.985f0^k
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)       # 0.985**K = __powisf2
                 rdnext[j] += k * ci / pr * pn
                 banext[j] += k * bi * pn
             end
@@ -84,14 +84,14 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     ky = 0
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]; kpj = Float32(kper[j]); ky += kper[j]
-        decay = 0.985f0 ^ ky
+        decay = fpowi(0.985f0, ky)                         # 0.985**KY = __powisf2
         for i in 1:n
             sp = Int(t.species[i]); d = t.dbh[i]
             xmx_sp = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
             (d >= xmx_sp || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue
             h1 = wk3[i]; pct = t.crown_ratio[i]; pr = t.tpa[i]
             bal = (1f0 - pct/100f0) * baj
-            incr = v2 ? exp(max(-40f0, con_v2[sp] + BC_RG_V2_RHLH[sp]*log(h1) +
+            incr = v2 ? fexp(max(-40f0, con_v2[sp] + BC_RG_V2_RHLH[sp]*flog(h1) +
                                 BC_RG_V2_RHCCF[sp]*rdj + BC_RG_V2_RHBAL[sp]*bal)) :
                         bc_v3_sthg(sp, ip[sp], h1, bal, rdj, rhcon[sp], aspect, slope)
             xrhgro = active_multiplier(s.control, :regh, sp, current_cycle_year(s))
@@ -102,8 +102,8 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
             if j < nper && d < 3f0 && h2 > 4.5f0
                 relh = abs(avh - 4.5f0) < 0.01f0 ? 0f0 : clamp((h1 - 4.5f0)/(avh - 4.5f0), 0f0, 1f0)
                 dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
-                d1pf = h1 > 4.5f0 ? BC_RG_HHT1[sp]*(h1 - 4.5f0)^BC_RG_HHT2[sp] + dadj : BC_RG_DIAM[sp] + dadj
-                d2pf = BC_RG_HHT1[sp]*(h2 - 4.5f0)^BC_RG_HHT2[sp] + dadj
+                d1pf = h1 > 4.5f0 ? BC_RG_HHT1[sp]*fpow(h1 - 4.5f0, BC_RG_HHT2[sp]) + dadj : BC_RG_DIAM[sp] + dadj
+                d2pf = BC_RG_HHT1[sp]*fpow(h2 - 4.5f0, BC_RG_HHT2[sp]) + dadj
                 xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
                 dgj = (d2pf - d1pf) * xrdgro; dgj < 0f0 && (dgj = 0f0)
                 d2 = d + dgj
@@ -147,7 +147,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                 end
             end
             # V2: MULTIPLICATIVE error HTGR=HTGR1·exp(ZZRAN·HSIGMA) (regent.f:1544); V3: additive + ST_COEF.SD
-            htgr = v2 ? htgr1 * exp(zzran * BC_RG_V2_HSIGMA) :
+            htgr = v2 ? htgr1 * fexp(zzran * BC_RG_V2_HSIGMA) :
                         max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
             htg = htgr*(1f0 - xwt) + xwt*htg_large
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
@@ -164,7 +164,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                     dbhk = 0.1f0 + BC_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0
                     dg = 0f0
                 else
-                    dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
+                    dk = BC_RG_HHT1[sp]*fpow(hk - 4.5f0, BC_RG_HHT2[sp]) + dadj   # regent.f:1597 (powf)
                     dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])   # 1600 DIAM floor on DK
                     dk += hk * 0.001f0                             # 1601
                     # regent.f:1615-1625: DGK=(DK−D1)·XRDGRO ≥0; BARK=BRATIO; DG=DGK·BARK; DDS=DG·(2·BARK·D+DG)·SCALE;
@@ -223,7 +223,7 @@ const BC_RG_V2_HSIGMA = 0.59f0
 
 """V2 stand-level REGCH = RHGL(2) + (RSAB0 + RSAB1·cosA + RSAB2·sinA)·slope (regent.f:2020)."""
 bc_v2_regch(aspect::Real, slope::Real) = BC_RG_V2_RHGL[2] +
-    (BC_RG_V2_RSAB[1] + BC_RG_V2_RSAB[2]*cos(Float32(aspect)) + BC_RG_V2_RSAB[3]*sin(Float32(aspect))) * Float32(slope)
+    (BC_RG_V2_RSAB[1] + BC_RG_V2_RSAB[2]*fcos(Float32(aspect)) + BC_RG_V2_RSAB[3]*fsin(Float32(aspect))) * Float32(slope)
 
 """V2 per-species RHCON = REGCH + RHSC(sp) + RHHAB(IRHHAB,sp) (regent.f:2024, NI case, no RCOR2)."""
 bc_v2_rhcon(sp::Integer, regch::Real) =
