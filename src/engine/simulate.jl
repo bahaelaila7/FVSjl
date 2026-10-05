@@ -302,6 +302,13 @@ function setup_growth!(s::StandState)
     # SDICHK — reset the species SDImax when the inventory is over-dense. Every variant's cratet.f calls it LAST
     # (after the CROWN dub, the DGDRIV/REGENT calibration and the final DENSE), so the dub and the calibration read the
     # unreset SDIDEF. AK FIA 10708179010497: resetting first gave XMAXPT 711.63 vs live 614.10 ⇒ crowns 1-3 pts high.
+    # {oc,op}/sitset.f:327-329 load the ORGANON RVARS(3:5) = SDIDEF(DF/GF/PP|WH) once, before this SDICHK may raise
+    # SDIDEF on an over-dense inventory — EXECUTE's SUBMAX keeps reading those first values (MEASURED FVSoc 645182389126144:
+    # A1 6.47888 live vs 6.5562 from the post-SDICHK SDIDEF).
+    if s.variant isa OregonCoast || s.variant isa Olympic
+        sd = s.plot.sp_sdi_def
+        s.calib.organon_msdi = s.variant isa OregonCoast ? Float32[sd[7], sd[4], sd[18]] : Float32[sd[16], sd[3], sd[19]]
+    end
     sdi_max_check!(s)
     cwidth!(s)                            # fvs.f:207 CWIDTH — initial CRWDTH(I) after CRATET (IE/EM stored)
     return s

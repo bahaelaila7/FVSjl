@@ -230,28 +230,177 @@ end
 "organon/diamcal.f DOB_SWO — diameter outside bark (DGCALIB RAD path)."
 @inline oc_dob_swo(g::Int, dib::Float32) = fpow(dib/OC_DIB_SWO_B0[g], 1.0f0/OC_DIB_SWO_B1[g])
 
-"""
-    organon_dgcalib_swo(radgro, spgrp, dbh, ntrees) -> calib3::Vector{Float32}(18)
+# organon/diamcal.f DIB_NWO / DOB_NWO DIBPAR(11,2) (VERSION=2; DIB_SMC carries the same table).
+const OP_DIB_NWO_B0 = Float32[0.971330,0.904973,0.933707,0.9497,0.97,0.96317,0.97059,0.878457,0.947,0.94448,0.94448]
+const OP_DIB_NWO_B1 = Float32[0.966365,1.0,1.0,1.0,1.0,1.0,0.993585,1.02393,1.0,0.987517,0.987517]
 
-organon/diamcal.f DGCALIB (VERSION=1) — the diameter-growth calibration CALIB(3,*). With no radial
-increment cores (RAD=.FALSE.) it returns all-1.0 (organon/prepare.f:137-140), which the oracle
-confirms (all TMPCAL(3,*)=1.0). Lifts the C2 RAD deferral: the DG_SWO / bark / BAL machinery a full
-RAD=.TRUE. calibration would need now exists here; a RAD=.TRUE. run raises a clear TODO error since
-FVS/FIA inventory never carries radial cores (unvalidated path).
-"""
-function organon_dgcalib_swo(radgro::Vector{Float32}, spgrp::Vector{Int32},
-                             dbh::Vector{Float32}, ntrees::Int)
-    calib3 = ones(Float32, 18)
-    rad = false
+"organon/diamcal.f SSUM — BAL(500)/BALL(51)/SBA (N=1: STDATAR start state; N=2: TDATAR). The CCF term reads
+TDATAR(I,4) (the CURRENT expansion) in BOTH modes, `CCF=0.001803*MCW**2*TDATAR(I,4)/NPTS`. Only SBA/BAL/BALL
+are consumed by DGCALIB (CCFL feeds CRCALIB, which keeps its own pass)."
+function organon_ssum_bal(version::Int, spgrp::Vector{Int32}, dbh::Vector{Float32}, ht::Vector{Float32},
+                          ex_n::Vector{Float32}, ntrees::Int, npts::Int)
+    bal = zeros(Float32, 500); ball = zeros(Float32, 51); sba = 0f0
+    fnp = Float32(npts)
     @inbounds for i in 1:ntrees
-        radgro[i] > 0.0f0 && (rad = true)
+        ex = ex_n[i] / fnp
+        ex <= 0f0 && continue
+        d = dbh[i]
+        ba = ((d * d) * ex) * 0.005454154f0
+        sba += ba
+        if d > 50f0
+            l = trunc(Int, d - 49f0); l > 52 && (l = 52)
+            for k in 1:500; bal[k] += ba; end
+            for k in 1:(l - 1); ball[k] += ba; end
+        else
+            l = trunc(Int, d * 10f0 + 0.5f0)
+            for k in 1:(l - 1); bal[k] += ba; end
+        end
     end
-    if rad
-        error("OC ORGANON DGCALIB: RAD=.TRUE. (radial-increment) calibration is unvalidated — no " *
-              "radial cores exist in FVS/FIA inventory (RAD=.FALSE., TMPCAL(3,*)=1.0). The DG_SWO/" *
-              "SSUM/DIB/DOB machinery is present; validate against a radial-core stand before use.")
+    return sba, bal, ball
+end
+
+"""
+    organon_dgcalib(version, nspn, npts, ntrees, species, spgrp, dbh, ht, cr, expan, radgro,
+                    sba2, bal2, ball2, og, si_1, si_2, calib1) -> calib3::Vector{Float32}(18)
+
+organon/diamcal.f DGCALIB (identical source in the OC and OP builds) — the ORGANON diameter-growth calibration
+CALIB(3,·) from the measured radial increments RADGRO = DG/2 ({oc,op}/cratet.f RADGRO(I)=DG(I)/2.0). Called by
+PREPARE (prepare.f:133-141) after CRCALIB/PRDCR, so `dbh/ht/cr/expan` are PREPARE's TDATAR after the HT/CR dub and
+`sba2/bal2/ball2/og` are CRCALIB's SSUM(2)/OLDGROWTH on that list. `si_1/si_2` are the RAW site indices (DGCALIB
+subtracts 4.5), `calib1` = the HDCALIB height ratios (PHTS). With no RADGRO>0 (RAD=.FALSE.) PREPARE skips DGCALIB
+and CALIB(3,·)=1.0 (prepare.f:137-140). VERSION 1 = SWO (OC), 2 = NWO (OP).
+Steps (diamcal.f:31-170): predict the last-5-yr DG at the current state (DIAMGRO); per group the measured
+DG=DBH−DOB(DIB(DBH)−2·RADGRO) and RATIO=ΣDG/ΣPDG (≤5 measured trees ⇒ the pooled AVRAT); back-date DBH (measured
+or RATIO·PDG), height (PHTS, calibrated H-D ratio), crown ratio and expansion (MORTAL: PM=1−(1−XPM)^POW ≤ .5); the
+SSUM(1) start-state stand; re-predict DG from the back-dated state and CALTST(ΣDG, ΣPDG, ΣDG²/PDG, RADIN).
+"""
+function organon_dgcalib(version::Int, nspn::Int, npts::Int, ntrees::Int, species::Vector{Int32},
+                         spgrp::Vector{Int32}, dbh::Vector{Float32}, ht::Vector{Float32}, cr::Vector{Float32},
+                         expan::Vector{Float32}, radgro::Vector{Float32}, sba2::Float32, bal2::Vector{Float32},
+                         ball2::Vector{Float32}, og::Float32, si_1::Float32, si_2::Float32, calib1::AbstractVector{Float32})
+    calib3 = ones(Float32, 18)
+    radin = zeros(Int, 18); rad = false
+    @inbounds for i in 1:ntrees                        # prepare.f:484-487 (EDIT)
+        if radgro[i] > 0f0
+            rad = true; radin[spgrp[i]] += 1
+        end
+    end
+    rad || return calib3
+    swo = version == 1
+    xsi_1 = si_1 - 4.5f0; xsi_2 = si_2 - 4.5f0
+    _dib(g, d) = swo ? oc_dib_swo(g, d) : OP_DIB_NWO_B0[g] * fpow(d, OP_DIB_NWO_B1[g])
+    _dob(g, d) = swo ? oc_dob_swo(g, d) : fpow(d / OP_DIB_NWO_B0[g], 1f0 / OP_DIB_NWO_B1[g])
+    _hd(g, d)  = swo ? oc_a_hd_swo(g, d) : op_hd_nwo(g, d)
+    # DIAMGRO (diamcal.f:172-215): SITE = SI_1 (SWO); NWO: SI_2 for WH (FIA 263), else SI_1
+    function _pdg(k, d, c, sba, ball, bal)
+        sbal = oc_get_bal(d, ball, bal)
+        g = Int(spgrp[k])
+        if swo
+            return oc_dg_swo(g, d, c, xsi_1, sbal, sba)
+        else
+            return op_dg_nwo(g, d, c, species[k] == 263 ? xsi_2 : xsi_1, sbal, sba)
+        end
+    end
+    pdg = zeros(Float32, ntrees); growth = zeros(Float32, ntrees)
+    sd1 = zeros(Float32, ntrees); sd2 = zeros(Float32, ntrees); sd3 = zeros(Float32, ntrees); sd4 = zeros(Float32, ntrees)
+    @inbounds for i in 1:ntrees                        # PREDICT PREVIOUS 5-YR DIAMETER
+        pdg[i] = _pdg(i, dbh[i], cr[i], sba2, ball2, bal2)
+    end
+    ratio = ones(Float32, 18); sum3 = 0f0; sum4 = 0f0
+    @inbounds for g in 1:18
+        ratio[g] = 1f0
+        radin[g] <= 0 && continue
+        sum1 = 0f0; sum2 = 0f0
+        for j in 1:ntrees
+            spgrp[j] == g || continue
+            dbh2 = dbh[j]
+            dibj = _dib(g, dbh2)
+            if radgro[j] > 0f0
+                dibck = dibj - 2f0 * radgro[j]
+                if dibck > 0f0
+                    dbh1 = _dob(g, dibck)
+                    dbh1 < 0.1f0 && (dbh1 = 0.1f0)
+                else
+                    dbh1 = 0.1f0
+                end
+                dg = dbh2 - dbh1
+                sum1 += dg; sum2 += pdg[j]
+                sd1[j] = dbh2 - dg
+                sd1[j] < 0.1f0 && (sd1[j] = 0.1f0)
+                growth[j] = dg
+            end
+        end
+        ratio[g] = sum1 / sum2
+        sum3 += sum1; sum4 += sum2
+    end
+    avrat = sum3 / sum4
+    @inbounds for g in 1:18
+        radin[g] <= 5 && (ratio[g] = avrat)
+    end
+    @inbounds for j in 1:ntrees
+        g = Int(spgrp[j])
+        if radgro[j] <= 0f0
+            sd1[j] = dbh[j] - ratio[g] * pdg[j]
+            sd1[j] < 0.1f0 && (sd1[j] = 0.1f0)
+            growth[j] = dbh[j] - sd1[j]
+        end
+    end
+    @inbounds for i in 1:ntrees                        # PHTS (diamcal.f:217-243)
+        g = Int(spgrp[i])
+        prsh = _hd(g, sd1[i]); prh = _hd(g, dbh[i])
+        cprsh = 4.5f0 + calib1[g] * (prsh - 4.5f0)
+        cprh = 4.5f0 + calib1[g] * (prh - 4.5f0)
+        sd2[i] = (cprsh / cprh) * ht[i]
+        sd2[i] < 4.5f0 && (sd2[i] = 4.5f0)
+    end
+    @inbounds for i in 1:ntrees                        # PREVIOUS 5-YR CROWN RATIO
+        sd3[i] = (cr[i] * ht[i]) / sd2[i]
+        sd3[i] > 1f0 && (sd3[i] = 1f0)
+    end
+    @inbounds for i in 1:ntrees                        # MORTAL (diamcal.f:245-286) → expansion
+        pmk = 0f0; pw = 0f0
+        if expan[i] > 0f0
+            sbal = oc_get_bal(dbh[i], ball2, bal2)
+            g = Int(spgrp[i])
+            pmk, pw = swo ? oc_pm_swo(g, dbh[i], cr[i], xsi_1, sbal, og) :
+                            op_pm_nwo(g, dbh[i], cr[i], xsi_1, xsi_2, sbal)
+        end
+        xpm = 1f0 / (1f0 + fexp(-pmk))
+        ps = fpow(1f0 - xpm, pw)
+        pm = 1f0 - ps
+        pm > 0.5f0 && (pm = 0.5f0)
+        sd4[i] = expan[i] / (1f0 - pm)
+    end
+    sba1, bal1, ball1 = organon_ssum_bal(version, spgrp, sd1, sd2, sd4, ntrees, npts)
+    @inbounds for g in 1:nspn
+        sdg = 0f0; spdg = 0f0; yss = 0f0
+        for j in 1:ntrees
+            (spgrp[j] != g || radgro[j] <= 0f0) && continue
+            pdg[j] = _pdg(j, sd1[j], sd3[j], sba1, ball1, bal1)
+            sdg += growth[j]; spdg += pdg[j]
+            yss += (growth[j] * growth[j]) / pdg[j]
+        end
+        radin[g] < 2 && continue
+        calib3[g] = oc_caltst(sdg, spdg, yss, radin[g])
     end
     return calib3
+end
+
+"""
+    organon_calib_schedule(acalib, cyclg) -> CALIB(1:3, 1:18)
+
+organon/execute2.f:231-252 — EXECUTE rebuilds CALIB each call from ACALIB with CALH/CALC/CALD (INDS(1..3), all
+.TRUE. by default, {oc,op}/grinit.f:356-358): CALIB(k,i) = (1+A)/2 + 0.5**(0.5·CYCLG)·((A−1)/2), so the PREPARE
+ratio decays halfway toward 1 with a 2-cycle half-life (= A at CYCLG=0). `0.5**x` is powf.
+"""
+function organon_calib_schedule(acalib::AbstractMatrix{Float32}, cyclg::Int)
+    cal = ones(Float32, 3, 18)
+    f = fpow(0.5f0, 0.5f0 * Float32(cyclg))
+    @inbounds for i in 1:18, k in 1:3
+        a = acalib[k, i]
+        cal[k, i] = (1f0 + a) / 2f0 + f * ((a - 1f0) / 2f0)
+    end
+    return cal
 end
 
 """
@@ -270,23 +419,29 @@ copy-back seam (FVS-native shared engine), not this chunk.
 """
 function organon_dg_swo(buf::OrganonBuffer; si_1::Float32, msdi_1::Float32=0.0f0,
         msdi_2::Float32=0.0f0, msdi_3::Float32=0.0f0, cyclg::Int=0,
-        radgro::Union{Nothing,Vector{Float32}}=nothing)
+        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6))
     n = buf.ntrees
     spgrp = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
         spgrp[i] = oc_spgroup_swo(buf.species[i])
     end
     sba1, bal1, ball1, _, _, _, _ = oc_sstats(spgrp, buf.dbh1, buf.ht1or, buf.expan1, n)
-    a1, a2 = oc_submax(spgrp, buf.dbh1, buf.expan1, n, msdi_1, msdi_2, msdi_3)
-    rg = radgro === nothing ? zeros(Float32, n) : radgro
-    calib3 = organon_dgcalib_swo(rg, spgrp, buf.dbh1, n)
+    # execute2.f:327-331: SUBMAX only at CYCLG≤0 (or A1/A2 unset; OSTORY/INGRO/B6THIN = INDS(11..13), 0 here) — later
+    # cycles reuse the A1/A2 carried in STOR(3)/STOR(4).
+    if cyclg <= 0 || stor[3] == 0f0 || stor[4] == 0f0
+        a1, a2 = oc_submax(spgrp, buf.dbh1, buf.expan1, n, msdi_1, msdi_2, msdi_3)
+    else
+        a1, a2 = stor[3], stor[4]
+    end
+    stor[3] = a1; stor[4] = a2
+    c3 = calib3 === nothing ? ones(Float32, 18) : calib3     # execute2.f CALIB(3,·) (organon_calib_schedule)
     dgro = zeros(Float32, n)
     @inbounds for i in 1:n
         buf.expan1[i] <= 0.0f0 && continue
         g = Int(spgrp[i])
         sbal1 = oc_get_bal(buf.dbh1[i], ball1, bal1)
         dgro[i] = oc_diamgro_run(buf.species[i], g, buf.dbh1[i], buf.cr1[i], si_1,
-                                 sbal1, sba1, calib3[g]; cyclg=cyclg)
+                                 sbal1, sba1, c3[g]; cyclg=cyclg)
     end
     return dgro, spgrp, sba1, bal1, ball1, a1, a2
 end

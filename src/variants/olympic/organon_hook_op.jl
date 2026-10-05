@@ -29,6 +29,7 @@ end
 
 "op/sitset.f:325-327 RVARS(3/4/5) = SDIDEF(16=DF), SDIDEF(3=GF), SDIDEF(19=WH) (MSDI_1/2/3)."
 @inline function _op_organon_msdi(s::StandState)
+    length(s.calib.organon_msdi) == 3 && return s.calib.organon_msdi[1], s.calib.organon_msdi[2], s.calib.organon_msdi[3]
     sd = s.plot.sp_sdi_def
     m1 = length(sd) >= 16 ? sd[16] : 0f0
     m2 = length(sd) >= 3  ? sd[3]  : 0f0
@@ -92,7 +93,7 @@ function op_organon_prepare!(s::StandState)
     bhage = stage - 6                                       # BREAST HEIGHT AGE (cratet.f:249)
     si_1, si_2 = _op_organon_site(s)                        # RAW SITEAR(16)/(19); PREPARE's own DF↔WH conv handles ≤0
     npts = max(1, Int(round(pival)))
-    res = op_prepare_nwo(species, dbh1, ht1or, cr1, expan1, n, npts, stage, bhage, si_1, si_2)
+    res = op_prepare_nwo(species, dbh1, ht1or, cr1, expan1, n, npts, stage, bhage, si_1, si_2; radgro = radgro)
     # --- write ORGANON-dubbed HT/CR back into the valid-ORGANON records that were MISSING them
     #     (op/cratet.f:338-354: only IORG=1 trees reloaded) ---
     @inbounds for i in 1:n
@@ -148,11 +149,13 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     m1, m2, m3 = _op_organon_msdi(s)
     cyclg = Int(s.control.cycle)                            # CYCLG = ICYC-1 = jl cycle (0-based)
     isp_fvs = Int[Int(t.species[i]) for i in 1:n]
-    calib1 = Float32[s.calib.organon_acalib[1, g] for g in 1:11]
-    calib2 = Float32[s.calib.organon_acalib[2, g] for g in 1:11]
+    cal = organon_calib_schedule(s.calib.organon_acalib, cyclg)   # execute2.f:231-252 cycle-decayed CALIB
+    calib1 = Float32[cal[1, g] for g in 1:11]
+    calib2 = Float32[cal[2, g] for g in 1:11]
+    calib3 = Float32[cal[3, g] for g in 1:11]
     g = buf.runs ? op_execute_nwo(buf, isp_fvs; si_1 = si1r - 4.5f0, si_2 = si2r - 4.5f0,
                         msdi_1 = m1, msdi_2 = m2, msdi_3 = m3, calib1 = calib1, calib2 = calib2,
-                        cyclg = cyclg) : nothing
+                        calib3 = calib3, cyclg = cyclg, stor = s.calib.organon_stor) : nothing
     # Fold the ORGANON DGRO→DDS into WK2 for the IORG=1 trees (op/dgdriv.f:432-441).
     if g !== nothing
         @inbounds for i in 1:n

@@ -691,6 +691,12 @@ mutable struct Calibration
     op_cr2::Vector{Float32}
     op_mortexp::Vector{Float32}
     op_org_ran::Bool                 # true ⇒ ORGANON EXECUTE ran this cycle (SMORMT>0 ⇒ MORTEXP-for-all in mortality!)
+    organon_stor::Vector{Float32}    # /ORGANON/ STOR(1:6) carried across cycles (execute2.f:147-152 load, :442-447 store):
+                                     # NO, RD0, A1, A2, A1MAX, PA1MAX — zeroed at {oc,op}/grinit.f:422-427
+    organon_msdi::Vector{Float32}    # RVARS(3:5) = the ORGANON max-SDI inputs MSDI_1/2/3, loaded ONCE by {oc,op}/sitset.f
+                                     # (`IF(RVARS(k).EQ.0.)`) from SDIDEF BEFORE cratet's SDICHK can raise SDIDEF; empty ⇒ unset
+    oc_dbh0::Vector{Float32}         # OC: each record's START-of-cycle DBH (organon_apply_growth! grows DBH inline in the
+                                     # DG driver; GRADD's MISTOE/MISMRT reads the pre-UPDATE DBH)
     # FVS_CalibStats (dgdriv.f, DBSCALIB): the LARGE-tree DG-calibration sample stats, captured during the DGSCOR
     # calibration for the CALBSTDB DBS report. cal_ntree = NUMCAL (N calibration trees), cal_stdrat = STDRAT =
     # SQRT(SVAR/SIGMAR²), cal_wci = WC (the Bayes weight-to-input). ScaleFactor=exp(dg_cor), ReadCorMult=exp(dg_cor/WC).
@@ -753,6 +759,9 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # dg_dsq, dg_ccf (EM), sm_const (BM)
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
+    zeros(Float32, 6),                                               # organon_stor (ORGANON STOR)
+    Float32[],                                                       # organon_msdi (RVARS 3-5)
+    Float32[],                                                       # oc_dbh0 (OC start-of-cycle DBH)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
     zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
     Float32[], Float32[],                                            # dub_wk2, dub_wk3 (BM DO 220 dub stash)

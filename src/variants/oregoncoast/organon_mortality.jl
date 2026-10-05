@@ -79,6 +79,54 @@ end
 end
 
 """
+    organon_mort_ind!(stor, cyclg, rd, rda, sqmda, stn, qmda, na, a1, a2, a3, rdcc) -> (ind, a1max, no)
+
+organon/mortality.f MORTAL_RUN:80-84 + :150-204 (VERSION≤3) — the stand-density mortality regime: IND=1 ⇒ the
+A1MAX max-size-density line, IND=0 ⇒ the QUAD1 approach curve from NO. NO / RD0 / A1MAX / PA1MAX are carried across
+cycles in the /ORGANON/ STOR array (execute2.f:147-152 load, :442-447 store; zeroed at grinit.f:422-427): at CYCLG=0
+RD0=RD, NO=0, A1MAX=A1 and the stand's starting regime is chosen; later cycles keep a stand that STARTED over the
+line (RD0≥1) on the IND=1 line (A1MAX capped by the previous PA1MAX), switch a stand that grew past RD=1 with no NO onto
+it, and otherwise keep the carried NO (set once, when RD first exceeds RDCC). Mutates `stor` (1=NO,2=RD0,5=A1MAX,6=PA1MAX).
+"""
+function organon_mort_ind!(stor::AbstractVector{Float32}, cyclg::Int, rd::Float32, rda::Float32, sqmda::Float32,
+                           stn::Float32, qmda::Float32, na::Float32, a1::Float32, a2::Float32, a3::Float32, rdcc::Float32)
+    no = stor[1]; rd0 = stor[2]; a1max = stor[5]; pa1max = stor[6]
+    if cyclg == 0
+        rd0 = rd; no = 0f0; a1max = a1
+    end
+    ind = 0
+    if cyclg == 0
+        if rd >= 1f0
+            a1max = rda > rd ? (flog(sqmda) + a2*flog(stn)) : (flog(qmda) + a2*flog(na))
+            ind = 1
+            a1max < a1 && (a1max = a1)
+            pa1max = a1max
+        else
+            ind = 0
+            rd > rdcc && (no = stn*fpow(flog(rd)/flog(rdcc), -1f0/a3))
+        end
+    else
+        if rd0 >= 1f0
+            ind = 1
+            a1max = flog(qmda) + a2*flog(na)
+            a1max > pa1max && (a1max = pa1max)
+            a1max < a1 && (a1max = a1)
+            pa1max = a1max
+        elseif rd >= 1f0 && no <= 0f0
+            a1max = rda > rd ? (flog(sqmda) + a2*flog(stn)) : (flog(qmda) + a2*flog(na))
+            ind = 1
+            a1max < a1 && (a1max = a1)
+            pa1max = a1max
+        else
+            ind = 0
+            (rd > rdcc && no <= 0f0) && (no = stn*fpow(flog(rd)/flog(rdcc), -1f0/a3))
+        end
+    end
+    stor[1] = no; stor[2] = rd0; stor[5] = a1max; stor[6] = pa1max
+    return ind, a1max, no
+end
+
+"""
     organon_mortal_swo(buf, dgro, hgro, spgrp, bal1, ball1, a1, a2; si_1, cyclg=0, mort=true)
         -> deadexp::Vector{Float32}
 
@@ -89,7 +137,7 @@ Runs before the DBH/HT update, so it sees the ORIGINAL DBH/HT/EXPAN + `dgro` for
 """
 function organon_mortal_swo(buf::OrganonBuffer, dgro::Vector{Float32}, hgro::Vector{Float32},
         spgrp::Vector{Int32}, bal1::Vector{Float32}, ball1::Vector{Float32}, a1::Float32,
-        a2::Float32; si_1::Float32, cyclg::Int=0, mort::Bool=true)
+        a2::Float32; si_1::Float32, cyclg::Int=0, mort::Bool=true, stor::AbstractVector{Float32}=zeros(Float32, 6))
     n = buf.ntrees
     ib = 5
     a3 = 14.39533971f0
@@ -140,23 +188,8 @@ function organon_mortal_swo(buf::OrganonBuffer, dgro::Vector{Float32}, hgro::Vec
     apply_base = true
     if mort
         qmda = sqrt(baa/(kb*na))
-        ind = 0; a1max = a1; no = 0.0f0
-        # CYCLG==0 initialization (organon/mortality.f:150-173). NOTE: only the CYCLG==0 branch is
-        # ported here (ocmin is cyc0); the subsequent-cycle branch (:177-204, needs the carried
-        # RD0/PA1MAX/NO state) is a C7-orchestration follow-up.
         rda = na/fexp(a1/a2 - flog(qmda)/a2)
-        if cyclg == 0
-            if rd >= 1.0f0
-                a1max = rda > rd ? (flog(sqmda) + a2*flog(stn)) : (flog(qmda) + a2*flog(na))
-                ind = 1
-                a1max < a1 && (a1max = a1)
-            else
-                ind = 0
-                if rd > rdcc
-                    no = stn*fpow(flog(rd)/flog(rdcc), -1.0f0/a3)
-                end
-            end
-        end
+        ind, a1max, no = organon_mort_ind!(stor, cyclg, rd, rda, sqmda, stn, qmda, na, a1, a2, a3, rdcc)
         qmdp = (ind == 0 && no > 0.0f0) ? oc_quad1(na, no, rdcc, a1) : fexp(a1max - a2*flog(na))
         if rd <= rdcc || qmdp > qmda
             apply_base = true

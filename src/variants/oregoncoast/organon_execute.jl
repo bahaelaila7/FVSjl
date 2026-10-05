@@ -120,13 +120,15 @@ no RNG (ORGANON serial-corr suppressed, `oc/dgdriv.f:549`).
 function organon_execute_swo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integer};
         si_1::Float32, si_2::Float32, msdi_1::Float32=0.0f0, msdi_2::Float32=0.0f0,
         msdi_3::Float32=0.0f0, cyclg::Int=0, mort::Bool=true,
-        calib1::Union{Nothing,Vector{Float32}}=nothing)
+        calib1::Union{Nothing,Vector{Float32}}=nothing,
+        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6))
     n = buf.ntrees
     dgro, spgrp, sba1, bal1, ball1, a1, a2 =
-        organon_dg_swo(buf; si_1=si_1, msdi_1=msdi_1, msdi_2=msdi_2, msdi_3=msdi_3, cyclg=cyclg)
+        organon_dg_swo(buf; si_1=si_1, msdi_1=msdi_1, msdi_2=msdi_2, msdi_3=msdi_3, cyclg=cyclg, calib3=calib3,
+                       stor=stor)
     hgro = organon_hg_swo(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1)
     deadexp = organon_mortal_swo(buf, dgro, hgro, spgrp, bal1, ball1, a1, a2;
-                                 si_1=si_1, cyclg=cyclg, mort=mort)
+                                 si_1=si_1, cyclg=cyclg, mort=mort, stor=stor)
     cr2 = organon_cr_swo(buf, dgro, hgro, spgrp, deadexp; si_1=si_1, si_2=si_2, cyclg=cyclg)
     dds = zeros(Float32, n)
     @inbounds for i in 1:n
