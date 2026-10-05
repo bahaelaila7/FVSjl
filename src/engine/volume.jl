@@ -683,32 +683,43 @@ function init_merch_standards!(s::StandState)
         return s
     end
     if s.variant isa Ontario
-        # canada/on grinit.f + sitset.f merch defaults. grinit seeds TOPD=BFTOPD=10cm·CMtoIN,
-        # STMP=BFSTMP=30cm·CMtoFT, DBHMIN=BFMIND=0 (ONMTD is DATA MAXSP*0.0). sitset then fills the
-        # zero DBHMIN/BFMIND (TOPD/BFTOPD stay 10cm since they are >0): softwoods (ISPC≤14 or >68)
-        # DBHMIN=5, BFMIND=9, BFTOPD=7.6; hardwoods key on IFOR (SELECT CASE, DBHMIN 5/6, BFMIND 9/11,
-        # BFTOPD 7.6/9.6) — for ont01 IFOR=9 = CASE DEFAULT → DBHMIN=5, BFMIND=11, BFTOPD=9.6. ON has
-        # NO Scribner-cubic (SCF) merch standard, so mirror the cubic values into the scf_* slots
-        # (unused until the ON volume kernel — htont/varvol/cubrds/nbolt — lands as a later chunk).
+        # canada/on grinit.f:144-152 seeds TOPD=BFTOPD=10cm·CMtoIN, STMP=BFSTMP=30cm·CMtoFT and DBHMIN=BFMIND=ONMTD·CMtoIN
+        # = 0 (DATA ONMTD/MAXSP*0.0/); there is NO Scribner-cubic (SCFMIND/SCFTOPD/SCFSTMP stay 0 — FVS_InvReference
+        # CFSaw* = 0). canada/on/sitset.f then (1) the KODFOR minimum-DBH block (:344-359: 903 softwoods ISPC≤14 or ≥68
+        # DBHMIN 4 / BFMIND 7, else DBHMIN 5 + BFMIND 9 off 40-42; 904/910/913/915/916 ISPC>14 DBHMIN 5; 907 ISPC>14 DBHMIN 5,
+        # 40-42 BFMIND 9) and (2) the defaults for the values still ≤0 (:517-565, by IFOR). TOPD/BFTOPD are >0 from grinit,
+        # so the 4.0 / 7.6 / 9.6 defaults never apply (MEASURED live FVSon FVS_InvReference: BFTopDia 3.937, CFMinDBH 4.0
+        # and BFMinDBH 7.0 for the softwoods on 903 — jl had 7.6/9.6, 5 and 9).
         cmToIn = 0.3937f0; cmToFt = 0.0328084f0
-        topd = 10.0f0 * cmToIn                       # 3.937"  (grinit, sitset leaves >0 untouched)
-        stmp = 30.0f0 * cmToFt                       # 0.984252 ft (cubic == board stump)
-        ifor = Int(s.plot.forest_idx)
+        topd = 10.0f0 * cmToIn
+        stmp = 30.0f0 * cmToFt
+        ifor = Int(s.plot.forest_idx); kodfor = Int(s.plot.user_forest_code)
         @inbounds for j in 1:length(c.sp_dbh_min)
-            sw = (j <= 14 || j > 68)                 # sitset softwood test (ISPC.LE.14 .OR .GT.68)
+            dbhmin = 0f0; bfmind = 0f0; bftopd = topd
+            if kodfor == 903
+                if j <= 14 || j >= 68
+                    bfmind = 7.0f0; dbhmin = 4.0f0
+                else
+                    dbhmin = 5.0f0; (j < 40 || j > 42) && (bfmind = 9.0f0)
+                end
+            elseif kodfor in (904, 910, 913, 915, 916)
+                (j > 14 || j >= 68) && (dbhmin = 5.0f0)
+            elseif kodfor == 907
+                j > 14 && (dbhmin = 5.0f0)
+                (40 <= j <= 42) && (bfmind = 9.0f0)
+            end
+            sw = (j <= 14 || j > 68)
             hw4042 = (40 <= j <= 42)
-            dbhmin = sw ? 5.0f0 :
-                     ifor == 2 ? (hw4042 ? 6.0f0 : 5.0f0) :
-                     ifor == 6 ? 6.0f0 : 5.0f0
-            bfmind = sw ? 9.0f0 :
-                     ifor == 2 ? (hw4042 ? 11.0f0 : 9.0f0) :
-                     ifor == 5 ? (hw4042 ? 9.0f0 : 11.0f0) : 11.0f0
-            bftopd = sw ? 7.6f0 :
-                     ifor == 2 ? (hw4042 ? 9.6f0 : 7.6f0) :
-                     ifor == 5 ? 7.6f0 : 9.6f0
+            if dbhmin <= 0f0
+                dbhmin = sw ? 5.0f0 : ifor == 2 ? (hw4042 ? 6.0f0 : 5.0f0) : ifor == 6 ? 6.0f0 : 5.0f0
+            end
+            if bfmind <= 0f0
+                bfmind = sw ? 9.0f0 : ifor == 2 ? (hw4042 ? 11.0f0 : 9.0f0) :
+                         ifor == 5 ? (hw4042 ? 9.0f0 : 11.0f0) : 11.0f0
+            end
             c.sp_dbh_min[j]    = dbhmin; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = stmp
             c.sp_bf_dbhmin[j]  = bfmind; c.sp_bf_topd[j]  = bftopd; c.sp_bf_stump[j] = stmp
-            c.sp_scf_dbhmin[j] = dbhmin; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = stmp
+            c.sp_scf_dbhmin[j] = 0f0; c.sp_scf_topd[j] = 0f0; c.sp_scf_stump[j] = 0f0
         end
         c.merch_init = true
         return s

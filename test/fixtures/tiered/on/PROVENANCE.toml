@@ -1,0 +1,17 @@
+variant = "ON"
+k = 10
+oracle = "/workspace/.onwork/tiered/FVSon_tiered"
+oracle_sha256 = "f96b841103424efafa48ee6ac83551130210f4d929b8dea840237f0606142fd5"
+oracle_build_script = "/workspace/.onwork/tiered/build_tiered.sh"
+oracle_main_std_legacy = "yes — ON g16 objects (-std=legacy main kept, ORACLE_SOURCE_AUDIT §3; FIA-DB path unaffected)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "576469a21ca3bba5100487234d826c387927bb4b"
+generated = "2026-10-05 03:24:14"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire"]
+skipped_regimes = ["mistletoe", "rootdis", "climate", "econ", "cover"]   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = ["mistletoe: FVS01 ERROR/FVS11 ERROR", "rootdis: FVS01 ERROR/FVS11 ERROR", "climate: FVS01 ERROR/FVS11 ERROR", "econ: FVS01 ERROR/FVS11 ERROR", "cover: FVS01 ERROR/FVS11 ERROR"]   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "METRIC-CONVERTED VARIANT=LS AND s.BASAL_AREA_FACTOR = 0 AND s.INV_PLOT_SIZE = 1 AND s.STATE = 27 AND s.LOCATION IN (903,909)"
+stands = ["21197892010661", "720549798290487", "64767919010661", "21769405010661", "245855867010661", "21047926010661", "92320368010661", "245908831010661", "21759882010661", "1803293564290487"]
+excluded_no_live_output = []
+live_no_output_cases = 0

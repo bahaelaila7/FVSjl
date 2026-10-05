@@ -101,8 +101,11 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 # diameter increment: Wykoff HT→DBH inverse (DKK−DK), DDS-scaled, blended
                 hk = h + htg
+                direct = -1f0                            # DBH(K) assigned directly (HK≤4.5), else −1
                 if hk <= 4.5f0
-                    dg = 0.001f0 * hk
+                    # ne/regent.f:290-293: DG(K)=0.0; DBH(K)=D+0.001*HK — REGENT sets the DBH itself, BEFORE MORTS/TRIPLE (grincr.f
+                    # REGENT :449 → MORTS :535), so MORTS' SDQ0/SD2SQ see D+0.001·HK with G=0 (measured CS 66519757010661).
+                    dg = 0f0; direct = d + 0.001f0 * hk
                 else
                     bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
                     dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx); db_floor = true, isne = true)
@@ -122,7 +125,7 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                     dg > dgmx && (dg = dgmx)
                     (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)   # DIAM budwidth floor
                 end
-                dg = dg_bound(nothing, nothing, sp, d, dg, sizcap)   # DGBND = SIZCAP-only for NE
+                dg = dg_bound(nothing, nothing, sp, (direct >= 0f0 ? direct : d), dg, sizcap)   # DGBND = SIZCAP-only for NE
                 # GRADD re-expand the 10-yr basis to the FINT cycle (identity at FINT=10=YR)
                 if fint != NE_REGENT_YR && dg > 0f0
                     bk = bark_ratio(c.bark_a, c.bark_b, sp, d); dib = d * bk
@@ -131,10 +134,16 @@ function small_tree_growth!(s::StandState, stash, ::Northeast; fint::Float32 = 1
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
+                    if direct >= 0f0
+                        t.dbh[i] = direct
+                        trip && (stash.dbh0[i] = d)      # the copies' DBH(K) stays the pre-REGENT D (dgdriv.f set it)
+                    end
                 elseif l == 1
                     stash.dgU[i] = dg; stash.htgU[i] = htg; stash.is_small[i] = true
+                    direct >= 0f0 && (stash.dbhU[i] = direct)
                 else
                     stash.dgL[i] = dg; stash.htgL[i] = htg
+                    direct >= 0f0 && (stash.dbhL[i] = direct)
                 end
             end
         end

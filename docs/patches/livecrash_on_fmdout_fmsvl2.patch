@@ -1,0 +1,45 @@
+--- a/metric/fire/base/fmdout.f
++++ b/metric/fire/base/fmdout.f
+@@ -38,7 +38,7 @@
+       REAL      TOTSNG(2), TOTLIV(2), TONREM, CONV, CONV2
+       LOGICAL   DEBUG, LPRINT, LPRINT2, LPRINT3, LMERCH
+       INTEGER   IYR,JROUT,I,J,K,L,ISZ,JSZ,KSZ,
+-     &          KSP,IDC,ITM,ITON,JS,II,DBSKODE
++     &          KSP,IDC,ITM,ITON,JS,II,DBSKODE,CRWNRTO
+       REAL      TOTDUF,TOTLIT,SNVIS,SNVIH,ACRES,TOTFOL,TOTCON,D,H,
+      &          X,VT,TOTSTD,TOTFUL,TOTSUR, SMALL2, LARGE2,LARGE12,
+      &          CWDDEN(2,4),V1(16),V2(14)
+@@ -225,9 +225,11 @@
+          D = DBH(I)
+          H = HT(I)
+          X = -1.0
++         CRWNRTO=ICR(I)
+          LMERCH = .FALSE.
+ 
+-         CALL FMSVL2(JS,D,H,X,VT,LMERCH,DEBUG,JOSTND)
++         CALL FMSVL2(JS,D,H,X,VT,CRWNRTO,
++     &               'L',LMERCH,DEBUG,JOSTND)
+ 
+          IF (DEBUG) WRITE(JOSTND,60) I,FMPROB(I),ISP(I),D,H,VT
+  60      FORMAT(' FMDOUT (LIVE): I=',I5,' FMPROB=',F10.3,' ISP=',I3,
+--- a/canada/on/vols.f
++++ b/canada/on/vols.f
+@@ -61,6 +61,7 @@
+       REAL DBHCLS(9)
+       INTEGER I,J,IPASS,ILOW,IHI,ISPC,IT,IM,ICDF,IBDF
+       REAL P,D,H,BARK,BRATIO,D2H,VN,VM,VMAX,BBFV,TEMCFI,TEMVOL,ALGSLP
++      REAL SCFDUM
+       REAL VOLCOR,PULPV
+       LOGICAL TKILL,LCONE,BTKFLG,CTKFLG
+ C----------
+@@ -156,8 +157,9 @@
+         CALL CFVOL (ISPC,D,H,D2H,VN,VM,VMAX,TKILL,LCONE,BARK,ITRUNC(I),
+      1              CTKFLG)
+       ENDIF
++      SCFDUM=0.0
+       IF(CTKFLG .AND. TKILL .AND. VMAX .GT. 0.)
+-     1 CALL CFTOPK (ISPC,D,H,VN,VM,VMAX,LCONE,BARK,ITRUNC(I))
++     1 CALL CFTOPK (ISPC,D,H,VN,VM,SCFDUM,VMAX,LCONE,BARK,ITRUNC(I))
+ C----------
+ C  LOAD WK1 WITH MERCH CUBIC SAWLOG VOLUME PER TREE.
+ C----------

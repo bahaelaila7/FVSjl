@@ -13,15 +13,19 @@ end
 key_str(m::Mismatch) = "$(m.variant)/$(m.stand)/$(m.regime)/$(m.file)/$(m.col)/$(m.year)"
 
 # Variant groups for TIERED_VARIANTS. CORE = the variants under an active regime-close campaign — the DEFAULT set
-# (Pkg.test runtime). WEST = the western coverage fixtures (measured residual maps, not yet dug): each adds ~1.5-4 min
-# at TIERED_THREADS=3, so they run on request (TIERED_VARIANTS=WEST / ALL / CORE,TT,…), not in the default suite.
+# (Pkg.test runtime). WEST / EAST = the western / eastern coverage fixtures (measured residual maps, not yet dug): each
+# adds ~1.5-4 min at TIERED_THREADS=3, so they run on request (TIERED_VARIANTS=WEST / EAST / ALL / CORE,TT,…), not in
+# the default suite.
 const TIERED_GROUPS = Dict(
     "CORE" => ["BM", "EM", "IE", "SN"],
-    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK", "BC"])
+    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK", "BC", "OC", "OP"],
+    # EAST = the eastern coverage fixtures (CS, LS, NE + Ontario, the LS-derived metric variant): measured OPEN residual
+    # maps, run on request like WEST (TIERED_VARIANTS=EAST / ALL), never in the default CORE set.
+    "EAST" => ["CS", "LS", "NE", "ON"])
 
 """
 Variants to run (sorted, only those with a fixture directory). ENV TIERED_VARIANTS: unset/empty ⇒ CORE; otherwise a
-comma list of variant codes and/or group names (CORE, WEST, ALL = every fixture directory), e.g. `CORE,TT`.
+comma list of variant codes and/or group names (CORE, WEST, EAST, ALL = every fixture directory), e.g. `CORE,TT`.
 """
 function tiered_variants()
     isdir(TIERED_ROOT) || return String[]

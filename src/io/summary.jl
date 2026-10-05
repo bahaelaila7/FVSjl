@@ -168,11 +168,20 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     # ON: canada/on vols.f never loads MCFV/SCFV — its merch volume lives only in the WK1 scratch (the metric
     # FVS_TreeList MCuM binds WK1·FT3toM3, dbstrls.f:346), which the gradd.f/fvs.f PROB round trip does not touch;
     # jl's merch_cuft_vol carries that WK1. A PROB=0 record keeps CFV·0 = BFV·0 = 0 (the divide-back is PROB>0-only).
+    # A record whose PROB is 0 (killed outright this cycle): the multiply leaves V·0 = 0 and gradd.f:347-351 divides
+    # back only `IF (PROB(I).GT.0.0)`, so CFV/BFV/MCFV/SCFV (and, under LFIANVB, the biomass/carbon arrays) are 0 for
+    # every variant — the FVS_TreeList reports 0 volume for such rows (MEASURED live FVScs 66519757010661 2022: TPA 0 /
+    # MortPA 0.71 PO record, TCuFt 0 live, 4.2 jl), and vols.f `IF(P.LE.0.0) GO TO 200` never refills them.
     _on = s.variant isa Ontario
     @inbounds for i in 1:t.n
         p = t.tpa[i]
         if !(p > 0f0)
-            _on && (t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0)
+            t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0
+            _on || (t.merch_cuft_vol[i] = 0f0)
+            if bio
+                t.abvgrd_bio[i] = 0f0; t.merch_bio[i] = 0f0; t.cubsaw_bio[i] = 0f0; t.foliage_bio[i] = 0f0
+                t.abvgrd_carb[i] = 0f0; t.merch_carb[i] = 0f0; t.cubsaw_carb[i] = 0f0; t.foliage_carb[i] = 0f0
+            end
             continue
         end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)

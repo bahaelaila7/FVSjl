@@ -637,6 +637,10 @@ function compute_volumes_ne!(s::StandState)
     # vols.f IPASS=2 (ILOW=IREC2..MAXTRE) also volumes the cycle-0 input dead records (FVS_TreeList rows only).
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # vols.f:130-131 `P=PROB(I); IF(P.LE.0.0) GO TO 200`: a live record killed outright is not re-volumed — its
+        # HT2TD stays at the VOLS-entry 0 (above) and its CFV/MCFV/SCFV/BFV are the gradd.f PROB round trip's 0
+        # (_vol_prob_roundtrip!). MEASURED live FVScs 66519757010661 2032: such rows report Ht2TDCF 0.
+        i <= t.n && !(t.tpa[i] > 0f0) && continue
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0

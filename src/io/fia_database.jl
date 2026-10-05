@@ -261,7 +261,8 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # stands never caught it — cat01's habitat resolves to the benign CWC221 default). PV_CODE priority.
     # (R5 forests <600 use the ca/pvref5.f + R5HABT path, which jl's R6-only ca_sitset! does not implement —
     #  only ~6 CA FIA stands, left at the CWC221 default as before.)
-    if s.variant isa CentralCalifornia && Int(p.user_forest_code) >= 600
+    # OC links the same ca/habtyp.f + ca/pvref6.f + ca/ecocls.f (oc/sitset.f = ca/sitset.f's R6 branch).
+    if (s.variant isa CentralCalifornia || s.variant isa OregonCoast) && Int(p.user_forest_code) >= 600
         pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
         pvref = ""
         if _fia_present(d, "PV_REF_CODE")

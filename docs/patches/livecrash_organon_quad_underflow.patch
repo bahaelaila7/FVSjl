@@ -1,0 +1,52 @@
+--- a/organon/mortality.f
++++ b/organon/mortality.f
+@@ -324,11 +324,20 @@
+ C**********************************************************************
+ C
+       IMPLICIT NONE
+-      REAL*4 NI,NO,QUAD1,A1,A2,A3,A4,X,RDCC
++      REAL*4 NI,NO,QUAD1,A1,A2,A3,A4,X,RDCC,T
+       A2=0.62305
+       A3=14.39533971
+       A4=-(LOG(RDCC)*A2/A1)
+-      X=A1-A2*LOG(NI)-(A1*A4)*EXP(-A3*(LOG(NO)-LOG(NI)))
++C  Guard the EXP underflow: after a heavy thinning NI << NO, T < -87.3
++C  (EXP(T) < FLT_MIN) and the -ffpe-trap=underflow build SIGFPEs. The
++C  term (A1*A4)*EXP(T) is then far below one ULP of X, so dropping it
++C  gives the same X the untrapped arithmetic gives.
++      T=-A3*(LOG(NO)-LOG(NI))
++      IF(T .LT. -87.0) THEN
++        X=A1-A2*LOG(NI)
++      ELSE
++        X=A1-A2*LOG(NI)-(A1*A4)*EXP(T)
++      ENDIF
+       QUAD1=EXP(X)
+       RETURN
+       END
+@@ -337,7 +346,7 @@
+ C**********************************************************************
+ C
+       IMPLICIT NONE
+-      REAL*4 NI,NO,QUAD2,A1,A2,A3,A4,X,RDCC
++      REAL*4 NI,NO,QUAD2,A1,A2,A3,A4,X,RDCC,T
+       REAL*4 RDANUW
+ C----------
+ C  DUMMY ARGUMENT NOT USED WARNING SUPPRESSION SECTION
+@@ -347,7 +356,16 @@
+       A2=0.64
+       A3=3.88
+       A4=0.07
+-      X=A1-A2*LOG(NI)-(A1*A4)*EXP(-A3*(LOG(NO)-LOG(NI)))
++C  Guard the EXP underflow: after a heavy thinning NI << NO, T < -87.3
++C  (EXP(T) < FLT_MIN) and the -ffpe-trap=underflow build SIGFPEs. The
++C  term (A1*A4)*EXP(T) is then far below one ULP of X, so dropping it
++C  gives the same X the untrapped arithmetic gives.
++      T=-A3*(LOG(NO)-LOG(NI))
++      IF(T .LT. -87.0) THEN
++        X=A1-A2*LOG(NI)
++      ELSE
++        X=A1-A2*LOG(NI)-(A1*A4)*EXP(T)
++      ENDIF
+       QUAD2=EXP(X)
+       RETURN
+       END

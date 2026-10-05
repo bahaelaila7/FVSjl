@@ -21,7 +21,10 @@ Inside-bark / outside-bark DBH ratio for species `sp` at DBH `d` (bratio.f), whe
 """
 @inline function bark_ratio(bark_a, bark_b, sp::Integer, d::Real)::Float32
     df = Float32(d)
-    ratio = df > 0f0 ? (bark_a[sp] + bark_b[sp] * df) / df : 0.99f0
+    # A zero intercept is the constant-ratio encoding (NE/CS/LS bratio.f: BRATIO = BKRAT(IS)) — return the slope
+    # itself: (0 + b·d)/d is NOT b in Float32 (1 ULP off on some d; MEASURED live FVScs 66519757010661 RC 2.2":
+    # REGENT DGSM 0.69037056 live vs 0.69037032 with bark 0.9499999). SN's (B0+B1·D)/D has no zero B0.
+    ratio = df > 0f0 ? (bark_a[sp] == 0 ? Float32(bark_b[sp]) : (bark_a[sp] + bark_b[sp] * df) / df) : 0.99f0
     ratio > 0.99f0 && (ratio = 0.99f0)
     ratio < 0.80f0 && (ratio = 0.80f0)
     return ratio

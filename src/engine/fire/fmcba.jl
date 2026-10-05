@@ -195,8 +195,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              # IFOR 4-9). MEASURED FVSso_g16 DEBUG FMCBA 15184869010497 (forest 601) 2010: PERCOV 38.904 live = jl with
              # _forest_crwdth; the old so_cwcalc gave 38.550 (2020: 40.491 vs 40.185) ⇒ surface flame/torching off.
              _so_fm ? _forest_crwdth(s, sp, cd, ch, cc) :
-             _oc_fm ? oc_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
-             _op_fm ? op_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
+             _oc_fm ? oc_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
+             _op_fm ? op_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
              _em_fm ? em_cwcalc(sp, cd, ch, Float32(cc), s.plot.basal_area, s.plot.elevation,
                                 _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
              _citu_fm ? tree_crwdth(s, sp, cd, ch, cc) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
