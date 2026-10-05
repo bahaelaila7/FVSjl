@@ -314,4 +314,9 @@ end
         @test _cells(c) == 0
     end
 end
+# tt/dbsreference.f (LOCCODE upgrade, only in the TT build) adds `LocationCode int` = KODFOR to FVS_InvReference.
+@testset "TT FVS_InvReference LocationCode = KODFOR (tt/dbsreference.f:36,98-121) vs FVStt_g16" begin
+    c = _case("TT", "2780339010690", "none")
+    @test _cells(c; pred = m -> m.file == "FVS_InvReference") == 0
+end
 end # module

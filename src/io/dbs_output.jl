@@ -1502,6 +1502,10 @@ CREATE TABLE IF NOT EXISTS FVS_InvReference(
   BFTopDia real, BFStump real);
 """
 
+# tt/dbsreference.f (the 2026 LOCCODE upgrade, so far only in the TT build): `LocationCode int` after StandID, bound to
+# KODFOR (dbsreference.f:36,98-121). MEASURED FVStt_g16 2780339010690 FVS_InvReference LocationCode 415.
+const _FVS_INVREF_CREATE_LOC = replace(_FVS_INVREF_CREATE, "StandID text not null, " => "StandID text not null, LocationCode int, ")
+
 """
     write_dbs_invref!(dbpath, caseid, standid, s)
 
@@ -1550,14 +1554,15 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_INVREF_CREATE)
-        ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", 21), ",") * ")"
+        loc = s.variant isa Teton
+        _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
+        ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for sp in 1:nsp
             # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
             # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
             _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, sp,
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (Int(p.user_forest_code), sp) : (sp,))...,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
                 String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
