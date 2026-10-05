@@ -2473,7 +2473,7 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     # a later SNAGBRK keyword overrides specific species. (NE was previously mis-assumed HTX=0 ⇒ snags never
     # shrank ⇒ StandDead carbon ran high — S94/#102.)
     if isempty(fs.params.snag_htx)
-        if s.variant isa LakeStates
+        if _ls_ffe(s.variant)      # ON links fire/ls/fmvinit.f
             htxcol = coef_col(s.coef, :snag_htx)
             @inbounds for sp in 1:min(nspecies(s.variant), length(htxcol))
                 h = htxcol[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)

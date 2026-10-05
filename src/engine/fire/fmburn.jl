@@ -359,7 +359,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     @inbounds for sp in sort!(collect(keys(sp_tot)))
         kil = get(sp_kil, sp, zeros(Float32, 7))
         push!(species_mort, (; fvs = strip(coef.code_alpha[sp]), plants = strip(coef.code_plants[sp]),
-              fia = lpad(strip(coef.code_fia[sp]), 3, '0'), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
+              fia = (local _f = strip(coef.code_fia[sp]); isempty(_f) ? "" : lpad(_f, 3, '0')), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
               bakill = get(sp_bak, sp, 0f0), volkill = get(sp_vol, sp, 0f0)))
     end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
@@ -471,6 +471,7 @@ fm_canopy_lsw(sp::Integer, ::Teton) = (1 <= sp <= 5) || (7 <= sp <= 12) || sp ==
 fm_canopy_lsw(sp::Integer, ::Utah) = (1 <= sp <= 5) || (7 <= sp <= 12) || (14 <= sp <= 17) || sp == 23
 fm_canopy_lsw(sp::Integer, ::SoutheastAlaska) = 1 <= sp <= 13
 fm_canopy_lsw(sp::Integer, ::BritishColumbia) = (1 <= sp <= 10) || sp == 14
+fm_canopy_lsw(sp::Integer, ::Ontario) = 1 <= sp <= 14   # fire/ls/fmvinit.f:789-793 CASE (1:14) (none of 69-72)
 fm_canopy_lsw(sp::Integer, ::Union{PacificNorthwest,WestCascades,Olympic}) = (1 <= sp <= 20) || (29 <= sp <= 33) || sp == 38
 fm_canopy_lsw(sp::Integer, ::EastCascades) = (1 <= sp <= 19) || sp == 31
 fm_canopy_lsw(sp::Integer, ::WestSierra) = (1 <= sp <= 27) || sp == 42

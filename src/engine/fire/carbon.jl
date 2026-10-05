@@ -447,7 +447,9 @@ function stand_carbon_report(s::StandState; vtrip::Bool = false)
         if !ffe
             v1 += abio; v2 += mbio
         else
-            vt = west ? ffe_west_nocut(s, sp, d, h)[2] : max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h))
+            vt = west ? (_ffe_lvwest(s.variant) ? ffe_west_nocut(s, sp, d, h)[2] :
+                         max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1])) :   # ON: LVWEST=F ⇒ LMERCH=F
+                 max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h))
             v2 += pr * vt * (v2t[sp] / 2000f0)
         end
     end

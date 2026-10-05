@@ -850,12 +850,16 @@ mutable struct Scratch
     # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
     ind1_buf::Vector{Int32}
     sdi_baxsp::Vector{Float32}
+    # ON VOLS (canada/on/vols.f:127-133): each record's start-of-cycle DBH, written by the UPDATE loop and read by the
+    # compute_volumes_on! that immediately follows it — a top-killed record's VOLS diameter is D + DG/BRATIO(D, NORMHT),
+    # not the DBH UPDATE grew with BRATIO(D, HT). 0 = no update this call (LSTART, or any other VOLS call).
+    vol_dstart::Vector{Float32}
 end
 Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros(Int32,mt), zeros(Int32,mt),
                     zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
                     zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,mt), zeros(Float32,MAXSP))
+                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,mt))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.

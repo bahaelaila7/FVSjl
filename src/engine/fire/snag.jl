@@ -35,7 +35,7 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     # "new equation" −0.006·d+0.18 (a much faster fall); NE uses an ALGSLP table (not yet ported — NE keeps
     # the SN form here). The small-snag LINEAR-fall breakpoint also differs: SN/CS = 12" (redcedar ksp2 keeps
     # the last-5% ramp); LS = 18", except cedar/tamarack (ksp 10,11,14) at 12" (fmsfall.f LS:139-145).
-    if variant isa LakeStates
+    if _ls_ffe(variant)    # ON links fire/ls/fmsfall.f
         modrate = clamp((-0.006f0 * d + 0.18f0) * fallx, 0.01f0, 1f0)   # FVS clamps MODRATE (not base)
         linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
     else

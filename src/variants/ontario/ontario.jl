@@ -41,4 +41,10 @@ variant_maxtre(::Ontario) = 6000   # canada/on PRGPRM.F77 PARAMETER (MAXTRE=6000
 htg_period(::Ontario) = 10f0   # CONFIRM vs canada/on/grinit.f IFINT/YR before relying on this
 
 const ON_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "ontario"))
-coefficients(::Ontario) = cached_coefficients(() -> load_species_coefficients(ON_DATADIR), "ON")
+coefficients(::Ontario) = cached_coefficients("ON") do
+    c = load_species_coefficients(ON_DATADIR)
+    # FFE (the Lake States layer, data/ontario/fire_*.csv): FMCBIO/FMCROWE read DBHMIN(KSP) = canada/on/grinit.f:145
+    # ONMTD·CMtoIN, which _fm_dbhmin takes from the merch standards; this column only sizes the FFE species loops.
+    haskey(c.species, :dbh_min) || (c.species[:dbh_min] = zeros(Float32, length(c.species[:v2t])))
+    c
+end

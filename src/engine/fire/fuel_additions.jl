@@ -77,6 +77,16 @@ end
     t2 > t3 && (t2 = t3)
     return sz == 0 ? t0 : sz == 1 ? t1 : sz == 2 ? t2 : t3
 end
+# fire/ls/fmvinit.f:796-821 (linked by ON): four TFALLCLS groups — TFALL(I,1)=2/1/1/1, (I,3)=5/4/3/2, (I,4)=10/8/6/4 —
+# TFALL(I,0)=1, TFALL(I,2)=TFALL(I,1), TFALL(I,5)=TFALL(I,4). The ON plantation species 69-72 have no SELECT CASE arm
+# (TFALLCLS=0 ⇒ TFALL(I,1:5) never set = 0 ⇒ FMSCRO's ILIFE floor of 1).
+@inline function _fm_tfall_lsfmv(cls::Integer, sz::Int)::Float32
+    sz == 0 && return 1f0
+    (1 <= cls <= 4) || return 0f0
+    sz <= 2 && return (2f0, 1f0, 1f0, 1f0)[cls]
+    sz == 3 && return (5f0, 4f0, 3f0, 2f0)[cls]
+    return (10f0, 8f0, 6f0, 4f0)[cls]
+end
 _fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai ||
                        v isa BritishColumbia   # canada/fire/bc/fmvinit.f:384-395, the same TFALL block
 @inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
@@ -100,7 +110,8 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
     cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
     dcx = get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
     # FMSNGDK (fmscro.f:99): the R6 variants' JYRSOFT·DECAYX (_snag_dktime); others the (1.24·D+13.82)·DECAYX form.
-    tsoft = r6_ffe_code(s.variant) === :none ? (1.24f0 * dbh + 13.82f0) * dcx : _snag_dktime(s, Int(sp), dbh, dcx)
+    tsoft = (r6_ffe_code(s.variant) === :none && !(s.variant isa Ontario)) ? (1.24f0 * dbh + 13.82f0) * dcx :
+            _snag_dktime(s, Int(sp), dbh, dcx)   # ON: fmsngdk.f CASE('LS','ON') 0.65·DECAYX·D
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
@@ -110,6 +121,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         tft = _fm_tfall_table(s.variant)
         tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
              s.variant isa SouthCentralOregon ? _fm_tfall_so(coef, Int(sp), sz, Int(s.plot.user_forest_code)) :
+             s.variant isa Ontario ? _fm_tfall_lsfmv(Int(coef_col(coef, :tfall_cls)[sp]), sz) :   # (LS: east-resid)
              _fm_tfall(cls, sz, sp)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife

@@ -149,5 +149,7 @@ function _snag_dktime(s::StandState, sp::Int, d::Float32, dcx::Float32)::Float32
         yrsoft, _, _ = r6_sdcy(r6, sp, d, _r6_itype(s))
         return Float32(yrsoft) * dcx
     end
+    # fmsngdk.f:64-66 CASE('LS','ON'): DKTIME = 0.65·DECAYX·D (·XMOD=1). (LS: on the east-resid branch.)
+    s.variant isa Ontario && return 0.65f0 * dcx * d
     return (1.24f0 * dcx * d) + (13.82f0 * dcx)
 end

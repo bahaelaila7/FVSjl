@@ -1480,6 +1480,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
         s.variant isa OregonCoast && continue   # (OC's ABIRTH is aged with the others after VOLS, gradd.f:205)
+        _dstart = t.dbh[i]
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
@@ -1489,8 +1490,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # a ~0.05-ft NORMHT error over cycles for topkill trees (the broken-top cuft ±1 residual).
         t.norm_ht[i] > 0 &&
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
+        # canada/on/vols.f:127-131: a top-killed record's VOLS BARK is BRATIO(ISPC, D_start, NORMHT/100) — ON's H/D bark
+        # reads the height — with the NORMHT update.f:66-67 just made.
+        if _on_up && t.trunc[i] > 0 && t.height[i] >= 4.5f0
+            t.vol_bark[i] = on_bratio(Int(t.species[i]), _dstart, Float32(t.norm_ht[i]) / 100f0)
+            s.scratch.vol_dstart[i] = _dstart
+        end
     end
     compute_volumes!(s)                     # end-of-period volumes
+    _on_up && fill!(view(s.scratch.vol_dstart, 1:n), 0f0)
     # gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` — AFTER UPDATE and its VOLS (above), so an age-dependent volume (ON's
     # Mowraski NMV) uses the pre-increment age this cycle. The one ABIRTH aging for every variant that reads it.
     _age_up && @inbounds(for i in 1:n; t.birth_age[i] += fint; end)
@@ -1826,8 +1834,9 @@ function run_keyfile(keypath::AbstractString;
                              mgmt_id = mid, variant = variant_code(s.variant),
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
-            # FVS_InvReference (dbsreference.f) is not linked in the metric builds (BC/ON source lists: no dbsreference.f).
-            _metric_variant(s.variant) || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            # FVS_InvReference (dbsreference.f) is not in the BC build's source list; the ON oracle (build_g16_on.sh) compiles
+            # the upstream vdbsqlite/dbsreference.f (LocationCode upgrade) and writes it (live tiered ON goldens).
+            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
