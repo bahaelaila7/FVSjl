@@ -392,4 +392,11 @@ end
     @test !c.crashed
     @test count(m -> _rel(m) > 1e-5, c.ms) == 0
 end
+# nc/fmcblk.f DATA BIOGRP (Jenkins biomass group: FMCBIO root ratio, FMSCUT/FMSALV soft/hard) — 2,4,2,3,8,1,9,8,3,4,8,1.
+@testset "NC Jenkins BIOGRP (nc/fmcblk.f) Belowground_Live vs FVSnc_g16" begin
+    for cn in ("449523860489998", "723056768290487")
+        c = _case("NC", cn, "salvage")
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
 end # module
