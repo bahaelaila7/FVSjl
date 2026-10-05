@@ -38,6 +38,18 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     if variant isa LakeStates
         modrate = clamp((-0.006f0 * d + 0.18f0) * fallx, 0.01f0, 1f0)   # FVS clamps MODRATE (not base)
         linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
+    elseif variant isa Northeast
+        # ne/fmsfall.f: BASE = ALGSLP(D,(1,5,12),(.20,.0667,.04),3), MODRATE = BASE·FALLX clamped [0.01,1], linear
+        # below 20" (no species exception). jl had kept the SN form (−0.001679·D+0.064311, 12") ⇒ NE snags fell too
+        # slowly — MEASURED live FVSne 17955726010661 2005: inventory aspen snag DENIH 8.693 vs jl 11.172.
+        modrate = clamp(algslp(d, _NE_FALL_DVALS, _NE_FALL_FRATE) * fallx, 0.01f0, 1f0)
+        linear = d < 20f0
+    elseif variant isa CentralStates
+        # cs/fmsfall.f: the SN BASE, but the linear small-snag branch needs KSP>2 (redcedar 1 AND juniper 2 take the
+        # last-5% ramp; SN exempts only KSP 2).
+        base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
+        modrate = min(1f0, base * fallx)
+        linear = d < 12f0 && ksp > 2
     else
         base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
         if variant !== nothing && _ffe_west_fallform(variant)
@@ -65,6 +77,9 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     end
     return dfalln
 end
+
+const _NE_FALL_DVALS = Float32[1.0, 5.0, 12.0]       # ne/fmsfall.f DATA DVALS
+const _NE_FALL_FRATE = Float32[0.20, 0.0667, 0.04]    # ne/fmsfall.f DATA FRATE
 
 """
     snag_decay_fraction(coef, ksp) -> Float32
@@ -261,7 +276,7 @@ _snag_east_vol(v) = v isa Southern || v isa CentralStates || v isa LakeStates ||
     ffe_east_snag_vol_at(s, sp, d, htdead, xht) -> Float32 (cuft)
 
 FMSVOL(I, XHT) for the eastern family (CS/LS/NE/SN, fmsvol.f:98-153): NATCRS on the snag record's (DBHS, HTDEAD) —
-MCF = the DBH-gated merch cubic (LS/NE R9 Clark v4+v7, SN/CS R8 Clark via `_snag_merch_cuft_on`) — then, since
+MCF = the DBH-gated merch cubic (CS/LS/NE R9 Clark v4+v7 via `r9_natcrs_cuft`, SN R8 Clark via `_snag_merch_cuft_on`) — then, since
 XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·HTDEAD, MCF). FMDOUT/FMSOUT/FMSALV
 call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
 measured on the fat lower bole of its death-form tree.
@@ -269,14 +284,8 @@ measured on the fat lower bole of its death-form tree.
 function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32; topkill::Bool = true)::Float32
     coef = s.coef
     local mcf, vmax
-    if s.variant isa LakeStates || s.variant isa Northeast
-        ifor = Int(s.plot.forest_idx)
-        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-        v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
-        mcf = d >= dbhmin ? v[4] + v[7] : 0f0
-        vmax = v[1]
+    if _r9_east(s.variant)        # CS/LS/NE: NATCRS = R9 Clark (CS was wrongly on SN's R8 path ⇒ cone-floor snag boles)
+        vmax, mcf = r9_natcrs_cuft(s, sp, d, htd)
     else
         mcf = _snag_merch_cuft_on(s, sp, d, htd)
         vmax = _fm_cuft(s, sp, d, htd; merch = false)
@@ -435,7 +444,9 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         # falldown stays bit-exact.
         born_now = Int(sn.year[i]) == cur ? 1 : 0
         yrs = clamp(eff - Int(sn.year[i]) + born_now, 0, Int(nyears))
-        yrs > 0 || continue
+        if yrs <= 0
+            continue
+        end
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
         # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
         # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
@@ -549,6 +560,8 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     end
     return fallen
 end
+# (fmsnag.f's per-record fall-then-breakage order is fmsnag_year!, below, for every variant — east-resid's CS/LS/NE-only
+# interleave inside update_snags! was the same mechanism and is folded into it.)
 
 # FMSNAG's per-record HARD flag as the snag's year-`iyr` processing sees it: FMSADD creates every record HARD (fmsadd.f:239)
 # and FMSNAG flips it at the END of a year's pass once IYR−YRDEAD ≥ DKTIME (fmsnag.f:282-285). So at `iyr` the flag reflects
@@ -589,7 +602,9 @@ _snag_htr1(::EasternMontana) = 0.0228f0   # em/fmvinit.f HTR1
 # height LOHT and old height HIHT) goes to down wood, split across the size classes by the same cone taper as the
 # CWD1 fall, DIF = MAX(0,P(LOCUT)−P(HICUT))·TVOLI with R1 widened by LOHT (fmcwd.f:347). Not normalized (FVS adds
 # the raw cone slice). Enabled per variant as each is validated against live (EM first); the others still drop it.
-_ffe_cwd2(v) = _ffe_west_vol(v)   # base fmcwd.f/fmsnag.f — every western-layer variant whose snags lose height
+# LS/NE (default HTX 1.0, ls|ne/fmvinit.f) break their snags every year too — fmsnag.f:254 CALL CWD2 is in every build;
+# MEASURED live FVSls 103337570010661 2015 FMSNAG: hard CWD <0.25"/0.25-1" grew by the broken tops (jl dropped them).
+_ffe_cwd2(v) = _ffe_west_vol(v) || v isa LakeStates || v isa Northeast
 
 """
     ffe_snag_height_loss!(s, nyears) -> nothing

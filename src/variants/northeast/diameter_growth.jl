@@ -73,11 +73,14 @@ function ne_diameter_increment(s::StandState, i::Integer, ebau::Vector{Float32})
     d0 = tr.dbh[i]; d0 <= 0f0 && return 0f0
     d = d0
     @inbounds for _ in 1:10
-        potbag = b1 * sitear * (1f0 - exp(-(b2 * d))) * 0.7f0
+        # ne/dgf.f:131-151 REAL*4 with gfortran's libm: EXP → expf, (QTRBA/.0054542)**.5 → powf(x,0.5) (gfortran does
+        # not fold **.5 to sqrt without -funsafe-math). Native Julia exp/sqrt were 1 ULP off now and then, which the
+        # 10-step iteration amplified (MEASURED live FVSne 9740818010661 cycle 2: WK2 15 ULP off on SM/sp93 records).
+        potbag = b1 * sitear * (1f0 - fexp(-(b2 * d))) * 0.7f0
         gmod = ne_balmod(b3, ebau, d)
         deld = potbag * gmod
         qtrba = deld + d * d * 0.0054542f0
-        d = sqrt(qtrba / 0.0054542f0)
+        d = fpow(qtrba / 0.0054542f0, 0.5f0)
     end
     return d - d0
 end
@@ -98,6 +101,7 @@ function ne_dgf!(s::StandState)
     wk2 = view(s.scratch.wk, 2, :)
     ba = sd[:bark_intercept]; bb = sd[:bark_slope]
     ebau = zeros(Float32, 50); ne_badist!(ebau, s)
+    copyto!(s.scratch.ne_ebau, ebau)              # /TWIGCOM/ EBAU persists until the next DGF (read by REGENT(LESTB))
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
@@ -110,7 +114,7 @@ function ne_dgf!(s::StandState)
         ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (diagr *= ctl.dg_cor2[sp])
         diagr < 0.0001f0 && (diagr = 0.0001f0)
         dds   = diagr * (2f0 * dib + diagr)
-        wk2[i] = log(dds) + c.dg_cor[sp]
+        wk2[i] = flog(dds) + c.dg_cor[sp]               # dgf.f:162 ALOG → logf
     end
     return s
 end

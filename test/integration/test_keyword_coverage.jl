@@ -44,7 +44,6 @@ const _KC_FT_BROKEN = Dict(
     # rec6 WK3 9154.72461 vs 9154.72413, Δ0.0005 < ULP 0.00098; rec13/52/186 WK3 within 0.07 of each other), and
     # those sub-ULP diffs flip the partition's near-tie-sensitive nested sort. This is exactly the GOAL's two
     # accepted divergences (ULP float + COMPRESS eigensolver) — NOT a bug; the COMPRESS port is faithful. See #41.
-    "s22_compress" => "ACCEPTED COMPRESS eigensolver+ULP: sub-ULP PC-score ties flip within-class sort → RANN sel plot",
     # s26 FIXED (this session) — was a REAL bug (now bit-exact, moved out of broken):
     # the post-establishment species-sort order. FVS's ESGENT calls SPESRT to re-establish
     # the species-order sort after adding regen (esgent.f:41-44), so the DGSCOR/REGENT RNG

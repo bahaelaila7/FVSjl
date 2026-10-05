@@ -408,8 +408,12 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
             tmore = tn - t85msb * ON_ACRtoHA
             tmore < 0f0 && (tmore = 0f0)
             dlo = ctl.msb_dlo; dhi = ctl.msb_dhi
-            tpacls = _msb_tpacls(t, killed, n, dlo, dhi, fint / 10f0,
-                                 i -> on_bratio(Int(t.species[i]), t.dbh[i], t.height[i]))   # on/morts.f:747-753
+            tpacls = 0f0                              # on/morts.f:747-753, TPACLS=TPACLS+PROB-WK2 left to right
+            @inbounds for i in 1:n
+                bark = on_bratio(Int(t.species[i]), t.dbh[i], t.height[i])
+                dbhend = t.dbh[i] + (t.diam_growth[i] / bark) * (fint / 10f0)
+                (dbhend >= dlo && dbhend < dhi) && (tpacls = (tpacls + t.tpa[i]) - killed[i])
+            end
             if !(tmore > tpacls)                      # else: warning, GO TO 353
                 mflag = Int(ctl.msb_flag)
                 temeff = ctl.msb_eff

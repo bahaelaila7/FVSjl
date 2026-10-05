@@ -547,6 +547,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # backdated dbh — FVS NE calib computes BADIST on the current stand (verified EBAU=52). Stash the current dbh
     # for ne_badist! to read; SN ignores it (point_bal-based, never calls ne_badist!). Cleared right after.
     s.variant isa Northeast && (c.calib_dbh = saved_dbh)
+    # CS/LS dgf.f: the OB→IB bark conversion reads DBH(I) (current), not DIAM(I) (backdated) — see their dgf!.
+    (s.variant isa CentralStates || s.variant isa LakeStates) && (c.calib_dbh = saved_dbh)
     # AK: the DGF's point-Zeide PRD (SDICAL XMAXPT + SDICLS ZRD) reads the UNCHANGED DBH(I) = CURRENT
     # dbh even during calibration (like PTBALT/PTBAA above) — FVS backdates only DIAM(I), not the DBH
     # array SDICAL/SDICLS sum. Stash the current dbh so point_zeide! uses it (else jl computes PRD on

@@ -1,5 +1,7 @@
 # Western Unported Variants — Port Roadmap
 
+> **Superseded (2026-10-05):** all ten variants scoped here are ported and in the tiered suite. Current plan: [ROADMAP.md](ROADMAP.md); current numbers: [CERTIFICATION_STATUS.md](CERTIFICATION_STATUS.md).
+
 Scoping doc for the 10 unported **western** FVS variants (AK CA EC NC OC OP PN SO WC WS),
 to be ported after the in-progress BC NEWSPRED (#196). All findings are **MEASURED from the
 Fortran source** (variant dirs `/<v>/` + `bin/FVS<v>_buildDir/`), not inferred. No port code

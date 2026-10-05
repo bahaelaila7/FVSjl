@@ -13,10 +13,13 @@ means a divergence that was *measured* and reduced to a named floating-point pri
 a DGSCOR/volume ULP) — not an unexplained difference. The full method is
 **[docs/DOCTRINE.md](docs/DOCTRINE.md)**.
 
-## Validated variants (24)
+## Variants (24) and certification status
 
-All 24 FVS geographic variants are ported and validated as bit-exact-or-cornered
-drop-ins for their live Fortran counterparts:
+All 24 FVS geographic variants are ported, and all 24 are measured cell-by-cell against their live Fortran
+counterparts by the tiered suite. Certification (zero unexplained cells) is in progress — as of 2026-10-05 SN, IE, EM,
+BM and TT are at zero, the other western variants are 99.8–99.9998% exact, and CS/LS/NE/ON/OC/OP (added to the tiered
+suite on 2026-10-05) are being worked down. Per-variant numbers: **[docs/CERTIFICATION_STATUS.md](docs/CERTIFICATION_STATUS.md)**;
+remaining work and estimates: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
 
 | Cluster | Variants |
 |---|---|
@@ -135,8 +138,11 @@ Worked examples (thinning, multi-stand, multi-scenario, semantic YAML, FIA expor
 
 **Current status & method**
 
-- **[docs/PORT_STATUS.md](docs/PORT_STATUS.md)** — the canonical current port &
-  validation status: every variant, extension, and the FIA full-population sweeps.
+- **[docs/CERTIFICATION_STATUS.md](docs/CERTIFICATION_STATUS.md)** — the current per-variant tiered numbers
+  (cells off / compared), how work is gated, integration history, and the oracles.
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — phases, remaining work in priority order, estimates and risks.
+- **[docs/PORT_STATUS.md](docs/PORT_STATUS.md)** — the longer narrative: every variant, extension, and the FIA
+  full-population sweeps.
 - **[docs/DOCTRINE.md](docs/DOCTRINE.md)** — the validation doctrine and the fix-execution
   method: bit-exact-or-cornered vs the live oracle, how to trace and fix a divergence,
   and the FIA full-population sweep discipline.

@@ -324,8 +324,8 @@ end
         sdmax = maximum(abs(rows[i][6] - ft[i][6]) for i in 1:length(ft))
         ddmax = maximum(abs(rows[i][7] - ft[i][7]) for i in 1:length(ft))
         @test sdmax <= 1.5 && ddmax <= 1.5      # bounded (was ~1.2 pre-S96 fix; now ~0.5)
-        @test_broken maximum(abs(rows[i][6] - ft[i][6]) for i in 1:length(ft)) == 0  # StandDead (single-htcur approx)
-        @test_broken maximum(abs(rows[i][7] - ft[i][7]) for i in 1:length(ft)) == 0  # DDW
+        @test maximum(abs(rows[i][6] - ft[i][6]) for i in 1:length(ft)) == 0  # StandDead — exact since integ-1006a (eastern FMSNAG/FMSVL2)
+        @test maximum(abs(rows[i][7] - ft[i][7]) for i in 1:length(ft)) == 0  # DDW — exact since integ-1006a
     end
 end
 
