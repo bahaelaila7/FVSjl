@@ -56,10 +56,12 @@ end
 function crown_ratio_update!(s::StandState, ::SouthCentralOregon; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; (n == 0 && !lstart) && return s
     sd = s.coef.species
     relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area; avh = p.avg_height
     rmai = p.mai_adj; dens = s.density
+    # so/crown.f:90 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the dead crowns.
+    t.n == 0 && @goto dead79
     # rank the trees by projected DBH (so/crown.f ISORT via RDPSRT on D+DG/BARK), descending
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
@@ -115,6 +117,7 @@ function crown_ratio_update!(s::StandState, ::SouthCentralOregon; fint::Float32 
         t.crown_pct[i] = Int32(icri)
     end
     # so/crown.f:319-341 DO 79 — cycle-0 dead-record crown dub (TPCCF = PCCF(ITRE(I)); same BA/AVH/RMAI).
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0

@@ -79,7 +79,7 @@ end
 function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; (n == 0 && !lstart) && return s
     sd = s.coef.species
     ba = p.basal_area; sdiac = crown_sdi
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
@@ -97,6 +97,8 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
         q <= 1f0 ? 1f0 : q
     end
+    # nc/crown.f:112 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the dead crowns.
+    t.n == 0 && @goto dead79
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     # nc/crown.f CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
     cur_year = current_cycle_year(s)
@@ -166,6 +168,7 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         t.crown_pct[i] = Int32(icri)
     end
     # nc/crown.f:404-452 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT, TPCCF = PCCF(ITRE(I))).
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
