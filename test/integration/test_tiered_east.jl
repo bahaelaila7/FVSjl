@@ -119,6 +119,13 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("LS", "1536031362290487", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; col = "HtG"))   # cycle-4 BF HtG were 1-6 ULP off
     end
+    @testset "CS salvage — cs/fmvinit.f ALLDWN (redcedar/juniper 100, pines 3-7 50)" begin
+        for cn in ("65514610010661", "1229648290290487")
+            @test isempty(_case("CS", cn, "salvage"))
+        end
+        sd = FVSjl.StandState(FVSjl.CentralStates()).coef
+        @test FVSjl.coef_col(sd, :snag_alldwn)[1] == 100f0 && FVSjl.coef_col(sd, :snag_alldwn)[5] == 50f0
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
