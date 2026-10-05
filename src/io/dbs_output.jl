@@ -190,11 +190,14 @@ metric-tons/ha pools as the `.out` carbon report. Total-Removed / Released-from-
 / fire carbon accounting on the carbon-report path yet).
 """
 function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
-                           standid::AbstractString, rows::AbstractVector)
+                           standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_CARBON_CREATE)
-        ins = "INSERT INTO FVS_Carbon VALUES (" * join(fill("?", 14), ",") * ")"
+        # metric/dbsqlite/dbsfmcrpt.f (BC/ON): the same columns in FVS_Carbon_Metric (the values arrive already in the
+        # ICMETRC units fmcrbout.f converts to; fminit.f sets ICMETRC=1 for BC/ON).
+        tbl = metric ? "FVS_Carbon_Metric" : "FVS_Carbon"
+        _ensure_table!(db, metric ? replace(_FVS_CARBON_CREATE, "FVS_Carbon(" => "FVS_Carbon_Metric(") : _FVS_CARBON_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 14), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for row in rows
             yr = row[1]; r = row[2]
@@ -1072,25 +1075,34 @@ CREATE TABLE IF NOT EXISTS FVS_Mortality(
 
 "Write fire mortality (killed vs total TPA by DBH class + BA/vol killed) to FVS_Mortality (dbsfmmort.f): one row
 per species (from `b.species_mort`) plus the stand 'ALL' aggregate row."
-function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
+function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector;
+                             metric::Bool = false)
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_MORTALITY_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 22), ",") * ")")
-        clsvals(kil, tot) = (v = Float64[]; for c in 1:7; push!(v, Float64(kil[c]), Float64(tot[c])); end; v)
+        # metric builds (metric/fire/vbase/fmfout.f:351-352 → metric/dbsqlite/dbsfmmort.f): FVS_Mortality_Metric, the
+        # REAL arrays converted before the call — CLSKIL/ACRtoHA, TOTCLS/ACRtoHA, TOTBAK·FT2pACRtoM2pHA,
+        # TOTVOLK·FT3pACRtoM3pHA (METRIC.F77 0.4046945 / 0.2295643 / 0.0699713, Float32).
+        tbl = metric ? "FVS_Mortality_Metric" : "FVS_Mortality"
+        _ensure_table!(db, metric ? replace(_FVS_MORTALITY_CREATE, "FVS_Mortality(" => "FVS_Mortality_Metric(") :
+                                    _FVS_MORTALITY_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 22), ",") * ")")
+        tph(x) = metric ? Float32(x) / 0.4046945f0 : Float32(x)
+        bam(x) = metric ? Float32(x) * 0.2295643f0 : Float32(x)
+        vom(x) = metric ? Float32(x) * 0.0699713f0 : Float32(x)
+        clsvals(kil, tot) = (v = Float64[]; for c in 1:7; push!(v, Float64(tph(kil[c])), Float64(tph(tot[c]))); end; v)
         # dbsfmmort.f:122-123 DO J=1,MXSP1 / IF (TOTAL(J,8) .LE. 0) CYCLE — a species row, and the ALL row, only when that
         # row's all-class total (TOTCLS(J,MAXCL1)) is positive: a fire on a treeless stand writes no rows at all.
         for b in burns
             for sm in (hasproperty(b, :species_mort) ? b.species_mort : ())
                 sum(sm.totcls) > 0f0 || continue
                 DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
-                    clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
+                    clsvals(sm.clskil, sm.totcls)..., Float64(bam(sm.bakill)), Float64(vom(sm.volkill))))
             end
             # dbsfmmort.f:147 `IF (TOTAL(J,8) .LE. 0) CYCLE` — the ALL row too: a fire over no trees writes no row
             sum(b.totcls) > 0f0 || continue
             DBInterface.execute(stmt, (caseid, standid, Int(b.year), "ALL", "ALL", "ALL",
-                clsvals(b.clskil, b.totcls)..., Float64(b.killed_ba), Float64(b.killed_vol)))
+                clsvals(b.clskil, b.totcls)..., Float64(bam(b.killed_ba)), Float64(vom(b.killed_vol))))
         end
     finally
         SQLite.close(db)

@@ -435,6 +435,7 @@ include("../data/pacificnorthwest/fire/ffe_fuel.jl")     # PN FFE FULIVE/FULIVI/
 include("../data/eastcascades/fire/ffe_fuel.jl")         # EC FFE FULIVE/FULIVI/FUINIE/FUINII (32-species SINGLE cover-type) + ec_cwcalc (forest-608 BF) + ec_moist
 include("../data/southcentraloregon/fire/so_cwcalc.jl")  # SO crown width (so/cwcalc.f SOMAP, forest-601 DESCHUTES BF)
 include("../data/southcentraloregon/fire/ffe_fuel.jl")   # SO FFE FCCS/Ottmar fuel loading (so/fmcba.f COVRINI/FUELINI, FMSSTAGE-keyed)
+include("../data/britishcolumbia/fire/ffe_fuel.jl")    # BC FFE FULIVE/FULIVI/FUINIE/FUINII (15-species; canada/fire/bc/fmcba.f = ie/fmcba.f structure)
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
 include("engine/fire/covini_tables.jl")  # FFE bare-stand COVINI(ITYPE) tables (generated from the western fmcba.f)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)

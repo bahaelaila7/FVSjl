@@ -89,7 +89,8 @@ end
 # live / RA/YC jl; KT 4718785010690, CA 23742358010900 likewise), and FMCBA's crown biomass the same.
 "Variants whose SSTAGE/FMCBA read the stored CRWDTH(I) that `cwidth!` fills."
 _stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa SoutheastAlaska || v isa Kootenai ||
-                    v isa WestSierra || v isa CentralCalifornia
+                    v isa WestSierra || v isa CentralCalifornia ||
+                    v isa BritishColumbia   # metric/base/cwidth.f, called at the same fvs.f:207 / gradd.f:254 points
 
 """
     cwidth!(s) -> s

@@ -165,7 +165,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     end
     # dbsstandin.f:607-610 NVB_REGION_CHECK: an ECOREGION that does not reduce to an NSVB ecodivision ⇒ FVS43 (MEASURED
     # FVScr_clean 2463020010690 ECOREGION 321Aj → 320: FVS43 row).
-    _fia_present(d, "ECOREGION") && !nvb_region_valid(_fia_str(d, "ECOREGION", "")) && errgro!(s, 43)
+    # The metric builds (BC/ON) read stands through metric/vdbsqlite/dbsstandin.f, which has no NVB_REGION_CHECK (no FVS43).
+    !_metric_variant(s.variant) && _fia_present(d, "ECOREGION") && !nvb_region_valid(_fia_str(d, "ECOREGION", "")) &&
+        errgro!(s, 43)
     # CPVREF (dbsstandin.f:568-574): PV_REF_CODE > 0 ⇒ WRITE(CPVREF,'(I10)') (PVREF1/6 compare it ADJUSTL'd), ≤0 ⇒ blank.
     if _fia_present(d, "PV_REF_CODE")
         r = _fia_f32(d, "PV_REF_CODE", 0f0)

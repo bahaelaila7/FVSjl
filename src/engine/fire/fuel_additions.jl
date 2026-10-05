@@ -77,7 +77,8 @@ end
     t2 > t3 && (t2 = t3)
     return sz == 0 ? t0 : sz == 1 ? t1 : sz == 2 ? t2 : t3
 end
-_fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
+_fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai ||
+                       v isa BritishColumbia   # canada/fire/bc/fmvinit.f:384-395, the same TFALL block
 @inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
     t3 = coef_col(coef, :tfall_cls)[sp]
     sz == 0 && return min(2f0, coef_col(coef, :leaf_life)[sp])

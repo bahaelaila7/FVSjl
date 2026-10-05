@@ -20,7 +20,34 @@ _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho ||
                    v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
                    v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska ||
                    v isa SouthCentralOregon || v isa Klamath || v isa BlueMountains ||
-                   v isa WestSierra || v isa CentralCalifornia
+                   v isa WestSierra || v isa CentralCalifornia || v isa BritishColumbia
+
+"""
+FMSVOL's tiny-tree cone floor X = 0.005454154·H (VOL2HT = MAX(X,TCF), fmsvol.f:146-151) — absent in BC: canada/fire/bc/
+fmsvol.f:121-124 computes X but returns VOL2HT = VN (VM when LMERCH). `max(_ffe_xfloor(v, h), vol)` = the right form.
+"""
+@inline _ffe_xfloor(v, h::Float32)::Float32 = v isa BritishColumbia ? 0f0 : 0.005454154f0 * h
+
+"""
+    bc_fmsvol(s, sp, d, h, xht) -> (vn, vm)
+
+canada/fire/bc/fmsvol.f FMSVOL/FMSVL2 (as relinked in the private oracle /workspace/.bcwork/dbfix — the CFTOPK call gets
+its May-2024 SCF argument, a zero): XHT ≤ −1 (an intact stem) ⇒ LTKIL=.FALSE., XHT=H; IHT = INT(XHT·100). CFVOL (the
+Kozak taper, canada/bc/cfvol.f) volumes the stem truncated at HTRUNC = IHT/100 (H when IHT=0); then, with CTKFLG=LTKIL
+(fmsvol.f:105), a top-killed call (XHT > −1) also runs CFTOPK (ie/cftopk.f) on that ALREADY-truncated VN with VMAX=VN,
+LCONE=.FALSE., BARK=BRATIO — a second, Behre-ratio trim of the total. STMP/TOPD = canada/bc/grinit.f 30 cm / 10 cm.
+"""
+function bc_fmsvol(s, sp::Int, d::Float32, h::Float32, xht::Float32)
+    ltkil = xht > -1f0
+    ltkil || (xht = h)
+    iht = unsafe_trunc(Int32, xht * 100f0)
+    vn, vm = bc_tree_vol(sp, d, h, Int(iht))
+    if ltkil
+        bark = bc_bratio(sp)
+        vn, vm = cr_cftopk(vn, vm, d, h, vn, bark, Int(iht), 30f0 * BC_CMtoFT, 10f0 * BC_CMtoIN)
+    end
+    return (vn, vm)
+end
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -34,7 +61,10 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     _ffe_west_vol(v) || return nothing
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0, 1f0, false)
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-    if v isa BlueMountains                                     # bm: NVEL FW2 / 616BEHW R6VOL, NATCRS CTKFLG=T (fvsvol.f)
+    if v isa BritishColumbia                                   # bc: FMSVL2(XHT=−1) — CFVOL at INT(H·100)/100, no CFTOPK
+        vn, vm = bc_fmsvol(s, sp, d, h, -1f0)
+        return (vn, vm, bc_bratio(sp), true)
+    elseif v isa BlueMountains                                 # bm: NVEL FW2 / 616BEHW R6VOL, NATCRS CTKFLG=T (fvsvol.f)
         tcf, mcf = bm_nocut_cuft(s, sp, d, h)
         return (tcf, mcf, bm_bratio(s.coef.species, sp, d), true)
     elseif v isa SoutheastAlaska                               # ak: NVEL F32/DVE/CUR/DEM (ak_tree_vol), NATCRS CTKFLG=T
@@ -213,7 +243,7 @@ end
 function ffe_west_snag_bole(s::StandState, sp::Int, d::Float32, h::Float32)
     w = ffe_west_nocut(s, sp, d, h); w === nothing && return nothing
     h <= 0f0 && return 0f0
-    return max(0.005454154f0 * h, w[1])
+    return max(_ffe_xfloor(s.variant, h), w[1])
 end
 
 """
@@ -223,8 +253,11 @@ FMSVOL(II, XHT=HTIH): the snag's death-form tree (DBHS, HTDEAD) through NATCRS, 
 when the snag has lost height (the fat lower bole, not a short tree), VOL2HT = MAX(0.005454154·HTDEAD, TCF).
 """
 function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, htcur::Float32; always::Bool = false)
-    w = ffe_west_nocut(s, sp, d, htd); w === nothing && return nothing
+    _ffe_west_vol(s.variant) || return nothing
     htd <= 0f0 && return 0f0
+    # BC: every FMSVOL call passes XHT = HTIH/HTIS (> −1) ⇒ the CFVOL-truncated + CFTOPK-trimmed VN, no cone floor.
+    s.variant isa BritishColumbia && return (d < 1f0 ? 0f0 : bc_fmsvol(s, sp, d, htd, htcur)[1])
+    w = ffe_west_nocut(s, sp, d, htd)
     tcf, mcf, bark, trim = w
     # `always`: fmsvol.f FMSVOL passes XHT=HTIH (> −1) ⇒ LTKIL ⇒ CFTOPK at INT(XHT·100)/100 on EVERY snag — even an
     # un-broken one (HTRUNC then truncates HTDEAD to 0.01 ft, and TCF·VOLTK/VOLT rounds).
@@ -250,12 +283,18 @@ const _UT_FM_HTX = NTuple{4,Float32}[(0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (
 
 const _CR_FM_HTX = NTuple{4,Float32}[(1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.9f0, 0.9f0, 0.9f0, 0.9f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.9f0, 0.9f0, 0.9f0, 0.9f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0)]
 
+# canada/fire/bc/fmvinit.f HTX(I,1:4): species 1-10 the KT values, 11-13/15 (hardwoods) 1.0, 14 (other conifer, as DF) 0.9.
+const _BC_FM_HTX = NTuple{4,Float32}[ntuple(_ -> x, 4) for x in
+    Float32[0.9, 0.9, 0.9, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0]]
+
 "{v}/fmvinit.f HTX table for the western layer (EM keeps its own EM_FM_HTX seeding), else `nothing`."
 _ffe_west_htx(v) = v isa SoutheastAlaska ? _AK_FM_HTX :
                    v isa InlandEmpire ? _IE_FM_HTX : v isa Kootenai ? _KT_FM_HTX : v isa CentralIdaho ? _CI_FM_HTX :
+                   v isa BritishColumbia ? _BC_FM_HTX :
                    v isa Teton ? _TT_FM_HTX : v isa Utah ? _UT_FM_HTX : v isa CentralRockies ? _CR_FM_HTX : nothing
 _snag_htr1(::InlandEmpire) = 0.0228f0
 _snag_htr1(::Kootenai) = 0.0228f0
+_snag_htr1(::BritishColumbia) = 0.0228f0   # canada/fire/bc/fmvinit.f:110 HTR1 (HTR2 0.01, HTXSFT 2.0)
 _snag_htr1(::CentralIdaho) = 0.0228f0
 _snag_htr1(::Teton) = 0.0228f0
 _snag_htr1(::Utah) = 0.0228f0

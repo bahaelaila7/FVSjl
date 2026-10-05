@@ -1740,7 +1740,8 @@ function run_keyfile(keypath::AbstractString;
                              mgmt_id = mid, variant = variant_code(s.variant),
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
-            write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            # FVS_InvReference (dbsreference.f) is not linked in the metric builds (BC/ON source lists: no dbsreference.f).
+            _metric_variant(s.variant) || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
@@ -1799,7 +1800,7 @@ function run_keyfile(keypath::AbstractString;
             if carb_rows !== nothing
                 ctl1 = s.control
                 ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
-                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
                     write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
                 (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
@@ -1814,16 +1815,20 @@ function run_keyfile(keypath::AbstractString;
                 br = s.fire.burn_reports
                 # fmfout.f: each table needs its FMIN report window AND its DATABASE toggle (dbsfmburn/-mort/-fuel)
                 ctl = s.control
-                (ctl.ffe_burnrept && ctl.dbs_burnrept) &&
+                # metric/fire/vbase/fmfout.f:96 writes the burn report only when IFMBRB < 0, but metric fmin.f:228 BURNREPT
+                # sets IFMBRB = IY(1) ⇒ BC/ON never write FVS_BurnReport(_Metric) (MORTREPT/FUELREPT set −1 ⇒ they do).
+                (ctl.ffe_burnrept && ctl.dbs_burnrept && !met) &&
                     write_dbs_burnreport!(ctl.dbs_out_file, caseid, String(sid), br)
                 (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
-                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br)
+                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
                     write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
             # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
             # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.
-            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows)
+            # metric/fire/vbase/fmpofl.f:295-296 `IF (IPFLMB .GT. 0) RETURN` before the report + DBSFMPF/DBSFMPFC calls, and
+            # metric fmin.f:456 POTFIRE sets IPFLMB = IY(1) > 0 ⇒ BC/ON write no FVS_PotFire / FVS_PotFire_Cond.
+            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows) && !met
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows; east = _pofl_east(s.variant))
                 pf_rows[1][3] && write_dbs_potfire_cond!(s.control.dbs_out_file, caseid, String(sid), pf_rows[1][2].cond)
             end

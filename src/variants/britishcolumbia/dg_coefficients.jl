@@ -15,6 +15,7 @@
 
 # --- metric constants (common/METRIC.F77 — EXACT truncated literals, critical for bit-exactness) ---
 const BC_CMtoIN         = 0.3937f0        # NOT 1/2.54 — using 1/2.54 breaks bit-exactness
+const BC_CMtoFT         = 0.0328084f0     # METRIC.F77 CMtoFT
 const BC_INtoCM         = 2.54f0
 # Per-species population residual variance for the DGSCOR empirical-Bayes COR weight (bc/dgdriv.f:104
 # DATA PSIGSQ; EP/AT/AC taken from WC). Indexed by species 1..15. Used by calibrate_diameter_growth!.
