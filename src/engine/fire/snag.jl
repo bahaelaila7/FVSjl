@@ -497,9 +497,19 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                         sn.pbfrih[i] > sn.pbfris[i] && (sn.pbfris[i] = sn.pbfrih[i])
                     end
                 end
-                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr) <= p.pb_time
-                    xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
-                    dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                # fmsnag.f:200-214: UT/TT/CR/BC aspen-cottonwood-birch (LASCO, fmsnag.f:131-155) snags that predate the
+                # burn fall at HALF the normal rate for 10 years (still floored by the post-burn rates); every other snag
+                # takes the post-burn floor for PBTIME years. MEASURED FVSut_g16 42642675010690 SIMFIRE 2020: 2030
+                # Standing_Dead 1.894 live vs 1.502 jl, DDW 19.15 vs 19.49 (fire-killed aspen snags falling at full rate).
+                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr)
+                    if _snag_lasco(s.variant, Int(sn.sp[i])) && (eff - byr) <= 10
+                        dfis = dfis * 0.5f0; dfih = dfih * 0.5f0
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    elseif (eff - byr) <= p.pb_time
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    end
                 end
             end
             # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50
@@ -558,6 +568,11 @@ end
 end
 # Variants whose fmvinit HTX default is 0 for every species (no height loss), so only SNAGBRK populates `snag_htx`.
 _snag_htx0_default(v) = v isa Southern || v isa CentralStates
+# fmsnag.f:131-155 LASCO — aspen/cottonwood/paper-birch post-burn snag-fall rule, UT/TT/CR/BC only.
+_snag_lasco(v, jsp::Int) = v isa Utah ? (jsp == 6 || jsp == 18 || jsp == 19) :
+                           v isa Teton ? (jsp == 6 || jsp == 15) :
+                           v isa CentralRockies ? (jsp == 20 || jsp == 21 || jsp == 22 || jsp == 28) :
+                           v isa BritishColumbia ? (jsp == 11 || jsp == 12 || jsp == 13 || jsp == 15) : false
 
 # Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
