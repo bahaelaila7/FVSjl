@@ -28,4 +28,27 @@ _in(ms, files) = [m for m in ms if m.file in files]
     end
 end
 
+# canada/bc/cfvol.f → min.f → log.f (Kozak 2002 taper), as FMSVOL calls it: LOG's REAL**REAL/ALOG/EXP are glibc
+# powf/logf/expf; MIN converts CFVOL's imperial grinit.f thresholds back to metric (SH = 30·CMtoFT·FTtoM, TD =
+# 10·CMtoIN·INtoCM — not 0.3 m / 10 cm, so a sub-0.3 m stump takes log.f's partial-first-log branch and DI3 there feeds the
+# stump volume); cfvol.f:55 gates merch in INCHES (D ≥ DBHMIN = 12.5·CMtoIN catches the 12.5-cm PL). Replays 499 FMSVOL calls
+# dumped from the private oracle (test/fixtures/bc_ffe/fmsvol_calls.txt): VN and VM bit-exact.
+@testset "BC Kozak taper volume via FMSVOL (canada/bc/cfvol.f, min.f, log.f; canada/fire/bc/fmsvol.f)" begin
+    h2f(x) = reinterpret(Float32, parse(UInt32, x; base = 16))
+    n = 0; bad = 0
+    for l in eachline(joinpath(@__DIR__, "..", "fixtures", "bc_ffe", "fmsvol_calls.txt"))
+        startswith(l, "#") && continue
+        f = split(l)
+        sp = parse(Int, f[1]); d = h2f(f[2]); h = h2f(f[3]); xht = h2f(f[4])
+        ltkil = f[8] == "T"
+        vn, vm = FVSjl.bc_fmsvol(nothing, sp, d, h, ltkil ? xht : -1f0)
+        n += 1
+        (vn == h2f(f[6]) && vm == h2f(f[7])) || (bad += 1)
+    end
+    @test n == 499
+    @test bad == 0
+    c = _case("YSM029-250", "salvage")                     # live FVS_Carbon_Metric pools now exact too
+    @test isempty(c.ms)
+end
+
 end # module
