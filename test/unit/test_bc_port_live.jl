@@ -268,4 +268,13 @@ end
     @test length(c.ms) <= 1
 end
 
+# fire/vbase/fmcrowe.f:356-357 `IF (D.GT.DOBF .AND. D.GT.DBHMIN(SPIYV))` reads COMMON DBHMIN, which canada/bc/grinit.f sets
+# to 17.5 (PL 12.5) cm × CMtoIN; jl read BC's merch table in cm (17.5) ⇒ a 10in aspen took the whole-bole branch.
+# MEASURED FVSbc_instr YSM029-265 simfire 2038 FMDOUT: crown classes 1-3 135.4 live / 4.6 jl on 9 aspen records.
+@testset "BC FFE FMCROWE DBHMIN in inches (fmcrowe.f:357, bc/grinit.f:101)" begin
+    c = _case("YSM029-265", "salvage")
+    @test !any(m -> m.col == "Aboveground_Total_Live", c.ms)
+    @test length(c.ms) <= 1                       # 20 cells before
+end
+
 end # module

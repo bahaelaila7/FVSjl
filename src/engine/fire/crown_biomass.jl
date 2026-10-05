@@ -82,6 +82,9 @@ set (AK carries them in `ak_merch`), else the species table's `:dbh_min` (a stan
 """
 _fm_dbhmin(s::StandState, sp::Int)::Float32 =
     s.variant isa SoutheastAlaska ? ak_merch_dbhmin(s, sp) :
+    # canada/bc/grinit.f:101,142 DBHMIN = 17.5 (PL 12.5) * CMtoIN — inches; jl's merch table holds BC's in cm (17.5).
+    # MEASURED FVSbc_instr YSM029-265 simfire 2038 FMDOUT: 10in aspen FMCROWE took the D≤DBHMIN whole-bole branch in jl.
+    s.variant isa BritishColumbia ? bc_vol_dbhmin(sp) * BC_CMtoIN :
     (s.control.merch_init && sp <= length(s.control.sp_dbh_min)) ? s.control.sp_dbh_min[sp] :
     Float32(coef_col(s.coef, :dbh_min)[sp])
 
