@@ -1039,7 +1039,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MORTS: MISMRT is called inside MISTOE after the spread and MISINF (mistoe.f:517-522), so on a tripling cycle
     # it too moves post-triple (mis_post below). Non-tripling cycles keep the existing seam (MORTS/TRIPLE draw no
     # rann!, and spread → MISINF → DM max-combine in mortality! is the FVS order) — byte-identical there.
-    mis_defer = _ie_mis_variant(s.variant) && (stash !== nothing)
+    mis_defer = _base_mistoe_on(s) && (stash !== nothing)
     # mis_post: on a NON-fire tripling cycle the WHOLE GRADD MISTOE call (mistoe.f: spread → MISINF :517 →
     # MISMRT :522) runs post-TRIPLE on the tripled records at full pre-UPDATE PROB (the post-triple block
     # below) — not just the spread. MISINF must follow the spread (else the spread intensifies the
@@ -1048,7 +1048,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Fire cycles triple inside mortality_and_fire! and keep the previous order.
     mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
-        _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+        _base_mistoe_on(s) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff + BC
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the

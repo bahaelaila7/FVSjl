@@ -220,4 +220,14 @@ end
     end
 end
 
+# BC dwarf mistletoe without a MISTOE/NEWSPRED keyword: misin0.f:86 MISFLG=.TRUE. ⇒ misdam.f:63-79 loads IMIST from damage
+# codes 30-34, and canada/bc's mistoe.f (the base one + a NEWSI branch) runs the spread/MISINF/MISMRT unless NEWSPRED is on.
+# misintbc.f never sets HGPDMR (zero COMMON) ⇒ mishgf.f MISHGF = 0 for every infected record (htgf.f:1617 Y=Y*MISHGF).
+# FVSbc YSM029-265 none: every DM-damaged Pl's 2028 HtG 0 live; jl grew them (Ht 9.23 vs 4.90 for Tree 131).
+@testset "BC base dwarf mistletoe on damage codes: MISHGF 0, spread, MISMRT (misin0.f:86, misdam.f, mishgf.f)" begin
+    c = _case("BC", "YSM029-265", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2028" && m.col in ("Ht", "HtG", "DBH"), c.ms) == 0
+end
+
 end # module
