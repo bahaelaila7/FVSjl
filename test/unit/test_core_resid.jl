@@ -4,7 +4,7 @@
 using FVSjl, Test, SQLite, DBInterface
 
 const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(),
-                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai())
+                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai(), "ca" => FVSjl.CentralCalifornia())
 
 "Run tiered fixture `<v>/<cn>_<rg>.key` through run_keyfile; returns the output DB path."
 function _cr_run(v::AbstractString, cn::AbstractString, rg::AbstractString)
@@ -475,14 +475,15 @@ function _cr_case_mismatches(v, cn, rg, tables)
     for tb in tables
         gold, jl = _cr_table(v, cn, rg, db, tb)
         length(gold) == length(jl) || (nbad += 1; continue)
-        key(r) = (string(r["Year"]), string(get(r, "Removal_Code", "")))
+        key(r) = (string(r["Year"]), string(get(r, "Removal_Code", "")), strip(string(get(r, "SpeciesFVS", ""))))
         jd = Dict(key(r) => r for r in jl)
         for g in gold, (c, x) in g
             r = get(jd, key(g), nothing); r === nothing && (nbad += 1; continue)
             (c in ("StandID", "CaseID") || !haskey(r, c)) && continue
             y = r[c]
             gx = tryparse(Float64, x)
-            gx === nothing ? (string(y) == x || (nbad += 1)) : (_cr_f32(y) == Float32(gx) || (nbad += 1))
+            (gx === nothing || !(y isa Real)) ? (strip(string(y)) == strip(x) || (nbad += 1)) :
+                                                (_cr_f32(y) == Float32(gx) || (nbad += 1))
         end
     end
     return nbad
@@ -549,4 +550,10 @@ end
         end
         @test nbad == 0
     end
+end
+
+@testset "KT 4718785010690 rootdis FVS_RD_Sum: cycle-1 WK1 = the DO-220 calibration DG (kt/dgdriv.f:131, 716-742)" begin
+    # kt/dgdriv.f WK1(I)=DG(I) at the top of DGDRIV reads the DO-220 DG at cycle 1 (as TT/CI, 4cfc9e1e), not the input
+    # increment / −1 sentinel; WRD RDPR's CFVPA reads WK1. 4 KT rootdis cases (1 cell each) → 0.
+    @test _cr_case_mismatches("kt", "4718785010690", "rootdis", ("FVS_RD_Sum",)) == 0
 end

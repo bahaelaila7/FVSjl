@@ -3110,7 +3110,9 @@ function rd_cycle_start!(s::StandState)
     # simulate.jl loads into dg_prev (tt_do220_dg/ci_do220_dg) just before this; t.diam_growth still holds the input DG, -1 for
     # a missing increment (MEASURED FVStt_g16 1856089798290487 rootdis: a 1.01-ft LP seedling at 1349 TPA carried WK1=-1 ⇒
     # Live_Merch_CuFt -1109.86 jl vs 10.205 live).
-    _do220_c0 = (s.variant isa Teton || s.variant isa CentralIdaho) && Int(s.control.cycle) == 0 && length(t.dg_prev) >= n
+    # KT: kt/dgdriv.f:131 WK1(I)=DG(I) after the kt/dgdriv.f:716-742 DO-220 calibration — the same seam (kt_do220_dg).
+    _do220_c0 = (s.variant isa Teton || s.variant isa CentralIdaho || s.variant isa Kootenai) && Int(s.control.cycle) == 0 &&
+                length(t.dg_prev) >= n
     wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire || _do220_c0) ? t.dg_prev :
            (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) : t.diam_growth
     rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
