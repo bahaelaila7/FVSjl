@@ -73,4 +73,21 @@ end
     end
 end
 
+# The metric builds link metric/dbsqlite + metric/base/sstage.f + metric/newmist/misprt.f + rd/rdpr.f (LMTRIC):
+# FVS_StrClass_Metric (DBHS·INtoCM, INT(ht·FTtoM)); FVS_DM_Stnd_Sum_Metric / FVS_DM_Spp_Sum_Metric (TPH = /ACRtoHA, BA, Vol
+# per ha; the Stnd table keeps only its first row — DBSMIS2's `Commit` with no `Begin` fails ⇒ IDM2=0); FVS_RD_Sum_Metric
+# (metric column names; Live_Merch_CuM sums WK1 = canada/bc/vols.f:167 merch cubic, US builds the DG snapshot); an EMPTY
+# FVS_Climate_Metric (metric dbsclsum.f INSERTs into FVS_Climate ⇒ ICLIM=0). MEASURED FVSbc_dbfix tiered YSM029-250.
+@testset "BC metric extension DBS tables (metric/dbsqlite, sstage.f, misprt.f, rdpr.f LMTRIC)" begin
+    for r in ("none", "thinbba", "climate")
+        c = _case("YSM029-250", r)
+        @test !c.crashed
+        @test isempty([m for m in c.ms if m.file != "FVS_TreeList_Metric"])   # (per-record HTG ULPs: open)
+    end
+    c = _case("YSM029-250", "rootdis")
+    @test !any(m -> m.col == "PRESENCE" || (tryparse(Int, m.year) !== nothing && parse(Int, m.year) < 2058), c.ms)
+    c = _case("YSM029-250", "mistletoe")
+    @test !any(m -> m.col == "PRESENCE" || m.col == "ROWCOUNT" || m.file in ("sum", "FVS_Summary_Metric"), c.ms)
+end
+
 end # module

@@ -1664,6 +1664,7 @@ function run_keyfile(keypath::AbstractString;
         setup_growth!(s)
         kt_ierrck = s.control.kt_cratet_ierrck
         compute_volumes!(s)
+        rd_refresh_inventory_report!(s)   # BC RDPR (fvs.f:347) reads the inventory VOLS merch WK1 (fvs.f:211)
         # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
         # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.
         if s.control.svs_on
@@ -1760,16 +1761,16 @@ function run_keyfile(keypath::AbstractString;
             (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
                 write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles; metric = met, east = east)
             clim_rows === nothing ||
-                write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
+                write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef; metric = met)
             cprof_rows === nothing ||
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
             (strcl_rows === nothing || isempty(strcl_rows)) ||   # DBSSTRCLASS creates the table on its first row
-                write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
+                write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef; metric = met)
             if dm_rows !== nothing && !isempty(dm_rows)
                 # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1); the by-DBH-class FVS_DM_Sz_Sum
                 # (DBSMIS3) additionally needs the MISTPRT report keyword (PRTMIS).
-                write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
-                write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef)
+                write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows; metric = met)
+                write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef; metric = met)
                 s.control.mistprt_on &&
                     write_dbs_dm_szsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
             end
@@ -1787,7 +1788,7 @@ function run_keyfile(keypath::AbstractString;
             end
             # FVS_RD_Sum (WRD root-disease summary): rows accumulated per cycle after rd_end_apply!.
             if s.root_disease !== nothing && s.control.dbs_rd_sum && !isempty(s.root_disease.sum_rows)
-                write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows)
+                write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows; metric = met)
             end
             # FVS_RD_Det (WRD per-species patch detail): rows accumulated per cycle (dbs/dbsrd.f DBSRD2).
             if s.root_disease !== nothing && s.control.dbs_rd_detail && !isempty(s.root_disease.det_rows)

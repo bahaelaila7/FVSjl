@@ -274,7 +274,12 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
         cfv_i = p_i > 0.0f0 ? (t.cuft_vol[i] * p_i) / p_i : 0.0f0
         tdvol += d.rdkill[i] * cfv_i / pden
         bapa  += tclas * (3.14159f0 * (t.dbh[i] / 24.0f0)^2) / pden
-        cfvpa += tclas * (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0) / pden   # rdpr.f: TCLAS·WK1(I) (WK1 = start-of-cycle DG)
+        # rdpr.f:213 TCLAS·WK1(I): WK1 = the start-of-cycle DG (dgdriv.f) in the US builds, whose vols.f:198 `WK1(I)=VM` is
+        # commented out; BC's canada/bc/vols.f:167/221 still loads WK1 with the defect-corrected merch cubic, and VOLS runs
+        # after DGDRIV (fvs.f:211 at inventory, GRADD each cycle) ⇒ BC's RDPR sums the merch volume (MEASURED FVSbc_dbfix
+        # YSM029-250 rootdis 2018 Live_Merch_CuM 10.595 live, 0 with the DG snapshot).
+        wk1 = s.variant isa BritishColumbia ? t.merch_cuft_vol[i] : (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0)
+        cfvpa += tclas * wk1 / pden
     end
     rrrate = idi <= length(d.rrrate) ? d.rrrate[idi] : 0.0f0
     ncent  = idi <= length(rd.ncents) ? Int(rd.ncents[idi]) : 0
@@ -2946,6 +2951,17 @@ end
 fvs.f RDMN1 init seam (called once at stand setup). Inert unless RD is active.
 Chunk 0 will call the ported RDSETP here (center placement + initial infection).
 """
+# BC's RDPR CFVPA sums WK1 = the VOLS merch volume (rd_sum_report); FVS reports the inventory row at fvs.f:347, after the
+# inventory VOLS (fvs.f:211), while jl books it at the RDMN1 setup seam before compute_volumes! — rebuild it once the
+# inventory volumes exist (the RD state is untouched in between: no growth, no RD step).
+function rd_refresh_inventory_report!(s::StandState)
+    rd = s.root_disease
+    (rd_active(rd) && s.variant isa BritishColumbia && s.control.dbs_rd_sum && length(rd.sum_rows) == 1) || return nothing
+    yr, _ = rd.sum_rows[1]
+    rd.sum_rows[1] = (yr, rd_sum_report(rd, s, yr, Int(s.plot.stand_age)))
+    return nothing
+end
+
 function root_disease_setup!(s::StandState)
     rd = s.root_disease
     rd_active(rd) || return nothing

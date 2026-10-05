@@ -465,23 +465,29 @@ per-report collection of `(year, removal_code, report)` where `report` is a `str
 Absent species/strata are stored as "--" / 0 (matching the Fortran emitter).
 """
 function write_dbs_strclass!(dbpath::AbstractString, caseid::AbstractString,
-                             standid::AbstractString, rows::AbstractVector, coef)
+                             standid::AbstractString, rows::AbstractVector, coef; metric::Bool = false)
     fia3(x)   = lpad(strip(x), 3, '0')                    # FIAJSP as a 3-char zero-padded code (oracle "017")
     fvs(i)    = i > 0 ? String(strip(coef.code_alpha[i]))  : "--"
     plants(i) = i > 0 ? String(strip(coef.code_plants[i])) : "--"
     fia(i)    = i > 0 ? String(fia3(coef.code_fia[i]))     : "--"
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_STRCLASS_CREATE)
-        ins = "INSERT INTO FVS_StrClass VALUES (" * join(fill("?", 46), ",") * ")"
+        # metric/dbsqlite/dbsstrclass.f (BC/ON): FVS_StrClass_Metric; metric/base/sstage.f:700-720 passes DBHS·INtoCM
+        # and INT(IHTS·FTtoM) for the four heights (cover/species/status unchanged).
+        tbl = metric ? "FVS_StrClass_Metric" : "FVS_StrClass"
+        _ensure_table!(db, metric ? replace(_FVS_STRCLASS_CREATE, "FVS_StrClass(" => "FVS_StrClass_Metric(") :
+                                    _FVS_STRCLASS_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 46), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
+        mh(x) = (i = round(Int, x); metric ? Int(unsafe_trunc(Int32, Float32(i) * 0.3048f0)) : i)
+        md(x) = metric ? Float64(Float32(x) * 2.54f0) : Float64(x)
         for (yr, cd, rep) in rows
             vals = Any[caseid, standid, Int(yr), Int(cd)]
             for k in 1:3
                 if k <= length(rep.strata)
                     st = rep.strata[k]
-                    push!(vals, Float64(st.dbh), round(Int, st.nomht), round(Int, st.lght), round(Int, st.smht),
-                          round(Int, st.crnbase), round(Int, st.cover),
+                    push!(vals, md(st.dbh), mh(st.nomht), mh(st.lght), mh(st.smht),
+                          mh(st.crnbase), round(Int, st.cover),
                           fvs(st.sp1), fvs(st.sp2), plants(st.sp1), plants(st.sp2), fia(st.sp1), fia(st.sp2),
                           Int(st.status))
                 else
@@ -552,9 +558,18 @@ CLIMREDB toggle). `rows` is the `(year, report_vector)` collection, where each `
 `climate_report` result (one NamedTuple per reported species); `coef` supplies the FVS/PLANTS/FIA species codes.
 """
 function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
-                            standid::AbstractString, rows::AbstractVector, coef)
+                            standid::AbstractString, rows::AbstractVector, coef; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
+        # metric/dbsqlite/dbsclsum.f (BC/ON): the first call CREATEs FVS_Climate_Metric (TPH, AutoEstbTPH) but then
+        # INSERTs INTO FVS_Climate (absent) with no ')' before VALUES ⇒ the exec fails ⇒ ICLIM=0 ⇒ an EMPTY
+        # FVS_Climate_Metric and no FVS_Climate (MEASURED FVSbc_dbfix tiered climate regime: header only).
+        if metric
+            any(r -> !isempty(r[2]), rows) && _ensure_table!(db,
+                replace(replace(replace(_FVS_CLIMATE_CREATE, "FVS_Climate(" => "FVS_Climate_Metric("),
+                                "TPA real" => "TPH real"), "AutoEstbTPA" => "AutoEstbTPH"))
+            return dbpath
+        end
         _ensure_table!(db, _FVS_CLIMATE_CREATE)
         ins = "INSERT INTO FVS_Climate VALUES (" * join(fill("?", 15), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
@@ -608,19 +623,29 @@ Write the per-cycle stand-composite dwarf-mistletoe summary (DBSMIS2 → FVS_DM_
 the `(year, report)` collection, each `report` a `mistletoe_report` result.
 """
 function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
-                               standid::AbstractString, rows::AbstractVector)
+                               standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
-        ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
+        # metric (BC/ON: metric/newmist/misprt.f:665-670 → metric/dbsqlite/dbsmis.f DBSMIS2): FVS_DM_Stnd_Sum_Metric with
+        # TPH/BA/Vol columns NINT(x/ACRtoHA), NINT(BA·FT2pACRtoM2pHA), NINT(VOL·FT3pACRtoM3pHA) (REAL*4 products).
+        tbl = metric ? "FVS_DM_Stnd_Sum_Metric" : "FVS_DM_Stnd_Sum"
+        _ensure_table!(db, metric ? replace(replace(_FVS_DM_STNDSUM_CREATE, "FVS_DM_Stnd_Sum(" => "FVS_DM_Stnd_Sum_Metric("),
+                                            "TPA" => "TPH") : _FVS_DM_STNDSUM_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 19), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
-        for (yr, rep) in rows
+        t(x) = metric ? Float32(x) / 0.4046945f0 : x
+        b(x) = metric ? Float32(x) * 0.2295643f0 : x
+        v(x) = metric ? Float32(x) * 0.0699713f0 : x
+        # metric DBSMIS2 (metric/dbsqlite/dbsmis.f:450-454) ends with `Commit` but never opened a transaction (its non-metric
+        # twin's Begin is gone) ⇒ the exec fails ⇒ IDM2=0 after the FIRST row: FVS_DM_Stnd_Sum_Metric holds only the
+        # first reported year (MEASURED FVSbc_dbfix tiered mistletoe regime, every stand).
+        for (yr, rep) in (metric ? rows[1:min(end, 1)] : rows)
             st = rep.stand
             DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
-                ni(st.sttpat), ni(st.ba), ni(st.stvol),
-                ni(st.sttpai), ni(st.stbai), ni(st.stvoli),
-                ni(st.sttpam), ni(st.stbam), ni(st.stvolm),
+                ni(t(st.sttpat)), ni(b(st.ba)), ni(v(st.stvol)),
+                ni(t(st.sttpai)), ni(b(st.stbai)), ni(v(st.stvoli)),
+                ni(t(st.sttpam)), ni(b(st.stbam)), ni(v(st.stvolm)),
                 ni(st.stpit), ni(st.stpiv), ni(st.stpmt), ni(st.stpmv),
                 Float64(st.stdmr), Float64(st.stdmi)))
         end
@@ -637,12 +662,17 @@ Write the per-cycle top-4-infected-species dwarf-mistletoe summary (DBSMIS1 → 
 the actually-infected species (`report.species`) are written (FVS skips the `**` blank slots).
 """
 function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
-                              standid::AbstractString, rows::AbstractVector, coef)
+                              standid::AbstractString, rows::AbstractVector, coef; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
-        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 13), ",") * ")"
+        # metric (metric/newmist/misprt.f:648-662 SPINF4_M/SPMRT4_M = SPINF4/SPMRT4 / ACRtoHA → DBSMIS1 NINT):
+        # FVS_DM_Spp_Sum_Metric with the TPA columns renamed TPH.
+        tbl = metric ? "FVS_DM_Spp_Sum_Metric" : "FVS_DM_Spp_Sum"
+        _ensure_table!(db, metric ? replace(replace(_FVS_DM_SPPSUM_CREATE, "FVS_DM_Spp_Sum(" => "FVS_DM_Spp_Sum_Metric("),
+                                            "TPA" => "TPH") : _FVS_DM_SPPSUM_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 13), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
+        t(x) = metric ? Float32(x) / 0.4046945f0 : x
         ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             for sp in rep.species
@@ -651,7 +681,7 @@ function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
                     String(strip(coef.code_alpha[sp.sp])), String(strip(coef.code_plants[sp.sp])),
                     String(strip(coef.code_fia[sp.sp])),
                     Float64(sp.mean_dmr), Float64(sp.mean_dmi),
-                    ni(sp.inf_tpa), ni(sp.mort_tpa),
+                    ni(t(sp.inf_tpa)), ni(t(sp.mort_tpa)),
                     ni(sp.inf_pct), ni(sp.mort_pct), ni(sp.comp_pct)))
             end
         end
@@ -859,11 +889,17 @@ the `(year, report)` collection where `report` is a `rd_sum_report` NamedTuple (
 4 new-infection columns are 0 pending the CORINF/EXPINF/PRINF accumulators (documented follow-on).
 """
 function write_dbs_rd_sum!(dbpath::AbstractString, caseid::AbstractString,
-                           standid::AbstractString, rows::AbstractVector)
+                           standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_RD_SUM_CREATE)
-        ins = "INSERT INTO FVS_RD_Sum VALUES (" * join(fill("?", 20), ",") * ")"
+        # metric/dbsqlite/dbsrd.f (BC/ON): FVS_RD_Sum_Metric, the metric column names (the LMTRIC values rdpr.f passes).
+        tbl = metric ? "FVS_RD_Sum_Metric" : "FVS_RD_Sum"
+        _ensure_table!(db, !metric ? _FVS_RD_SUM_CREATE :
+            foldl((a, kv) -> replace(a, kv), ("FVS_RD_Sum(" => "FVS_RD_Sum_Metric(", "Spread_Ft_per_Year" => "Spread_M_per_Year",
+                  "Stumps_per_Acre" => "Stumps_per_Ha", "Mort_TPA" => "Mort_TPH", "Mort_CuFt" => "Mort_CuM",
+                  "UnInf_TPA" => "UnInf_TPH", "Inf_TPA" => "Inf_TPH", "Live_Merch_CuFt" => "Live_Merch_CuM");
+                  init = _FVS_RD_SUM_CREATE))
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 20), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for (yr, r) in rows
             DBInterface.execute(stmt, (caseid, standid, Int(yr), r.Age, r.RD_Type, r.Num_Centers,
