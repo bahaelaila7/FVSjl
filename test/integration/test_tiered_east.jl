@@ -126,6 +126,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         sd = FVSjl.StandState(FVSjl.CentralStates()).coef
         @test FVSjl.coef_col(sd, :snag_alldwn)[1] == 100f0 && FVSjl.coef_col(sd, :snag_alldwn)[5] == 50f0
     end
+    @testset "NE 68474457010538 simfire — esuckr.f sprout DBH on the IFOR-3 /COEFFS/ HT1/HT2 (ne/sitset.f:428-489)" begin
+        ms = _case("NE", "68474457010538", "simfire")
+        @test isempty(_cells(ms, "sum"))                       # post-fire RM/RO sprout DBH (BA 2022 43 → live 47)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
