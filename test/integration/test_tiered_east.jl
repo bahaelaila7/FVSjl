@@ -34,6 +34,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "FVS_TreeList"; col = "HtG"))  # htcalc.f:394 ((H-BH)/B1)/SI**B2, powf/expf/logf
         @test length(ms) <= 3
     end
+    @testset "LS 21073815010661 none — ls/sitset.f:262-267 FVS54 (blank site species/index ⇒ RN/60 default)" begin
+        ms = _case("LS", "21073815010661", "none")
+        @test isempty(_cells(ms, "FVS_Error"))                 # FVS08, FVS14, FVS54 rows in live order
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
