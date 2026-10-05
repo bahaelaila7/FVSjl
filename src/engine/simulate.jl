@@ -1010,6 +1010,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # already fixed. IE-only (only ie_esgent! consumes this trio; every other variant path is unchanged).
     es_at_avh = s.plot.avg_height
     es_at_ba = s.plot.basal_area
+    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba   # grincr.f:318-319 ATAVH=AVH, ATBA=BA (post-thin, pre-growth)
     es_at_relden = s.plot.relative_density
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     # IE htgf.f (317-347) recomputes each TRIPLED large-tree copy's HTG from the copy's spread DG (the

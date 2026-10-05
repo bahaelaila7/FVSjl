@@ -101,6 +101,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "FVS_Summary"))
         @test isempty(_cells(ms, "sum"))
     end
+    @testset "LS 104685266010661 simfire — ls/fmcfmd.f FMAVH = ATAVH (grincr.f:318 post-thin AVH)" begin
+        ms = _case("LS", "104685266010661", "simfire")
+        @test isempty(ms)                                      # FM10 / flame 3.29 (was FM4 / 12.04)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
