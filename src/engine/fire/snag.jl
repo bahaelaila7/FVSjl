@@ -338,6 +338,11 @@ const _CWD_BP = (0f0, 0.25f0, 1f0, 3f0, 6f0, 12f0, 20f0, 35f0, 50f0, 9999f0)
 # PBTIME yrs. The PB* params are SNAGPBN-overridable and live on `FireState.params` (FFEParams; SN
 # defaults fmvinit.f:1100-1104). update_snags! reads them via `fs.params`.
 const _FM_NZERO = 0.01f0    # NZERO: snag density treated as zero; DZERO = NZERO/50 (fmvinit.f:125)
+# vbase/fmsnag.f:127-139 LASCO species (the post-burn half-rate aspen/hardwood branch); CASE DEFAULT ⇒ none.
+_fm_lasco(v, sp::Int) = v isa Utah ? (sp == 6 || sp == 18 || sp == 19) :
+                        v isa Teton ? (sp == 6 || sp == 15) :
+                        v isa CentralRockies ? (sp == 20 || sp == 21 || sp == 22 || sp == 28) :
+                        v isa BritishColumbia ? (sp == 11 || sp == 12 || sp == 13 || sp == 15) : false
 
 # fmcwd.f label 1000 — the shared cone split behind CWD1 (a snag falls), CWD2 (a snag breaks) and CWD3 (a cut tree's
 # downed yarding loss): for K=1 (soft: DIS, LOHT(1)) and K=2 (hard: DIH, LOHT(2)) each size class j gets
@@ -456,11 +461,14 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # SNAGFALL per-species overrides of FALLX / ALLDWN (default = CSV value when not overridden).
             fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
-            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
-                                                  fallx = fx, alldwn = ad, variant = s.variant,
-                                                  itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code)))
-            dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
-            dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
+            dfalln = snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
+                                       fallx = fx, alldwn = ad, variant = s.variant,
+                                       itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code))
+            dfall = min(denttl, dfalln)
+            # fmsnag.f:197-198 DFIS/DFIH split the UNCAPPED DFALLN; the cap is :216-217's DENIx−DZERO test, after the
+            # LASCO halving / post-burn floor (halving a pre-capped fall left half the remnant standing a year longer).
+            dfis = denttl > 0f0 ? sn.den_soft[i] * dfalln / denttl : 0f0
+            dfih = denttl > 0f0 ? sn.den_hard[i] * dfalln / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
             # that existed at a fire (died at/before BURNYR) fall faster for PBTIME years — a FLOOR (MAX)
             # on the normal fall. Small (<PBSIZE) snags fall RSMAL≈1−0.1^(1/PBTIME)≈28%/yr; soft-at-fire
@@ -497,9 +505,19 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                         sn.pbfrih[i] > sn.pbfris[i] && (sn.pbfris[i] = sn.pbfrih[i])
                     end
                 end
-                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr) <= p.pb_time
-                    xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
-                    dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                # vbase/fmsnag.f:127-139,199-214 LASCO (aspen and the other suckering hardwoods: UT 6/18/19, TT 6/15,
+                # CR 20/21/22/28, BC 11/12/13/15): for 10 years after the burn the normal fall is HALVED, then floored at
+                # the post-burn PBFRIx rates (no PBTIME limit on that branch). MEASURED FVSbc_instr YSM029-246 simfire
+                # 2038: the fire-killed aspen snags still standing at DENIH 0.46-3.9 live, all fallen in jl.
+                if Int(sn.yrdead[i]) <= byr
+                    if _fm_lasco(s.variant, Int(sp)) && (eff - byr) <= 10
+                        dfis *= 0.5f0; dfih *= 0.5f0
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    elseif 0 <= (eff - byr) <= p.pb_time
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    end
                 end
             end
             # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50

@@ -302,4 +302,13 @@ end
     end
 end
 
+# vbase/fmsnag.f:127-139,197-217 LASCO: for 10 years after a burn the suckering hardwoods' snags (BC 11/12/13/15) fall at half
+# the normal DFALLN (the uncapped BASE·FALLX·ORIGDEN split, capped only afterwards), floored at the post-burn PBFRIx rate.
+# MEASURED FVSbc_instr YSM029-246 simfire: aspen snag DENIH 0.50886 at the 2038 report (jl had none left).
+@testset "Post-burn LASCO snag fall (fire/vbase/fmsnag.f)" begin
+    c = _case("YSM029-246", "simfire")
+    @test !any(m -> m.col == "Standing_Dead", c.ms)
+    @test length(c.ms) <= 4                       # 10 cells before
+end
+
 end # module
