@@ -360,4 +360,11 @@ end
     c = _case("TT", "2750433010690", "climate")
     @test _cells(c) == 0
 end
+# cr/esuckr.f:296-307 sprout DBH = HT2/(ln(HT-4.5)-AX)-1 with AX = HT1 only when IABFLG=1, else the CRATET-calibrated AA.
+@testset "CR sprout DBH uses the calibrated AA (cr/esuckr.f:296-307) vs FVScr_clean" begin
+    for r in ("thinbba", "econ")
+        c = _case("CR", "3026069010690", r)
+        @test _cells(c) == 0
+    end
+end
 end # module

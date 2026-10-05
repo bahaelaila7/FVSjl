@@ -949,7 +949,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   ne ? ne_sprout_dbh(coef, issp, ht) :
                   cs ? cs_sprout_dbh(coef, issp, ht) :
                   ls ? ne_sprout_dbh(coef, issp, ht) :
-                  cr ? ne_sprout_dbh(coef, issp, ht) :
+                  cr ? ie_em_sprout_dbh(s, issp, ht) :   # cr/esuckr.f:296-307 AX=HT1 (IABFLG=1) else the cratet AA fit
                   tt ? tt_sprout_dbh(coef, issp, ht) :
                   ut ? tt_sprout_dbh(coef, issp, ht) :
                   so ? so_sprout_dbh(coef, issp, ht) :
