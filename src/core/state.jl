@@ -414,6 +414,9 @@ mutable struct Control
     # initre.f:330-331 takes the counted IPTKNT / NSTKNT, kept in lstknt / nstknt by the tree reader).
     iptinv_set::Bool
     nonstk_set::Bool
+    # MISFLG (mistoe/misin0.f:83 .TRUE.; the MISTOFF keyword, misin.f:446, clears it): when .FALSE. MISDAM (misdam.f:64)
+    # loads no dwarf-mistletoe rating from the damage codes and BC's NEWSI (canada/newmist/mistoe.f:203) stays off.
+    misflg::Bool
 end
 
 function Control()
@@ -498,6 +501,7 @@ function Control()
         String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
         false, false,                                            # iptinv_set, nonstk_set
+        true,                                                    # misflg (misin0.f:83)
     )
 end
 

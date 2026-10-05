@@ -3107,6 +3107,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
         elseif kw == "MISTMULT"; kw_mistmult!(s, rec)      #   DM spread-probability multipliers (misin.f opt 1: YPLMLT/YNGMLT)
         elseif kw == "MISTPINF"; kw_mistpinf!(s, rec)      #   forced initial DM infection (misin.f opt 10 → misinf.f MISINF)
+        elseif kw == "MISTOFF";  s.control.misflg = false  #   misin.f opt 8 (:446): MISFLG=.FALSE. ⇒ no damage-code DMR (misdam.f:64), no BC NEWSI
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

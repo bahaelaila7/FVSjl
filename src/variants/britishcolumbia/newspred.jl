@@ -304,13 +304,13 @@ function _dm_ensure_capacity!(ms::MistletoeState, n::Int)
 end
 
 # NEWSI (canada/newmist/mistoe.f:168): the NISI spatial model (DMTREG/DMMDMR) runs only when NEWMOD (the NEWSPRED keyword,
-# misin.f:599) AND MISFLG (cleared by MISTOFF, misin.f:480). A MISTOE block alone keeps the base mistoe.f spread
+# misin.f:599) AND MISFLG (cleared by MISTOFF, metric/newmist/misin.f:480; Control.misflg). A MISTOE block alone keeps the base mistoe.f spread
 # (`_base_mistoe_on`) — it never enters DMTREG.
-@inline _dm_newsi(ms)::Bool = ms.newmod
+@inline _dm_newsi(s, ms)::Bool = ms.newmod && s.control.misflg
 
 function dm_ndmr!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     length(ms.dmr) == n || (ms.dmr = zeros(Int32, n))
     @inbounds for i in 1:n
@@ -692,7 +692,7 @@ const BC_MIS_PMC = reshape(Float32[
 # cycle it is born — MISPUTZ zeros its PBRKPT), exactly as the Fortran GOTO 100 divide-by-zero guard.
 function dm_ntrd!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     n == 0 && return s
     TINY = 1.0f-25
@@ -750,7 +750,7 @@ end
 # the parent's DMR to offspring (MISPUT), pools zeroed (MISPUTZ / DMKLDG=0), remapped next cycle.
 function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     n == 0 && return s
     species = t.species; prob = t.tpa            # PROB = trees/acre expansion factor
@@ -1135,7 +1135,7 @@ end
 # Still .sum-INERT — nothing consumes dmr until C6.
 function dm_init!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     ms.dmr = zeros(Int32, n)
     ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
@@ -1167,7 +1167,7 @@ end
 # recomputed each cycle before spread. Still engine-INERT (nothing consumes brkpnt until C4/C6).
 function dm_fbrk!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     size(ms.brkpnt, 1) == n || (ms.brkpnt = zeros(Float32, n, DM_BPCNT))
     y = 1f0 / (DM_FPM * DM_MESH)                 # feet → MESH
@@ -1188,7 +1188,7 @@ end
 # cycle. Engine-INERT (nothing consumes idmshp until DMRDMX/spread land).
 function dm_shap!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     length(ms.idmshp) == n || (ms.idmshp = zeros(Int32, n))
     tpa = max(s.plot.total_tpa, s.plot.old_tpa)     # PLOT: TPA = MAX(TPROB, OLDTPA)
@@ -1224,7 +1224,7 @@ const _DM_PIE    = 3.14159f0
 const _DM_HLFPIE = 1.57080f0
 function dm_rdmx!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !_dm_newsi(ms)) && return s
+    (ms === nothing || !_dm_newsi(s, ms)) && return s
     t = s.trees; n = t.n
     (size(ms.dmrdmx, 1) == n && size(ms.idmshp, 1) == n) || (ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2))
     fill!(ms.dmrdmx, 0f0)

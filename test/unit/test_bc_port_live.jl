@@ -129,4 +129,20 @@ end
     @test !any(m -> m.year == "2030" && m.col in ("PctCr", "CrWidth", "DBH", "Ht"), c.ms)
 end
 
+# MISTOFF (mistoe/misin.f:446, metric/newmist/misin.f:480): MISFLG=.FALSE. ⇒ MISDAM loads no rating from the damage codes
+# (misdam.f:64) and BC's NEWSI stays off. Unported in every variant. Live golden: the tiered SkyRanch-Control stand (damage-
+# code mistletoe) with a MISTOE/MISTOFF/END block, private FVSbc_dbfix .sum (test/fixtures/bc_port).
+@testset "MISTOFF keyword (misin.f MISFLG, misdam.f:64)" begin
+    d = mktempdir(); fx = joinpath(@__DIR__, "..", "fixtures", "bc_port")
+    cp(joinpath(@__DIR__, "..", "fixtures", "tiered", "bc", "stands.db"), joinpath(d, "stands.db"))
+    key = replace(read(joinpath(fx, "skyranch_control_mistoff.key"), String),
+                  "\nstands.db\n" => "\n" * joinpath(d, "stands.db") * "\n", "\nout.db\n" => "\n" * joinpath(d, "out.db") * "\n")
+    write(joinpath(d, "s.key"), key)
+    txt = FVSjl.run_keyfile(joinpath(d, "s.key"); variant = FVSjl.BritishColumbia())
+    jl = [l[1:min(end, 120)] for l in split(txt, '\n') if length(l) > 20 && !startswith(l, "-999")]
+    live = [l[1:min(end, 120)] for l in eachline(joinpath(fx, "skyranch_control_mistoff.live.sum")) if length(l) > 20]
+    @test length(jl) == length(live) == 6
+    @test jl == live
+end
+
 end # module

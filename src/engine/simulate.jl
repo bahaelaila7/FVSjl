@@ -18,6 +18,9 @@ calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
     build_cycle_schedule!(s)             # CYCLEAT/TIMEINT → cycle-boundary year array (IY)
+    # MISTOFF (misin.f:446 MISFLG=.FALSE.) ⇒ MISDAM loads no rating from the damage codes (misdam.f:64; FVS reads the
+    # tree records after the keywords, so a MISTOFF anywhere in the stand's keyword set applies to every record).
+    s.control.misflg || fill!(s.trees.dmr, Int32(0))
     # OC ORGANON: the CRATET ORGANON section (oc/cratet.f:155-401) runs BEFORE the FVS-native
     # missing-value dubbing — it dubs valid-ORGANON trees' missing HT/CR via ORGANON PREPARE
     # (PRDHT/PRDCR) and computes ACALIB. A blank-height ORGANON tree gets its ORGANON dub here;
