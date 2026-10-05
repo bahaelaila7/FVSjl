@@ -738,7 +738,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     lcundr = (usba[3] + usba[4] + usba[5] + usba[6] + usba[7]) > 1f0
     avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
     qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
-    stndba = sum(ctba)
+    stndba = 0f0; @inbounds for k in eachindex(ctba); stndba += ctba[k]; end   # fmcfmd.f:327-330 left-to-right (Base.sum reassociates)
     # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343); with no trees /
     # no BA the PREVIOUS call's ICT (OLDICT — fmvinit.f initialises it to 6, lodgepole). jl used MCCT on bare stands
     # (MEASURED FVStt_g16 3333677010690 1992: live ICT 6 ⇒ FMD 2, jl ICT 7 ⇒ FMD 8; flame 12.7 / 1.97).
