@@ -54,7 +54,9 @@ end
 function crown_ratio_update!(s::StandState, ::EastCascades; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; (n == 0 && !lstart) && return s
+    # ec/crown.f:144 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the dead crowns.
+    n == 0 && @goto dead79
     sd = s.coef.species
     relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area; avh = p.avg_height
     rmai = s.plot.mai_adj; dens = s.density
@@ -112,6 +114,7 @@ function crown_ratio_update!(s::StandState, ::EastCascades; fint::Float32 = 10.0
         t.crown_pct[i] = Int32(icri)
     end
     # ec/crown.f DO 79 — cycle-0 dead-record DUBSCR (TPCCF = PCCF(ITRE(I))).
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0

@@ -456,9 +456,12 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # SNAGFALL per-species overrides of FALLX / ALLDWN (default = CSV value when not overridden).
             fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
-            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
-                                                  fallx = fx, alldwn = ad, variant = s.variant,
-                                                  itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code)))
+            # fmsfall.f DFALLN is NOT capped at DENTTL: DFIS/DFIH can exceed the pools and are cut only by the
+            # fmsnag.f:216-219 DZERO rule — AFTER the LASCO halving (a min() first halved the remainder instead:
+            # MEASURED FVSut_g16 42642675010690 aspen snag 2025 DENIH 0.014426 → 0.003766 live, jl 0.007213).
+            dfall = snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
+                                      fallx = fx, alldwn = ad, variant = s.variant,
+                                      itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -497,9 +500,19 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                         sn.pbfrih[i] > sn.pbfris[i] && (sn.pbfris[i] = sn.pbfrih[i])
                     end
                 end
-                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr) <= p.pb_time
-                    xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
-                    dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                # fmsnag.f:200-214: UT/TT/CR/BC aspen-cottonwood-birch (LASCO, fmsnag.f:131-155) snags that predate the
+                # burn fall at HALF the normal rate for 10 years (still floored by the post-burn rates); every other snag
+                # takes the post-burn floor for PBTIME years. MEASURED FVSut_g16 42642675010690 SIMFIRE 2020: 2030
+                # Standing_Dead 1.894 live vs 1.502 jl, DDW 19.15 vs 19.49 (fire-killed aspen snags falling at full rate).
+                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr)
+                    if _snag_lasco(s.variant, Int(sn.sp[i])) && (eff - byr) <= 10
+                        dfis = dfis * 0.5f0; dfih = dfih * 0.5f0
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    elseif (eff - byr) <= p.pb_time
+                        xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                        dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                    end
                 end
             end
             # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50
@@ -526,7 +539,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 kd = _cwd_size_class(sn.dbh[i])
                 fs.cwd[kd, 2, idc] += a * dfih; fs.cwd[kd, 1, idc] += a * dfis * 0.80f0
             end
-            fallen += dfall
+            fallen += dfis + dfih
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
             if sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
                 sn.den_soft[i] = 0f0; sn.den_hard[i] = 0f0
@@ -558,6 +571,11 @@ end
 end
 # Variants whose fmvinit HTX default is 0 for every species (no height loss), so only SNAGBRK populates `snag_htx`.
 _snag_htx0_default(v) = v isa Southern || v isa CentralStates
+# fmsnag.f:131-155 LASCO — aspen/cottonwood/paper-birch post-burn snag-fall rule, UT/TT/CR/BC only.
+_snag_lasco(v, jsp::Int) = v isa Utah ? (jsp == 6 || jsp == 18 || jsp == 19) :
+                           v isa Teton ? (jsp == 6 || jsp == 15) :
+                           v isa CentralRockies ? (jsp == 20 || jsp == 21 || jsp == 22 || jsp == 28) :
+                           v isa BritishColumbia ? (jsp == 11 || jsp == 12 || jsp == 13 || jsp == 15) : false
 
 # Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW

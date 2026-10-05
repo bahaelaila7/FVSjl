@@ -455,7 +455,7 @@ function _ci_regent!(s::StandState, stash; fint::Float32 = 10.0f0, lestb::Bool =
 end
 
 # ci/esgent.f: SPESRT, CALL REGENT(.TRUE.,ITRNIN) — the cycling REGENT with LESTB (_ci_regent!, which also draws the new
-# records' crowns, DO 13) — then HTG·WK4 (WK4 = HTIMLT, 1 here) added to HT, the WK4<1 DBH rescale, and the HHTMAX cap
+# records' crowns, DO 13) — then HTG·WK4 (WK4 = HTIMLT) added to HT, the WK4<1 DBH rescale, and the HHTMAX cap
 # (HT=HHTMAX, DBH=2.95). REGENT reads the gradd.f:192 DENSE (post-growth, pre-regen: relden_pre/ba_pre/avh_pre/pccf_pre/
 # ptba_pre) and grincr.f's post-thin ATBA/ATCCF/ATAVH. The old port grew the birth cohort with one deterministic
 # step: no ZZRAN, no DBH=D+0.001·HK below breast height (MEASURED FVSci_g16 5388215010690 PLANT: DF 2025 DBH 0.10418 /
@@ -475,7 +475,20 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 pccf_in = pccf_pre, ptba_in = ptba_pre, atba, atccf, atavh)
     @inbounds for i in (nstart + 1):t.n                       # esgent.f:58-71
         sp = Int(t.species[i])
+        # esgent.f:58-68 HTEMP=HT+HTG; HTG=HTG·WK4; HT=HT+HTG; WK4<1 ⇒ DBH=0.1+0.001·HT, DG=0 below 4.5 ft, else DBH and
+        # DG ×HT/HTEMP. WK4 = HTIMLT = 5/5.0001 for a start-of-cycle PLANT (ci/estab.f == estb estab.f:1055-1063).
+        # MEASURED FVSci_g16 3159852010690 PLANT DF: every 2012 planted Ht 1.05e-4 ft below jl's WK4=1 value.
+        wk4 = t.htimlt[i]
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * wk4
         t.height[i] = t.height[i] + t.ht_growth[i]
+        if wk4 < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp); t.diam_growth[i] = t.diam_growth[i] * (t.height[i] / htemp)
+            end
+        end
         if 1 <= sp <= length(CI_HHTMAX) && t.height[i] > CI_HHTMAX[sp]
             t.height[i] = CI_HHTMAX[sp]; t.dbh[i] = 2.95f0
         end

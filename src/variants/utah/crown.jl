@@ -95,7 +95,12 @@ end
 function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n
+    # ut/crown.f:98 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` — an all-dead inventory still dubs the dead crowns.
+    if n == 0
+        lstart || return s
+        @goto dead79
+    end
     relden = p.relative_density; sdiac = crown_sdi
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
@@ -179,6 +184,7 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
         t.crown_pct[i] = Int32(icri)
     end
     # ut/crown.f DO 79 — cycle-0 dead records: 17 LP-PJ CL, 18/19/22 CL (rounded), else DUBSCR at the record's point.
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         sp = Int(t.species[i]); h = t.height[i]
         if sp in (17, 18, 19, 22)

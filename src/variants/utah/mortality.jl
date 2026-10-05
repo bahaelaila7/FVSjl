@@ -71,7 +71,10 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
     let dens = s.density
         stand_qmd(s) == 0f0 && (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)   # RMSQD==0 (dense.f)
-        (Int(s.control.cycle) > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
+        # ut/morts.f:234 `ICYC.GT.1`: jl's control.cycle is 0-based (ICYC = cycle+1), so the test is cycle ≥ 1 — the
+        # old `cycle > 1` skipped the cycle-2 reset (MEASURED FVSut_g16 42642675010690 MISTOE: live resets at ICYC=2,
+        # T 4475.32 vs TPAMRT 4568.13 after the cycle-1 mistletoe kill; jl kept the latched line ⇒ ~20% under-kill).
+        (Int(s.control.cycle) + 1 > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
             (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)
     end
     # ut/morts.f:241 IF(T.LT.1.0) GO TO 45 — a (near-)empty stand skips the base mortality and the TPAMRT update

@@ -268,7 +268,8 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
         dens.mort_intercept = 0f0; dens.mort_slope = 0f0
     end
     # trajectory change since last cycle -> reset (morts.f:300-305)
-    if Int(ctl.cycle) > 1 && dens.tpa_mort > 0f0 && abs(tt - dens.tpa_mort) > 1f0
+    # on/morts.f:300 `ICYC.GT.1` — control.cycle is 0-based (ICYC = cycle+1)
+    if Int(ctl.cycle) + 1 > 1 && dens.tpa_mort > 0f0 && abs(tt - dens.tpa_mort) > 1f0
         dens.mort_intercept = 0f0; dens.mort_slope = 0f0
     end
 
