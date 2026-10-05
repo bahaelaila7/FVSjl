@@ -251,4 +251,13 @@ end
     @test length(c.ms) <= 10                      # 32 cells before
 end
 
+# comprs.f:600-930 merge in REAL*4, in the DO 210-permuted member order: WK5=PROB+WK2 weights, a cumulative WK3 for the
+# RANN pick, ordered sums, ICR=NINT(XICRI/TXP), PROB=ΣPROB, one-record classes untouched, IDTREE=IDCMP2+IY ("CM" ids).
+# jl took Float64 means. MEASURED FVSbc_instr Fir.20 rootdis RDMN1 COMPRS: 400 merged records bit-exact (HT/DBH/PROB
+# were 1-2 ULP off on ~130, ICR on 31); TreeId CM002020.
+@testset "COMPRS merge arithmetic (base/comprs.f:600-930)" begin
+    c = _case("Fir.20", "rootdis")
+    @test isempty(c.ms)
+end
+
 end # module

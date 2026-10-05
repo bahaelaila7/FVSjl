@@ -343,119 +343,113 @@ function compress!(s::StandState, nclas::Int, pn1::Float64)::Bool
     return true
 end
 
-# Merge one class `mem` (record indices) into a single record at its lowest index, PROB-weighted
-# (comprs.f:688-966); WK2=0 in the comcup path so the weight is PROB. Conserves the class's TPA.
-function _merge_one!(s::StandState, mem::Vector{Int})::Int
+# Merge one class into a single record — comprs.f:600-930, in its REAL*4 arithmetic and member order.
+# `mem_in` is the class in IND order; DO 210 (comprs.f:605-612) swaps the smallest record index to the front (IREC1,
+# the survivor slot), permuting the rest — that permuted order is the accumulation order of every sum below. The
+# weight is WK5 = PROB + WK2 (DO 212; WK2 = 0 on both callers: COMCUP and RDMN1 zero it), WK3 its running sum, TXP
+# the class total; one RANN picks the record the nominal attributes come from (DO 216). A one-record class is left
+# untouched (GOTO 480). MEASURED FVSbc_instr Fir.20 rootdis RDMN1 COMPRS(400,0.5): the jl Float64 means were 1-2
+# ULP off on HT/DBH/PROB of ~130 of 400 records and ICR on 31 (NINT vs a rounded Float64 mean).
+function _merge_one!(s::StandState, mem_in::Vector{Int})::Int
     t = s.trees
-    # Merge into the lowest record index of the class. comprs.f:696 writes the merge to IREC1=IND(I1)=mem[1]
-    # (sorted-first member) and never assigns OLDRN, so naively the merged record should keep mem[1]'s serial-corr
-    # deviate — BUT that hypothesis is EMPIRICALLY DISPROVEN vs live (#29): `dst=mem[1]` keeps the 2000 .sum
-    # bit-exact (order-independent aggregate) yet drives s22 2005 TPA to 395 vs live 409, OVERSHOOTING — while
-    # `minimum(mem)` undershoots (415). Live sits BETWEEN, so FVS's post-COMPRESS OLDRN at the merged record's
-    # final slot is neither member's raw deviate — it is whatever the TREDEL→TREMOV SWAP sequence leaves there
-    # (the swaps reshuffle OLDRN across records, unlike jl's one-way gather). minimum(mem) is the CLOSER
-    # approximation (+6 vs −14) and keeps all other COMPRESS tests bit-exact, so it stays until the swap sequence
-    # is replicated. The faithful fix needs the exact TREDEL/TREMOV port + an s22-partition instrumentation; see
-    # docs/audit/BACKLOG.md item 5.
-    dst = minimum(mem)
-    length(mem) == 1 && return dst
-    txp = 0.0
-    for r in mem; txp += t.tpa[r]; end
-    txp <= 0.0 && return dst
-    # nominal attributes: sample one member proportional to PROB (RANN, comprs.f:725)
-    x = Float64(rann!(s.rng)) * txp
-    cum = 0.0; sel = mem[end]
-    for r in mem
-        cum += t.tpa[r]
-        if x <= cum; sel = r; break; end
+    mem = copy(mem_in)
+    @inbounds for ii in 2:length(mem)                       # DO 210: IND(I1) ↔ IND(II) when IND(I1) > IND(II)
+        mem[1] > mem[ii] && ((mem[1], mem[ii]) = (mem[ii], mem[1]))
     end
-    wmean(f) = (acc = 0.0; for r in mem; acc += f(r) * t.tpa[r]; end; Float32(acc / txp))
-    # HT / NORMHT / ITRUNC (truncated-tree handling, comprs.f:756-806)
+    dst = mem[1]
+    length(mem) == 1 && return dst
+    m = length(mem)
+    wk5 = Float32[t.tpa[r] + 0f0 for r in mem]            # WK5 = PROB + WK2
+    wk3 = similar(wk5); txp = wk5[1]; wk3[1] = txp
+    @inbounds for k in 2:m; txp += wk5[k]; wk3[k] = txp; end
+    txp == 0f0 && return dst
+    x = rann!(s.rng) * txp                                 # CALL RANN(X); X = X*TXP (REAL)
+    sel = mem[m]
+    @inbounds for k in 1:m
+        x <= wk3[k] && (sel = mem[k]; break)
+    end
     ltrnk = t.norm_ht[sel] > 0
-    local hnew::Float32; local normnew::Int32; local truncnew::Int32
-    if !ltrnk
-        acc = 0.0
-        for r in mem
-            h = t.norm_ht[r] > 0 ? Float64(t.norm_ht[r]) / 100 : Float64(t.height[r])
-            acc += h * t.tpa[r]
+    # comprs.f:733-745 nominal attributes from the sampled record; IDTREE = IDCMP2 + IY(MAX(1,ICYC)); MISGET/MISPUT.
+    t.plot_id[dst] = t.plot_id[sel];   t.species[dst] = t.species[sel]
+    t.cut_code[dst] = t.cut_code[sel]; t.special[dst] = t.special[sel]
+    t.mort_code[dst] = t.mort_code[sel]; t.iestat[dst] = t.iestat[sel]
+    t.tree_id[dst] = Int32(20000000 + cycle_year_at(s.control, Int(s.control.cycle)))   # IY(MAX(1,ICYC)), ICYC = jl cycle+1 (0 ⇒ IY(1) at RDMN1)
+    t.dmr[dst] = t.dmr[sel]
+    nrm(r) = Float32(t.norm_ht[r]) / 100f0
+    if !ltrnk                                              # comprs.f:752-768
+        hti = t.norm_ht[dst] > 0 ? nrm(dst) : t.height[dst]
+        hti = hti * wk5[1]
+        t.norm_ht[dst] = Int32(0); t.trunc[dst] = Int32(0)
+        @inbounds for k in 2:m
+            r = mem[k]
+            xh = t.norm_ht[r] > 0 ? nrm(r) : t.height[r]
+            hti = hti + xh * wk5[k]
         end
-        hnew = Float32(acc / txp); normnew = Int32(0); truncnew = Int32(0)
-    else
-        xt = 0.0; xp = 0.0
-        for r in mem
-            t.norm_ht[r] > 0 || continue
-            xt += Float64(t.trunc[r]) / 100 * t.tpa[r]
-            xp += Float64(t.height[r]) * t.tpa[r]
+        t.height[dst] = hti / txp
+    else                                                   # comprs.f:770-799
+        xx = 0f0; xp = 0f0
+        @inbounds for k in 1:m
+            r = mem[k]; t.norm_ht[r] > 0 || continue
+            xx = xx + Float32(t.trunc[r]) / 100f0 * wk5[k]
+            xp = xp + t.height[r] * wk5[k]
         end
-        xprop = xp > 0 ? xt / xp : 0.0
-        xnr = 0.0; xit = 0.0; hti = 0.0
-        for r in mem
-            w = t.tpa[r]; hti += Float64(t.height[r]) * w
+        xx = xx / xp
+        xit = 0f0; xnr = 0f0; hti = 0f0
+        @inbounds for k in 1:m
+            r = mem[k]; w = wk5[k]
+            hti = hti + t.height[r] * w
             if t.norm_ht[r] > 0
-                xnr += Float64(t.norm_ht[r]) / 100 * w; xit += Float64(t.trunc[r]) / 100 * w
+                xnr = xnr + nrm(r) * w
+                xit = xit + Float32(t.trunc[r]) / 100f0 * w
             else
-                xnr += Float64(t.height[r]) * w; xit += Float64(t.height[r]) * xprop * w
+                xnr = xnr + t.height[r] * w
+                xit = xit + t.height[r] * xx * w
             end
         end
-        hnew = Float32(hti / txp)
-        # comprs.f:805-806: NORMHT/ITRUNC = IFIX(XNR/TXP*100) = truncate (no +0.5), NOT Julia round (ties-to-even).
-        normnew = trunc(Int32, xnr / txp * 100); truncnew = trunc(Int32, xit / txp * 100)
+        t.height[dst] = hti / txp
+        t.norm_ht[dst] = unsafe_trunc(Int32, xnr / txp * 100f0)
+        t.trunc[dst] = unsafe_trunc(Int32, xit / txp * 100f0)
     end
-    # quadratic-mean DBH (comprs.f:952)
-    dbh2 = 0.0; for r in mem; dbh2 += Float64(t.dbh[r])^2 * t.tpa[r]; end
-    # write the merged record into `dst`
-    t.height[dst]       = hnew
-    t.norm_ht[dst]      = normnew
-    t.trunc[dst]        = truncnew
-    t.dbh[dst]          = sqrt(Float32(dbh2 / txp))
-    # NOTE: every wmean(r->…) below weights by t.tpa[r]; dst ∈ mem, so t.tpa[dst] must
-    # still hold dst's ORIGINAL PROB while these run. Set the merged (summed) TPA AFTER
-    # all PROB-weighted means, else dst's weight becomes txp and the means blow up
-    # (was inflating cuft_vol/DG/crown → COMPRESS accretion/mortality volume bug).
-    t.diam_growth[dst]  = wmean(r -> Float64(t.diam_growth[r]))
-    t.ht_growth[dst]    = wmean(r -> Float64(t.ht_growth[r]))
-    t.crown_ratio[dst]  = wmean(r -> Float64(t.crown_ratio[r]))
-    t.crown_pct[dst]    = round(Int32, wmean(r -> Float64(t.crown_pct[r])))
-    t.crown_width[dst]  = wmean(r -> Float64(t.crown_width[r]))
-    t.old_crown_pct[dst] = wmean(r -> Float64(t.old_crown_pct[r]))
-    t.cuft_vol[dst]       = wmean(r -> Float64(t.cuft_vol[r]))
-    t.merch_cuft_vol[dst] = wmean(r -> Float64(t.merch_cuft_vol[r]))
-    t.saw_cuft_vol[dst]   = wmean(r -> Float64(t.saw_cuft_vol[r]))
-    t.bdft_vol[dst]       = wmean(r -> Float64(t.bdft_vol[r]))
-    t.cull[dst]           = wmean(r -> Float64(t.cull[r]))
-    t.merch_top_bf[dst]   = wmean(r -> Float64(t.merch_top_bf[r]))
-    t.merch_top_cf[dst]   = wmean(r -> Float64(t.merch_top_cf[r]))
-    t.tpa[dst]          = Float32(txp)                 # PROB summed (conserves TPA) — set LAST
-    # nominal attributes from the PROB-sampled record (comprs.f:733-741)
-    t.species[dst]   = t.species[sel];   t.plot_id[dst]  = t.plot_id[sel]
-    t.mort_code[dst] = t.mort_code[sel]; t.cut_code[dst] = t.cut_code[sel]
-    t.special[dst]   = t.special[sel];   t.defect[dst] = t.defect[sel]
-    t.iestat[dst]    = t.iestat[sel]                                  # comprs.f:738 IESTAT(IREC1)=IESTAT(IREC)
-    t.zrand[dst]     = -999f0                                         # comprs.f:973 ZRAND(IREC1)=-999 (reset the serial correlation)
-    # OLDRN serial-correlation deviate (dgdriv.f OLDRN) is the post-compression residual (#29). comprs.f NEVER
-    # sets it on the merged record (no OLDRN in comprs.f): the record at IREC1=IND(I1) silently keeps that slot's
-    # OLDRN, then the tredel→TREMOV compaction SWAPS records (tremov.f:39/92/146 swap OLDRN) — reshuffling the
-    # deviate differently than jl's one-way `copy_tree!` gather. The merge itself is bit-exact (dbh/ht/tpa are
-    # order-independent averages; nominal from RANN-sampled `sel`), so only this carried deviate drifts the NEXT
-    # cycle's DG → s22 self-thinning (2005 TPA 415 vs live 409). Keeping dst's (minimum-index) OLDRN is closest;
-    # a tried `mem[1]` (=IND(I1)) inheritance OVER-shot (395) — faithful fix needs the TREMOV swap-order replicated
-    # in `_merge_classes!`, not a representative pick. Left as the accepted COMPRESS residual (see BACKLOG #5).
-    # DECAYCD (decay code) and WDLDSTEM (woodland stems) are NOT copied from the sampled record — comprs.f:818-936
-    # TPA-WEIGHT-AVERAGES them (like CULL above), but accumulates into an INTEGER register (DECAYI/WDLDSTEMI),
-    # so each `code·prob` product and the running sum are truncated toward zero (small-prob contributions vanish);
-    # CULL is the only one kept REAL. We replicate the integer accumulation. Inert (=copy) when all members share
-    # the same code or codes are 0 (the tested COMPRESS stands), so the suite stays bit-exact. (The exact result
-    # is mem-order-dependent via the truncation — a residual that only surfaces with mixed decay/woodland data.)
-    decayi = 0; wdldi = 0
-    @inbounds for r in mem                                  # DECAYI/WDLDSTEMI are INTEGER ⇒ the running SUM is
-        decayi = trunc(Int, decayi + Float64(t.decay_code[r])     * Float64(t.tpa[r]))   # truncated each step
-        wdldi  = trunc(Int, wdldi  + Float64(t.woodland_stems[r]) * Float64(t.tpa[r]))
+    # comprs.f:800-929 PROB-weighted sums (REAL), first member then the rest in order.
+    arrs = (t.bdft_vol, t.cuft_vol, t.merch_cuft_vol, t.saw_cuft_vol, t.cull,
+            t.abvgrd_bio, t.merch_bio, t.cubsaw_bio, t.foliage_bio,
+            t.abvgrd_carb, t.merch_carb, t.cubsaw_carb, t.foliage_carb, t.carbon_frac,
+            t.merch_top_bf, t.merch_top_cf, t.diam_growth, t.ht_growth, t.old_crown_pct, t.crown_ratio,
+            t.dg_prev, t.crown_width)
+    acc = zeros(Float32, length(arrs))
+    dbhi = 0f0; probi = 0f0; xicri = 0f0; decayi = 0; wdldi = 0
+    df = zeros(Float32, 4)
+    dsplit(dv) = (Float32(dv ÷ 1000000), Float32(dv ÷ 10000 - (dv ÷ 1000000) * 100),
+                  Float32(dv ÷ 100 - (dv ÷ 10000) * 100), Float32(dv - (dv ÷ 100) * 100))
+    @inbounds for k in 1:m
+        r = mem[k]; xp = wk5[k]
+        for (a, arr) in enumerate(arrs)
+            acc[a] = k == 1 ? arr[r] * xp : acc[a] + arr[r] * xp
+        end
+        dr = t.dbh[r]
+        dbhi = k == 1 ? dr * dr * xp : dbhi + dr * dr * xp
+        probi = k == 1 ? t.tpa[r] : probi + t.tpa[r]
+        xicri = k == 1 ? Float32(t.crown_pct[r]) * xp : xicri + Float32(t.crown_pct[r]) * xp
+        # DECAYI / WDLDSTEMI are INTEGER: each assignment truncates the REAL expression.
+        decayi = k == 1 ? unsafe_trunc(Int, Float32(t.decay_code[r]) * xp) :
+                          unsafe_trunc(Int, Float32(decayi) + Float32(t.decay_code[r]) * xp)
+        wdldi = k == 1 ? unsafe_trunc(Int, Float32(t.woodland_stems[r]) * xp) :
+                         unsafe_trunc(Int, Float32(wdldi) + Float32(t.woodland_stems[r]) * xp)
+        d1, d2, d3, d4 = dsplit(Int(t.defect[r]))
+        df[1] = k == 1 ? d1 * xp : df[1] + d1 * xp
+        df[2] = k == 1 ? d2 * xp : df[2] + d2 * xp
+        df[3] = k == 1 ? d3 * xp : df[3] + d3 * xp
+        df[4] = k == 1 ? d4 * xp : df[4] + d4 * xp
     end
-    t.decay_code[dst]     = Int32(trunc(Int, decayi / Float64(txp)))
-    t.woodland_stems[dst] = Int32(trunc(Int, wdldi  / Float64(txp)))
-    # NOTE: comprs.f copies the other nominal attributes (ISP/IMC/ITRE/defect/SVS/mistletoe) from the
-    # RANN-sampled record; it does NOT copy any DGSCOR serial-correlation deviate, so the merged
-    # record keeps slot dst's (the first member's) random state — which it already does here.
+    @inbounds for (a, arr) in enumerate(arrs); arr[dst] = acc[a] / txp; end
+    t.decay_code[dst] = Int32(unsafe_trunc(Int, Float32(decayi) / txp))
+    t.woodland_stems[dst] = Int32(unsafe_trunc(Int, Float32(wdldi) / txp))
+    t.dbh[dst] = sqrt(dbhi / txp)
+    t.crown_pct[dst] = Int32(round(Int, xicri / txp, RoundNearestTiesAway))   # NINT
+    t.tpa[dst] = probi
+    idf = [unsafe_trunc(Int, df[j] / txp + 0.5f0) for j in 1:4]
+    t.defect[dst] = Int32(idf[1] * 1000000 + idf[2] * 10000 + idf[3] * 100 + idf[4])
+    t.zrand[dst] = -999f0                                  # comprs.f:929 reset the serial correlation
     return dst
 end
 
