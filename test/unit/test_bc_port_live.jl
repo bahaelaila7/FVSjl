@@ -283,4 +283,14 @@ end
     @test !any(m -> m.col == "Standing_Dead", c.ms)
 end
 
+# DMRMIN (MISCOM): canada/newmist/misin0.f never initialises it (base mistoe/misin0.f:79 sets 1.0), so BC's DMR/DMI statistics
+# count every tree; MISTPRT field 1 sets it in cm (metric/newmist/misin.f:416). MEASURED FVSbc_dbfix SkyRanch-0.3m mistletoe
+# 2019 Mean_DMR 0.0728 live / 2.0 jl.
+@testset "BC DM report DMRMIN = 0 (canada/newmist/misin0.f, metric/newmist/misin.f:416)" begin
+    for cn in ("SkyRanch-0.3m", "SkyRanch-Control", "SkyRanch-2.0m")
+        c = _case(cn, "mistletoe")
+        @test isempty(c.ms)
+    end
+end
+
 end # module

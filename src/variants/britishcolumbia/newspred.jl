@@ -180,7 +180,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     active::Bool                       # MISTOE keyword seen (DM extension on)
     newmod::Bool                       # NEWSPRED — use the NISI spatial spread model (misin.f opt 12)
     prtmis::Bool                       # MISTPRT — emit the DM reports (misin.f opt 6)
-    dmrmin::Float32                    # MISTPRT field-1 min DMR to report (default 1.0)
+    dmrmin::Float32                    # DMRMIN (MISCOM): min DBH (in) for the DMR/DMI statistics — 0 (canada/newmist/misin0.f never sets it); MISTPRT field 1 cm×CMtoIN
     dmalpha::Float32                   # DMAUTO like-class autocorrelation decay (misin.f opt 24; −999 = unset)
     dmbeta::Float32                    # DMAUTO unlike-class decay (−999 = unset)
     dmclmp::Float32                    # clumping (variance/mean ratio) for the neighbour PDF (DMINIT 1.0; DMCLMP kw)
@@ -203,7 +203,7 @@ mutable struct MistletoeState <: AbstractMistletoeState
     rnseed::Int64                      # (reserved)
 end
 
-MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.0f0,
+MistletoeState() = MistletoeState(false, false, false, 0f0, -999f0, -999f0, 1.0f0,
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_CRTHRD), Matrix{Float32}(undef, 0, DM_CRTHRD),
@@ -1121,7 +1121,8 @@ function kw_mistprt!(s::StandState, rec)
     s.control.mistprt_on = true                             # misin.f opt 6: PRTMIS ⇒ by-DBH-class DM report (FVS_DM_Sz_Sum)
     if s.variant isa BritishColumbia
         ms = _dm_state!(s); ms.prtmis = true
-        (length(rec.present) >= 1 && rec.present[1]) && (ms.dmrmin = Float32(rec.values[1]))  # min DMR to report (default 1.0)
+        # metric/newmist/misin.f:416 IF(LNOTBK(1).AND.ARRAY(1).GE.0.0) DMRMIN=ARRAY(1)*CMtoIN
+        (length(rec.present) >= 1 && rec.present[1] && rec.values[1] >= 0f0) && (ms.dmrmin = Float32(rec.values[1]) * BC_CMtoIN)
     end
     return
 end
