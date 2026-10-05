@@ -399,4 +399,10 @@ end
         @test count(m -> _rel(m) > 1e-5, c.ms) == 0
     end
 end
+# WRD RDPR CFVPA reads WK1 = DGDRIV's start-of-cycle DG; at cycle 1 that is the DO-220 calibration DG (0 at HT<=4.5), not the
+# input -1 sentinel (tt|ci/dgdriv.f WK1(I)=DG(I)).
+@testset "WRD cycle-1 WK1 = DO-220 DG for TT/CI (rdpr.f CFVPA, dgdriv.f) vs live" begin
+    c = _case("TT", "1856089798290487", "rootdis")
+    @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+end
 end # module
