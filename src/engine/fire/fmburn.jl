@@ -311,8 +311,13 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
     # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
     cons = if fire_carries
+        # FMCONS reads the common FMSLOP (=SLOPE), FWIND (FMBURN's midflame wind; FMCFIR restores it) and DEPTH (the last
+        # fuel model FMFINT's FMGFMV loaded, ×DPMOD) — SO's activity-fuels branch uses all three (so/fmcons.f:155, :217).
+        dlast = 0f0
+        for (fm, w) in models; (fm == 0 || w <= 0f0) && continue; dlast = fmgfmv(s, fm, mois)[3] * dpmod; end
         c = fire_consumption!(fs, mois; psburn, burncr = bcrown, so = s.variant isa SouthCentralOregon,
-                              activity = Int(year) - Int(fs.harvyr) <= 5)   # fmcons.f:121 (IYR-HARVYR) ≤ 5 ⇒ activity fuels
+                              activity = Int(year) - Int(fs.harvyr) <= 5,    # fmcons.f:121 (IYR-HARVYR) ≤ 5 ⇒ activity fuels
+                              fmslop = s.plot.slope, fwind = fwind, depth = dlast)
         fs.exposr_last = c.exposr
         c
     else
