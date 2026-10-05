@@ -35,14 +35,18 @@ const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 # _oracle_bin picks the g16 if present. Eastern keep their tmp/oracles/*_new paths.
 # BC: the stock FVSbc_clean SIGSEGVs on every DATABASE tree read (metric intree.f passes 30 of DBSTREESIN's 34 args);
 # /workspace/.bcwork/dbfix/FVSbc_dbfix is the same objects relinked with that call completed (build_dbfix.sh there).
+# OC/OP/ON: /workspace/.<v>work/tiered/FVS<v>_tiered are private relinks of the same objects with one live-crash fix each
+# (OC/OP organon/mortality.f QUAD1/QUAD2 EXP-underflow SIGFPE after a thin; ON metric fmdout.f stale 8-argument FMSVL2
+# call ⇒ FFE SIGSEGV) — build_tiered.sh in each dir; ORACLE_SOURCE_AUDIT §8. Byte-identical off the crash paths.
 _oracle_bin(v) = let w = "/workspace/." * lowercase(v) * "work"
     lowercase(v) == "bc" && isfile("$w/dbfix/FVSbc_dbfix") ? "$w/dbfix/FVSbc_dbfix" :
+    isfile("$w/tiered/FVS$(lowercase(v))_tiered") ? "$w/tiered/FVS$(lowercase(v))_tiered" :
     isfile("$w/FVS$(lowercase(v))_g16") ? "$w/FVS$(lowercase(v))_g16" : "$w/FVS$(lowercase(v))_clean"
 end
 const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new",
-    ("$c"=>_oracle_bin(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","AK","WC","PN","EC","CA","SO","WS"))...)
+    ("$c"=>_oracle_bin(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","OP","ON","AK","WC","PN","EC","CA","SO","WS"))...)
 const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates(),
-    ("$c"=>FVSjl.variant_from_code(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","AK","WC","PN","EC","CA","SO","WS"))...)
+    ("$c"=>FVSjl.variant_from_code(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","OP","ON","AK","WC","PN","EC","CA","SO","WS"))...)
 const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt"]   # .sum fields 3..12
 const DENSITY_COLS = (2,3,4,5)   # BA,SDI,CCF,TopHt — preserved under the self-thinning count-straddle
 

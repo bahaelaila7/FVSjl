@@ -22,8 +22,9 @@ snapshot tier sees every bit.
 
 **Variant groups** (`TIERED_VARIANTS`, tiered_runner.jl `TIERED_GROUPS`): unset = **CORE** (BM, EM, IE, SN — the
 variants under an active regime-close campaign; this is what `Pkg.test` runs). **WEST** = the western coverage fixtures
-(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK, BC: 10 stands each, measured OPEN residual maps, not yet dug) — run them
-with `TIERED_VARIANTS=WEST` (or `ALL`, or a list such as `CORE,TT`). A variant moves into CORE when its campaign starts.
+(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK, BC, OC, OP: 10 stands each, measured OPEN residual maps, not yet dug) and
+**EAST** = the eastern ones (CS, LS, NE, ON) — run them with `TIERED_VARIANTS=WEST` / `EAST` (or `ALL`, or a list such as
+`CORE,TT`). A variant moves into CORE when its campaign starts.
 
 ## Fixtures (`test/fixtures/tiered/<v>/`, git-tracked)
 
@@ -44,7 +45,15 @@ Built by `test/harness/tiered/make_fixtures.jl <VARIANT> <K>` from the **live or
   PROVENANCE `regimes` only. BC (metric, no FIA population: FIA is US-only) draws its stands from FVS's own tests/FVSbc
   databases (`LOCAL_POOL` in make_fixtures.jl) and uses the private DB-capable relink `/workspace/.bcwork/dbfix/FVSbc_dbfix`
   (the stock FVSbc_clean SIGSEGVs on DATABASE tree reads). KT has no FIA population of its own (VARIANT is never 'KT'); its stands are drawn from
-  the IE-assigned FIA stands of KT's home forests 110/113/114 (`SAMPLE_SOURCE` in make_fixtures.jl);
+  the IE-assigned FIA stands of KT's home forests 110/113/114 (`SAMPLE_SOURCE` in make_fixtures.jl); likewise the ORGANON overlays
+  OC (CA-assigned stands of 610 Rogue River / 611 Siskiyou) and OP (PN-assigned stands of 609 Olympic). ON (Ontario, metric) has
+  one shipped stand, so its pool is northern-Minnesota LS FIA stands (903/909, fixed 1-acre design) CONVERTED TO METRIC
+  (`METRIC_POOL`: DBH/DG cm, heights m, SITE_INDEX m, TREE_COUNT per ha). OC/OP/ON goldens come from private relinks
+  `/workspace/.<v>work/tiered/FVS<v>_tiered` (one live-crash fix each — ORGANON QUAD1/QUAD2 underflow SIGFPE after a thin; ON's
+  stale FMSVL2/CFTOPK argument lists — `docs/patches/livecrash_organon_quad_underflow.patch`, `livecrash_on_fmdout_fmsvl2.patch`;
+  byte-identical to the shared binaries off the crash paths). The newer variants (CS, LS, NE, OC, OP, ON — `CLASS_BALANCED`)
+  pick their K stands round-robin over the inventory tree-count classes (0 / 1-9 / 10-49 / 50+ records), so the bare
+  (establishment) and the dense mature paths are both present;
 * `SNAPSHOT.tsv` — the blessed bit-identity manifest (one SHA-1 per stand×regime×{sum, table, cycle}).
 
 WPBR is not in the matrix: the standard `FVS{v}_g16` oracles are not linked with BRUST; `test_wpbr` carries its own
