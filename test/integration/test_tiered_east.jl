@@ -135,6 +135,17 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
     end
+    @testset "CS/LS DGF — stock -O0 FVS calls powf for X**2.0 / (D)**2. ({cs,ls}/dgf.f DDS conversion, SDQGE5)" begin
+        # were 1-ULP late-cycle DG/DBH/CrWidth/Ht2TD/QMD cells, once mislabelled 'oracle object skew' (ORACLE_SOURCE_AUDIT §9)
+        @test isempty(_case("CS", "1813567613290487", "none"))
+        @test isempty(_case("LS", "1536031362290487", "none"))
+        @test isempty(_cells(_case("LS", "68756497010661", "thinbba"), "sum"))
+        @test isempty(_cells(_case("LS", "1536031362290487", "simfire"), "FVS_Carbon"; year = 2062))
+    end
+    @testset "NE 17955726010661 simfire — FMSVL2 NATCRS MCF for every live record (fmsvol.f:118-153), not VOLS's MCFV" begin
+        # live FMDOUT VT == jl NATCRS on 4020/4020 records, the cached PULPV+SCFV merch on only 3837
+        @test isempty(_cells(_case("NE", "17955726010661", "simfire"), "FVS_Carbon"))
+    end
     @testset "OC 645142535126144 none — R6 VEQNNC volumes (R6_EQN westside), ca/sitset.f SDIDEF, national cwcalc" begin
         ms = _case("OC", "645142535126144", "none")
         @test isempty(_cells(ms, "sum"))                       # cycle-0 TCuFt 18506 → live 12329
