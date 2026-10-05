@@ -257,7 +257,8 @@ function _r6_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Int
     return errs
 end
 for (V, pc, key, dir) in ((:WestCascades, :WC_PCOML, :wc, :WC_DATADIR), (:PacificNorthwest, :PN_PCOML, :pn, :PN_DATADIR),
-                          (:EastCascades, :EC_PCOML, :ec, :EC_DATADIR))
+                          (:EastCascades, :EC_PCOML, :ec, :EC_DATADIR),
+                          (:Olympic, :PN_PCOML, :pn, :PN_DATADIR))   # op/habtyp.f == pn/habtyp.f (pn/pvref6.f linked)
     @eval function habtyp_errors!(s::StandState{$V}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
         foreach(e -> errgro!(s, e), _r6_habtyp_errs(pv, cpvref, kodtyp, $pc, $(QuoteNode(key)), $dir))
         return nothing
@@ -391,8 +392,9 @@ function habtyp_errors!(s::StandState{SouthCentralOregon}, pv::AbstractString, c
     s.plot.habitat_input = Int32(itype)                                # ITYPE (so/fmcba.f COVINI, so/fmcfmd.f IPASO)
     return nothing
 end
-function habtyp_errors!(s::StandState{CentralCalifornia}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
-    kf = _mapped_kodfor(s, ca_forkod!)
+function habtyp_errors!(s::Union{StandState{CentralCalifornia},StandState{OregonCoast}}, pv::AbstractString,
+                        cpvref::AbstractString, kodtyp::Integer)
+    kf = _mapped_kodfor(s, ca_forkod!)   # oc/forkod.f, oc/habtyp.f, ca/pvref5.f + pvref6.f == the CA build's
     ir5 = 0 < kf < 600; ir6 = kf >= 600
     kod, itype, errs = _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, CA_DATADIR, CA_PCOML, (452, 46))
     foreach(e -> errgro!(s, e), errs)

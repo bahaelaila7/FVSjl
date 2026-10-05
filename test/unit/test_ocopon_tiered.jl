@@ -133,4 +133,11 @@ end
     @test _n(c.ms) == _n(c.ms; file = "FVS_TreeList", col = "HtG")   # only the GF HTGRO1 1-ULP HtG corner remains
 end
 
+# FVS14 "habitat type/plant association not recognized" (op/habtyp.f:131 == pn/habtyp.f; oc/habtyp.f == ca/habtyp.f):
+# OC/OP had no habtyp_errors! method ⇒ every FIA stand lacked the FVS_Error row.
+@testset "OC/OP habtyp FVS14 errors (op/habtyp.f:131, oc/habtyp.f)" begin
+    @test isempty(_case("OC", "24382439010900", "none").ms)
+    @test _n(_case("OP", "30194263010497", "none").ms; file = "FVS_Error") == 0
+end
+
 end # module
