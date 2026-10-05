@@ -319,4 +319,13 @@ end
     c = _case("TT", "2780339010690", "none")
     @test _cells(c; pred = m -> m.file == "FVS_InvReference") == 0
 end
+# EC PLANT cohort: ec/esgent.f HTG·WK4 (HTIMLT 5/5.0001) and the gradd.f:192 DENSE PCCF for the ec/regent.f:285 LESTB crown
+# (an INT(CR·100+0.5) tie flipped on one 374300286489998 record when jl read the post-ESTAB point CCF).
+@testset "EC PLANT cohort: ESGENT WK4 + pre-ESTAB PCCF crown (ec/esgent.f, ec/regent.f:285) vs FVSec_g16" begin
+    for cn in ("450507010497", "374300286489998")
+        c = _case("EC", cn, "plant_cal")
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
 end # module

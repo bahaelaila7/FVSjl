@@ -1507,7 +1507,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         avh_pre = es_wc_avh, ptba_pre = es_wc_ptba, pccf_pre = es_wc_pccf)   # WC: wc/esgent.f → REGENT(LESTB)
     s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
-        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre, pccf_pre = es_pccf_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
         atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh,
         relden_pre = es_em_relden_pre, ba_pre = es_em_ba_pre, pccf_pre = es_em_pccf_pre)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
