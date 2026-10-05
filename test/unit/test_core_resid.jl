@@ -563,3 +563,35 @@ end
     # the selected models at OACT1: 230 cells (FVS_Summary/Mortality/BurnReport/Carbon/PotFire) → 57; the burn tables exact.
     @test _cr_case_mismatches("ca", "23742358010900", "simfire", ("FVS_BurnReport", "FVS_Mortality", "FVS_Summary")) == 0
 end
+
+@testset "FMCONS activity fuels: (IYR-HARVYR) <= 5 consumption fractions (fmcons.f:121-170) — thin + SIMFIRE in one cycle vs live" begin
+    # A THINBBA leaving slash and a fire/PotFire within 5 years take FMCONS's activity-fuel PRBURN (1-3" from the 0.25-1"
+    # moisture, DIARED 4.35-0.096·M%). Goldens: FVSie_g16 / FVSem_g16 on the tiered stands with THINBBA + SIMFIRE at cycle 2.
+    gl = readlines(joinpath(@__DIR__, "..", "harness", "scenarios", "thin_fire_activity.live.csv")); hdr = split(gl[1], ',')
+    rows = [Dict(zip(hdr, split(l, ','))) for l in gl[2:end]]
+    for (v, cn) in unique([(r["Variant"], r["Stand"]) for r in rows])
+        fx = joinpath(@__DIR__, "..", "fixtures", "tiered", v)
+        dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+        k = read(joinpath(fx, "$(cn)_thinbba.key"), String)
+        k = replace(k[1:findfirst("NUMCYCLE", k).start - 1], "out.db" => joinpath(dir, "out.db"),
+                    "stands.db" => joinpath(dir, "stands.db")) *
+            "NUMCYCLE         5.0\nTHINBBA          2.0      40.0\nFMIn\nSIMFIRE          2.0     10.00         1      50.0\n" *
+            "BURNREPT\nCARBREPT\nPOTFIRE\nEnd\nDATABASE\nSUMMARY\nPOTFIRDB\nBURNREDB\nCARBREDB\nEND\nECHOSUM\nPROCESS\nSTOP\n"
+        write(joinpath(dir, "s.key"), k)
+        FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = _CR_VAR[v])
+        d = SQLite.DB(joinpath(dir, "out.db"))
+        jl = Dict(Int(r.Year) => Dict(String(c) => r[c] for c in propertynames(r))
+                  for r in DBInterface.execute(d, "SELECT * FROM FVS_PotFire"))
+        nbad = 0
+        for g in rows
+            (g["Variant"] == v && g["Stand"] == cn) || continue
+            r = get(jl, parse(Int, g["Year"]), nothing); r === nothing && (nbad += 1; continue)
+            for c in hdr[3:end]
+                x = g[c]; y = r[String(c)]
+                gx = tryparse(Float64, x)
+                gx === nothing ? (string(y) == x || (nbad += 1)) : (Float32(y) == Float32(gx) || (nbad += 1))
+            end
+        end
+        @test nbad == 0
+    end
+end
