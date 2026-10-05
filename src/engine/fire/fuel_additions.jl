@@ -53,8 +53,19 @@ const _FM_TFALL3 = (10f0, 6f0, 5f0, 4f0, 3f0, 2f0)
 const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
 # `sp` is the SN species index; fmvinit.f:1017 `IF(I.EQ.2)` gives eastern redcedar a 3-yr foliage fall vs 1 for
 # all others. (SN-scoped, like the _FM_TFALL tables themselves — a variant porting NE would re-source these.)
-@inline function _fm_tfall(cls::Int, sz::Int, sp::Integer)::Float32
-    sz == 0 && return sp == 2 ? 3f0 : 1f0          # foliage (redcedar = 3, fmvinit.f:1018)
+@inline function _fm_tfall(cls::Int, sz::Int, sp::Integer, v = nothing)::Float32
+    if v isa LakeStates
+        # ls/fmvinit.f:796-821: only FOUR TFALLCLS groups = the SN rows 3..6 (hickory/oak/cedar 2/5/10, red oak 1/4/8,
+        # ash/maple 1/3/6, pine/aspen 1/2/4), and TFALL(I,0)=1.0 for every species (no cedar foliage exception).
+        sz == 0 && return 1f0
+        cls = min(cls + 2, 6)
+    elseif sz == 0
+        # foliage: SN redcedar (sn/fmvinit.f:1017 I=2), CS redcedar+juniper (cs/fmvinit.f:964 I<=2), NE the cedars
+        # 12-15 (ne/fmvinit.f:1158) get 3 years, everything else 1.
+        v isa CentralStates && return sp <= 2 ? 3f0 : 1f0
+        v isa Northeast && return (12 <= sp <= 15) ? 3f0 : 1f0
+        return sp == 2 ? 3f0 : 1f0
+    end
     (sz == 1 || sz == 2) && return _FM_TFALL1[cls]
     sz == 3 && return _FM_TFALL3[cls]
     return _FM_TFALL4[cls]
@@ -99,7 +110,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
     cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
     dcx = get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
     # FMSNGDK (fmscro.f:99): the R6 variants' JYRSOFT·DECAYX (_snag_dktime); others the (1.24·D+13.82)·DECAYX form.
-    tsoft = r6_ffe_code(s.variant) === :none ? (1.24f0 * dbh + 13.82f0) * dcx : _snag_dktime(s, Int(sp), dbh, dcx)
+    tsoft = _snag_dktime(s, Int(sp), dbh, dcx)   # FMSNGDK (fmscro.f:99): fmsngdk.f's exact per-variant form/association
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
@@ -109,7 +120,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         tft = _fm_tfall_table(s.variant)
         tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
              s.variant isa SouthCentralOregon ? _fm_tfall_so(coef, Int(sp), sz, Int(s.plot.user_forest_code)) :
-             _fm_tfall(cls, sz, sp)
+             _fm_tfall(cls, sz, sp, s.variant)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife
         # fmscro.f:160-170: mortality reconciliation (ICALL=4, FMKILL after the annual loop) books straight into CWD2B;
