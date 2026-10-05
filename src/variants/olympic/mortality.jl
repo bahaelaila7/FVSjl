@@ -199,7 +199,10 @@ end
 function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags::Bool = true)
     t, c = s.trees, s.calib
     n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
-    killed = zeros(Float32, n)
+    # WK2 lives in s.scratch.mort_killed so grow_cycle!'s _morts_wk2 reports MORTS's WK2 itself as FVS_TreeList MortPA
+    # (dbstrls.f DP=WK2/GROSPC), not the PROB−(PROB−WK2) round trip (±1-20 ULP).
+    length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     if c.op_org_ran && length(c.op_mortexp) == n
         # ORGANON MORTEXP for ALL records (op/morts.f:331-336): WKI = MORTEXP·(FINT/5), capped at PROB.
         fscale = fint / 5f0

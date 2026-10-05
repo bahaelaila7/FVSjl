@@ -575,6 +575,7 @@ const EC_MIS_DGP = reshape(Float32[
     v isa Klamath       && return (NC_MIS_FIT, NC_MIS_DGP, NC_MIS_PMC, 12)  # misintnc.f
     v isa SoutheastAlaska && return (AK_MIS_FIT, AK_MIS_DGP, AK_MIS_PMC, 23)  # misintak.f
     v isa Olympic       && return (OP_MIS_FIT, OP_MIS_DGP, OP_MIS_PMC, 39)  # misintop.f
+    v isa OregonCoast   && return (OC_MIS_FIT, OC_MIS_DGP, OC_MIS_PMC, 50)  # misintoc.f
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
@@ -625,7 +626,8 @@ end
     v isa SouthCentralOregon ||                # so/dgdriv.f:230,257,... MISDGF before DGBND :234
     v isa Klamath ||                           # nc/dgdriv.f:219,246,... MISDGF before DGBND :223
     v isa SoutheastAlaska ||                   # ak/dgdriv.f:256,... MISDGF before DGBND :260
-    v isa Olympic                              # op/dgdriv.f:550 — applied in OP's own driver (organon_hook_op.jl)
+    v isa Olympic ||                           # op/dgdriv.f:550 — applied in OP's own driver (organon_hook_op.jl)
+    v isa OregonCoast                          # oc/dgdriv.f:562 — applied in OC's own driver (organon_hook.jl)
 @inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
     v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho ||
     v isa WestCascades || v isa PacificNorthwest ||   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
@@ -635,7 +637,9 @@ end
     v isa SouthCentralOregon ||                      # SO: misintso.f (AHGP all 1.0 ⇒ no MISHGF effect)
     v isa Klamath ||                                 # NC: misintnc.f (AHGP all 1.0)
     v isa SoutheastAlaska ||                         # AK: misintak.f (AHGP all 1.0)
-    v isa Olympic                                    # OP: misintop.f (AHGP all 1.0)
+    v isa Olympic ||                                 # OP: misintop.f (AHGP all 1.0)
+    v isa OregonCoast                                # OC: oc links the same mistoe/mis*.f (misintoc.f DATA; HGPDMR
+                                                     # 0 for species 11+, the WS/CA first-wins DATA quirk)
 
 """
     mis_hg_mult(s, i) -> Float32
@@ -655,7 +659,7 @@ end
 # mishgf.f:… MISHGF = HGPDMR(ISPC,IDMR+1) = 0 for every infected record: an infected BC tree gets no large-tree HTG.
 const BC_MIS_HGP = zeros(Float32, 7, 15)
 @inline _mis_hgp(v) = v isa WestSierra ? WS_MIS_HGP : v isa CentralCalifornia ? CA_MIS_HGP :
-                      v isa BritishColumbia ? BC_MIS_HGP : nothing
+                      v isa BritishColumbia ? BC_MIS_HGP : v isa OregonCoast ? OC_MIS_HGP : nothing
 
 @inline ie_dm_dg_mult(dgp, maxsp::Integer, sp::Integer, dmr::Integer) =
     (sp < 1 || sp > maxsp) ? 1f0 : @inbounds dgp[dmr + 1, sp]
