@@ -110,6 +110,11 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "sum"))                       # planted WS HtG 5.605 (was 4.894)
         @test isempty(_cells(ms, "FVS_Summary"))
     end
+    @testset "CS 3276147010661 plant_cal — {cs,ls,ne}/estab.f:630 new-record DBH=0.1 (REGENT(LESTB) BALMOD D)" begin
+        ms = _case("CS", "3276147010661", "plant_cal")
+        @test isempty(_cells(ms, "sum"))
+        @test isempty(_cells(ms, "FVS_Summary"))
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))

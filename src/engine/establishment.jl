@@ -895,7 +895,10 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah ||
                s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
                s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath ||
-               s.variant isa CentralIdaho    # CI: ci/estab.f the same DBH=0.1 (REGENT(LESTB) reads it in ci_esgent!)
+               s.variant isa CentralIdaho ||  # CI: ci/estab.f the same DBH=0.1 (REGENT(LESTB) reads it in ci_esgent!)
+               s.variant isa CentralStates || s.variant isa LakeStates || s.variant isa Northeast
+               # {cs,ls,ne}/estab.f:630 DBH(ITRN)=0.1 too: REGENT(LESTB)'s BALMOD reads that D (CS trba=D², NE/LS class),
+               # and HK≤4.5 gives DBH=D+0.001·HK. MEASURED CS 3276147010661 plant: LESTB D 0.1 live vs 0.97 jl ⇒ GMOD off.
                 # SO/WS/CA/OC/NC build the same strp estab.f (:626) and canada/bc estab.f:620 the same DBH=0.1, whatever
                 # the height: REGENT(LESTB) reads D=0.1 (e.g. HK≤4.5 ⇒ DBH=D+0.001·HK).
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
