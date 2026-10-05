@@ -66,6 +66,12 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "sum"))
         @test isempty(_cells(ms, "FVS_Summary"))
     end
+    @testset "NE 66746760010538/9740818010661 none — GRINIT FINT=10 ⇒ FINT/FINTM dead PROB inflation (notre.f:122-124)" begin
+        ms = _case("NE", "66746760010538", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; year = 2005))   # dubbed crowns 32 (BA 97.836) + dead-record BAPctile
+        ms = _case("NE", "9740818010661", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; year = 1993))   # dead-record BAPctile
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
