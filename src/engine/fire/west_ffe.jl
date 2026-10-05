@@ -59,6 +59,12 @@ BRATIO that FMSVOL hands CFTOPK and `trim` whether that family takes the CFTOPK 
 function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     v = s.variant
     _ffe_west_vol(v) || return nothing
+    # canada/fire/bc/fmsvol.f FMSVL2 → CFVOL has no D<1 gate (Kozak taper at any D>0). MEASURED FVSbc_instr Fir.20
+    # simfire 2020 FMDOUT: a D=0.933in H=16.1ft PL VT 0.03817 live / 0 jl ⇒ Aboveground_Total_Live 17.2257 / 17.2252.
+    if v isa BritishColumbia && d > 0f0 && h > 0f0 && 1 <= sp <= length(s.species.vol_eq)
+        vn, vm = bc_fmsvol(s, sp, d, h, -1f0)
+        return (vn, vm, bc_bratio(sp), true)
+    end
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0, 1f0, false)
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
     if v isa BritishColumbia                                   # bc: FMSVL2(XHT=−1) — CFVOL at INT(H·100)/100, no CFTOPK

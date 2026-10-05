@@ -260,4 +260,12 @@ end
     @test isempty(c.ms)
 end
 
+# canada/fire/bc/fmsvol.f FMSVL2 → CFVOL has no D<1in gate (the shared western FFE volume returned 0 below 1in). MEASURED
+# FVSbc_instr Fir.20 simfire 2020 FMDOUT: D=0.933in PL VT 0.03817 live / 0 jl ⇒ Aboveground_Total_Live off.
+@testset "BC FFE stem volume below 1in (canada/fire/bc/fmsvol.f)" begin
+    c = _case("Fir.20", "simfire")
+    @test !any(m -> m.col == "Aboveground_Total_Live", c.ms)
+    @test length(c.ms) <= 1
+end
+
 end # module
