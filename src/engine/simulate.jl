@@ -377,7 +377,10 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # growth over-prediction (PN WRD fixture S248112: BA +59 by 2090). Engine consumers (LPMPB, COVER, DFTM,
     # establishment) likewise read 0 for any non-whitelisted variant. Set at whatever t.n is current: the backdated
     # calibration pass runs dead-inclusive (RELDM1), the growth-cycle pass live-only — FVS's DENSE→DGF/CROWN flow.
-    s.plot.relative_density = s.variant isa BritishColumbia ? bc_stand_ccf(s) : stand_ccf(s)
+    # BC included: canada/bc links base dense.f (species-major RELDSP over IND1); its flat record-order bc_stand_ccf put
+    # RELDEN 1-2 ULP off (MEASURED FVSbc_dbfix SkyRanch-Control cycle-2 REGENT RELDEN 4135C00A live / 4135C073 jl ⇒ every
+    # small-tree HTGRL 1-3 ULP low).
+    s.plot.relative_density = stand_ccf(s)
     return s
 end
 

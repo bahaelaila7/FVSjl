@@ -44,16 +44,6 @@ D in inches, P = trees/acre. NI equations for sp 1-10/14 (:175-183), PN equation
     return ccf * Float32(p)
 end
 
-"""Stand CCF = Σ per-tree CCF over live trees (RELDEN); mirrors FVS ccfcal accumulation."""
-function bc_stand_ccf(s::StandState)
-    t = s.trees; acc = 0f0
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]; (d <= 0f0 || t.tpa[i] <= 0f0) && continue
-        acc += bc_tree_ccf(Int(t.species[i]), d, t.tpa[i])
-    end
-    return acc
-end
-
 # --- crown-RATIO update (canada/bc/crown.f, V3/CRNMD) — chunk 5b. Coeffs in crown_coefficients.jl. ---
 """
     crown_ratio_update!(s, ::BritishColumbia; fint, lstart, crown_sdi, ...)

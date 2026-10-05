@@ -145,4 +145,13 @@ end
     @test jl == live
 end
 
+# The REAL*4 sums feeding BC's small-tree REGENT: RELDEN is base dense.f's species-major RELDSP over IND1 (dense.f:166-223)
+# — BC's own flat record-order bc_stand_ccf was 1-2 ULP off — and the subcycle RDNEXT/BANEXT(J+1) accumulations walk
+# DO 16 ISPC / DO 15 I3 / I=IND1(I3) (regent.f:1289-1321), not record order. MEASURED FVSbc_dbfix SkyRanch-Control
+# cycle-2 REGENT dump: RELDEN 4135C00A live / 4135C073 jl, RDNEXT(2) 4084C978 / 4084C842 ⇒ every HTGRL 1-3 ULP low.
+@testset "BC REGENT density sums in IND1 order (dense.f RELDSP, regent.f:1289-1458)" begin
+    c = _case("SkyRanch-Control", "none")
+    @test length(c.ms) < 100                      # 74,847 cells before
+end
+
 end # module

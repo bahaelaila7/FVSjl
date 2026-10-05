@@ -82,10 +82,14 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     # 74 vs the oracle's −163.79 for garbage-height trees, whose power-form D1 from H1 dwarfs the actual DBH),
     # which killed the small-tree HTGRL CCF term ⇒ ~4× height under-growth. KY = cumulative years thru subcycle j.
     ky = 0
+    # regent.f:1289-1321 DO 16 ISPC / DO 15 I3 / I=IND1(I3): the subcycle walks species-major IND1, and its RDNEXT/BANEXT
+    # (J+1) accumulations are REAL*4 sums in that order (MEASURED FVSbc_dbfix SkyRanch-Control cycle-2 RDNEXT(2) 4084C978
+    # live / 4084C842 in record order).
+    sub_order = species_major_order(s)
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]; kpj = Float32(kper[j]); ky += kper[j]
         decay = fpowi(0.985f0, ky)                         # 0.985**KY = __powisf2
-        for i in 1:n
+        for i in sub_order
             sp = Int(t.species[i]); d = t.dbh[i]
             xmx_sp = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
             (d >= xmx_sp || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue
