@@ -340,4 +340,13 @@ end
         @test _cells(c) == 0
     end
 end
+# crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the cycle-0 dead crowns, on
+# the ITRN=0 DENSE (BA=PCCF=AVH=0, dead PCT/PTBAL 0).
+@testset "All-dead inventory: DO 79 dead crown dub on a zero DENSE (ci|ut/crown.f, cratet.f) vs live" begin
+    for (v, cn) in (("CI", "3261005010690"), ("UT", "41442932010690"))
+        c = _case(v, cn, "none")
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
 end # module
