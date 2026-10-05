@@ -203,7 +203,8 @@ function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags:
     # (dbstrls.f DP=WK2/GROSPC), not the PROB−(PROB−WK2) round trip (±1-20 ULP).
     length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
-    if c.op_org_ran && length(c.op_mortexp) == n
+    # op/morts.f SMORMT=ΣMORTEXP: the ORGANON rates only when EXECUTE ran AND produced some kill, else the native RIP.
+    if c.op_org_ran && length(c.op_mortexp) == n && sum(view(c.op_mortexp, 1:n)) > 0f0
         # ORGANON MORTEXP for ALL records (op/morts.f:331-336): WKI = MORTEXP·(FINT/5), capped at PROB.
         fscale = fint / 5f0
         @inbounds for i in 1:n

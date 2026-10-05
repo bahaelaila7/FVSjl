@@ -63,6 +63,13 @@ end
     @test _n(c.ms; file = "FVS_TreeList", col = "TCuFt", year = 2018) == 0
 end
 
+# OC 15148784010497 (no big-6 ⇒ ORGANON never runs, SMORMT=0): jl killed nothing (.sum Mort 0 vs 2 from 2010).
+@testset "OC FVS-native MORTS when SMORMT=0 (oc/morts.f:463-546 == ca/morts.f with FINT/5, oc/varmrt.f == ca/varmrt.f)" begin
+    c = _case("OC", "15148784010497", "none")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 # OP 374608587489998 (no big-6 ⇒ every record FVS-native; 48 measured-DG records, 30 of them WH): op/dgf.f skipped the
 # ORGANON-valid species (WK2 stale ⇒ WH calibration CSNXX=0 ⇒ COR NaN ⇒ NaN heights), had no red-alder equation, and the
 # native kernels ran on Julia exp/log/^ instead of glibc expf/logf/powf / libgcc __powisf2.

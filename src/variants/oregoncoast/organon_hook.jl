@@ -193,12 +193,27 @@ small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
 function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snags::Bool = true, kwargs...)
     t = s.trees; n = t.n; c = s.calib
     n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ oc/morts.f still reaches CLMORTS
+    # oc/morts.f:463-466 SMORMT=ΣMORTEXP: the ORGANON rates are used only when EXECUTE ran AND produced some kill.
+    smormt = (c.op_org_ran && length(c.op_mortexp) == n) ? sum(view(c.op_mortexp, 1:n)) : 0f0
+    if !(smormt > 0f0)
+        # No big-6 tree ⇒ EXECUTE never ran (SMORMT=0): oc/morts.f takes the FVS-native SDI/background path, which is
+        # ca/morts.f line for line except FINT/5 (YR=5) for FINT/10 — so it runs the shared driver the CA variant
+        # uses (PMSC/PMD via IBGMAP, RI=0.5·RI, VARMRT == ca/varmrt.f, MISMRT/CLMORTS/FIXMORT/snags inside). MORTS
+        # reads the pre-UPDATE DBH; the OC DG driver grew DBH inline, so run it on the stashed start-of-cycle DBH.
+        d0 = c.oc_dbh0
+        dend = length(d0) == n ? Float32[t.dbh[i] for i in 1:n] : Float32[]
+        isempty(dend) || @inbounds(for i in 1:n; t.dbh[i] = d0[i]; end)
+        invoke(mortality!, Tuple{StandState,AbstractVariant}, s, s.variant; fint = fint, book_snags = book_snags)
+        isempty(dend) || @inbounds(for i in 1:n; t.dbh[i] = dend[i]; end)
+        @inbounds for i in 1:n; t.mort_pa[i] = s.scratch.mort_killed[i]; end
+        return s
+    end
     length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     # oc/morts.f:493-504: ORGANON ran ⇒ WK2(I)=MORTEXP(I)·(FINT/5) for every record (the per-record ORGANON kill
     # MORTEXP stashed by the DG driver, fscale already applied). [No-big-6 stands take the FVS-native SDI path, :506-546
     # + VARMRT — not yet ported for OC.]
-    if c.op_org_ran && length(c.op_mortexp) == n
+    if smormt > 0f0
         @inbounds for i in 1:n
             p = t.tpa[i]; p <= 0f0 && continue
             wki = c.op_mortexp[i]
