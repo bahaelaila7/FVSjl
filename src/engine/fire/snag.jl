@@ -443,7 +443,10 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         # falldown stays bit-exact.
         born_now = Int(sn.year[i]) == cur ? 1 : 0
         yrs = clamp(eff - Int(sn.year[i]) + born_now, 0, Int(nyears))
-        yrs > 0 || continue
+        if yrs <= 0
+            (_snag_interleave(s.variant) && nyears == 1) && ffe_snag_height_loss!(s, 1; at_year = eff, only = i)
+            continue
+        end
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
         # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
         # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
@@ -554,9 +557,15 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 sn.den_soft[i] = 0f0; sn.den_hard[i] = 0f0
             end
         end
+        # fmsnag.f per snag I: CWD1 (the fall) THEN FMSNGHT + CWD2 (the top breakage) — interleaved, so the CWD pools
+        # accumulate in FVS's order (the separate all-falls-then-all-breakage passes round differently).
+        (_snag_interleave(s.variant) && nyears == 1) && ffe_snag_height_loss!(s, 1; at_year = eff, only = i)
     end
     return fallen
 end
+# Variants whose annual FMSNAG pass interleaves fall + breakage per snag in jl (fmsnag.f order). MEASURED live FVSls
+# 301218549489998 simfire 2024: after FMSNAG hard CWD 0.25-1" 3D31E1A7 live vs 3D31E1A8 with the two separate passes.
+_snag_interleave(v) = v isa LakeStates || v isa Northeast || v isa CentralStates
 
 # FMSNAG's per-record HARD flag as the snag's year-`iyr` processing sees it: FMSADD creates every record HARD (fmsadd.f:239)
 # and FMSNAG flips it at the END of a year's pass once IYR−YRDEAD ≥ DKTIME (fmsnag.f:282-285). So at `iyr` the flag reflects
@@ -612,7 +621,7 @@ default (HTX=0) snags keep full height and the frozen `bolevol` is used (bit-exa
 soft (SFTMULT=HTXSFT, once a snag has passed DKTIME). A snag dropping below 1.5 ft becomes fuel (removed).
 """
 function ffe_snag_height_loss!(s::StandState, nyears::Integer;
-                               at_year::Union{Nothing,Integer} = nothing)
+                               at_year::Union{Nothing,Integer} = nothing, only::Int = 0)
     fs = s.fire; fs === nothing && return
     # SN/CS keep HTX=0 (sn/fmvinit.f:1089) yet FMSNAG still calls FMSNGHT for every standing pool: HTSNEW = HTCURR, then
     # fmsnght.f:164 `HTSNEW < 1.5 ⇒ 0` — a snag shorter than 1.5 ft is broken to fuel (CWD2) and its density zeroed
@@ -634,7 +643,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     (r6 === :SO && _so_california_ht(Int(s.plot.user_forest_code))) && (r6 = :none)
     r6 === :AK && (r6 = :none)          # fmsnght.f: 'AK' falls to CASE DEFAULT (HTR1/HTR2·HTX), no FMR6HTLS draw
     r6save = r6 === :none ? nothing : rannget(s.rng)
-    @inbounds for i in eachindex(sn.sp)
+    @inbounds for i in (only > 0 ? (only:only) : (1:length(sn.sp)))   # `only` = one snag (update_snags! interleave)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         x2h = 0f0; x2s = 0f0
         if r6 !== :none

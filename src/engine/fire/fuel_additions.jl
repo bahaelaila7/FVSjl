@@ -281,7 +281,8 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer; vtrip::Bool = false)
         # this cycle (before this loop) ages across the loop and falls in the years after the burn —
         # ordinary-mortality snags are created after the loop, so they're absent this cycle regardless.
         isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
-        ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
+        _snag_interleave(s.variant) ||                  # (CS/LS/NE: done per snag inside update_snags!)
+            ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
         fmcadd!(s; vtrip = vtrip)                      # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0

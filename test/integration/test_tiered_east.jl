@@ -128,6 +128,9 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("NE", "68474457010538", "simfire")
         @test isempty(_cells(ms, "sum"))                       # post-fire RM/RO sprout DBH (BA 2022 43 → live 47)
     end
+    @testset "LS 301218549489998 simfire — FMSNAG per-snag CWD1 then CWD2 accumulation order (fmsnag.f)" begin
+        @test isempty(_case("LS", "301218549489998", "simfire"))   # DDW / PotFire ULPs from the pass order
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
