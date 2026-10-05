@@ -232,3 +232,164 @@ bc_v2_regch(aspect::Real, slope::Real) = BC_RG_V2_RHGL[2] +
 """V2 per-species RHCON = REGCH + RHSC(sp) + RHHAB(IRHHAB,sp) (regent.f:2024, NI case, no RCOR2)."""
 bc_v2_rhcon(sp::Integer, regch::Real) =
     Float32(regch) + BC_RG_V2_RHSC[sp] + BC_RG_V2_RHHAB[sp][BC_RG_V2_IRHHAB[sp]]
+
+"""
+    bc_esgent!(s, nstart; fint, atba, atccf, atavh, ba_pre, relden_pre, pccf_pre)
+
+strp/esgent.f → canada/bc/regent.f REGENT(LESTB=.TRUE., ITRNIN=nstart+1): grow the records ESTAB just added for the
+rest of their birth cycle. NTYR = FINT−5 (LSKIPH when ≤0, regent.f:1107-1108); the subcycle densities interpolate from
+TEMBA/TEMCCF (= ATBA/ATCCF, else the gradd.f:192 DENSE BA/RELDEN) toward that DENSE's BA/RELDEN starting 5 years in
+(regent.f:1222-1233); DO 13 dubs each new record's crown 0.89722−0.0000461·PCCF + 0.07985·RAN (storage order,
+regent.f:1213-1228); DELMAX from TEMCCF/TEMAHT (:1235-1243); the subcycle height and DO 30 ZZRAN/DBH passes run over
+the SPESRT species-major order with XWT=0 and DBH=DG=DK (:1606-1609), no tripling, no DUBSCR. esgent.f then scales
+HTG by WK4=HTIMLT, rescales DBH when WK4<1 and clamps HT at HHTMAX.
+"""
+function bc_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atba::Float32 = 0f0, atccf::Float32 = 0f0,
+                    atavh::Float32 = 0f0, ba_pre::Float32 = 0f0, relden_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    t = s.trees
+    nstart >= t.n && return s
+    zone, series = bc_stand_zone(s)
+    ip, rhcon = bc_regcons!(s)
+    v2 = bc_lv2atv(zone)
+    nsp = nspecies(BritishColumbia())
+    con_v2 = zeros(Float32, nsp)
+    if v2
+        regch_v2 = bc_v2_regch(s.plot.aspect, s.plot.slope)
+        @inbounds for sp in 1:nsp; con_v2[sp] = bc_v2_rhcon(sp, regch_v2) + s.calib.htg_cor_small[sp]; end
+    end
+    regyr = 5.0f0; dgsd = s.control.dg_sd; yr_now = current_cycle_year(s)
+    # regent.f:1106-1121 subcycles (NTYR = INT(FINT) − 5 under LESTB); ITOT ends as the last KPER.
+    ntyr = trunc(Int, fint) - 5
+    lskiph = ntyr <= 0
+    iyr = Int(regyr)
+    nper = lskiph ? 0 : ntyr ÷ iyr + (ntyr % iyr != 0 ? 1 : 0)
+    kper = zeros(Int, max(nper, 1)); itot = ntyr; nn = nper
+    @inbounds for i in 1:nper
+        if nn == 1; break; end
+        kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
+    end
+    nper > 0 && (kper[nper] = itot)
+    # regent.f:1125-1130 TEMBA/TEMCCF/TEMAHT; :1222-1233 statement 8-10 interpolation.
+    ba = ba_pre; relden = relden_pre
+    temba = atba > 0f0 ? atba : ba
+    temccf = atccf > 0f0 ? atccf : relden
+    temaht = atavh
+    bayr = 0f0; ccfyr = 0f0
+    if !lskiph
+        bayr = (ba - temba) / Float32(itot); ccfyr = (relden - temccf) / Float32(itot)
+    end
+    banext = zeros(Float32, max(nper, 1)); rdnext = zeros(Float32, max(nper, 1))
+    nyr = 5
+    @inbounds for j in 1:nper
+        rdnext[j] = temccf + Float32(nyr) * ccfyr
+        banext[j] = temba + Float32(nyr) * bayr
+        nyr += kper[j]
+    end
+    # DO 13 (storage order): crown dub of the new records; WK3=HT, WK5=DBH.
+    @inbounds for i in (nstart + 1):t.n
+        ipt = Int(t.plot_id[i])
+        pccf = (1 <= ipt <= length(pccf_pre)) ? pccf_pre[ipt] : s.density.point_ccf[ipt]
+        cr = 0.89722f0 - 0.0000461f0 * pccf
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr = cr + 0.07985f0 * ran
+        cr > 0.90f0 && (cr = 0.90f0); cr < 0.20f0 && (cr = 0.20f0)
+        t.crown_pct[i] = Int32(trunc(Int, cr * 100f0 + 0.5f0))
+    end
+    wk3 = Float32[t.height[i] for i in 1:t.n]
+    delmax = (temaht / 36f0) * (0.01232f0 * temccf - 1.75f0); delmax > 0f0 && (delmax = 0f0)
+    order = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f SPESRT → IND1 (new records)
+    ky = 0
+    @inbounds for j in 1:nper
+        baj = banext[j]; rdj = rdnext[j]; kpj = Float32(kper[j]); ky += kper[j]
+        decay = fpowi(0.985f0, ky)
+        for i in order
+            sp = Int(t.species[i]); d = t.dbh[i]
+            (!v2 && ip[sp] < 1) && continue                                   # regent.f:1300 STG%FIT
+            xmx = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
+            d >= xmx && continue
+            pr = t.tpa[i]; h1 = wk3[i]
+            bal = (1f0 - t.crown_ratio[i] / 100f0) * baj                       # PCT=0 on a new record (estab.f:640)
+            incr = v2 ? fexp(max(-40f0, con_v2[sp] + BC_RG_V2_RHLH[sp]*flog(h1) +
+                                BC_RG_V2_RHCCF[sp]*rdj + BC_RG_V2_RHBAL[sp]*bal)) :
+                        bc_v3_sthg(sp, ip[sp], h1, bal, rdj, rhcon[sp], s.plot.aspect, s.plot.slope)
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now)
+            h2 = h1 + incr * (kpj / regyr) * xrhgro
+            wk3[i] = h2
+            if j < nper && d < 3f0 && h2 > 4.5f0                               # regent.f:1437-1458
+                relh = abs(temaht - 4.5f0) < 0.01f0 ? 0f0 : clamp((h1 - 4.5f0)/(temaht - 4.5f0), 0f0, 1f0)
+                dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
+                d1pf = h1 > 4.5f0 ? BC_RG_HHT1[sp]*fpow(h1 - 4.5f0, BC_RG_HHT2[sp]) + dadj : BC_RG_DIAM[sp] + dadj
+                d2pf = BC_RG_HHT1[sp]*fpow(h2 - 4.5f0, BC_RG_HHT2[sp]) + dadj
+                xrdgro = active_multiplier(s.control, :regd, sp, yr_now)
+                dgj = (d2pf - d1pf) * xrdgro; dgj < 0f0 && (dgj = 0f0)
+                d2 = d + dgj
+                c1 = bc_tree_ccf(sp, d1pf, pr); c2 = bc_tree_ccf(sp, d2, pr)
+                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10f0 * decay
+                banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * decay
+            end
+        end
+    end
+    # DO 30: HTGR1 + ZZRAN, XWT=0, size cap, DBH/DG (LESTB: DBH=DG=DK), DGBND.
+    @inbounds for i in order
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (!v2 && ip[sp] < 1) && continue
+        xmx = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
+        d >= xmx && continue
+        h = t.height[i]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            htgr1 = wk3[i] - h; htgr1 < 0f0 && (htgr1 = 0f0)
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true; zzran = bachlo(s.rng, 0f0, 1f0); (zzran <= 1f0 && zzran >= -1.5f0) && break; end
+            end
+            htg = v2 ? htgr1 * fexp(zzran * BC_RG_V2_HSIGMA) : max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        end
+        t.ht_growth[i] = htg
+        if d < 3f0
+            hk = h + htg
+            if hk < 4.5f0
+                t.dbh[i] = 0.1f0 + BC_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0
+                t.diam_growth[i] = 0f0
+            else
+                relh = abs(temaht - 4.5f0) < 0.01f0 ? 0f0 : clamp((h - 4.5f0)/(temaht - 4.5f0), 0f0, 1f0)
+                dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
+                dk = BC_RG_HHT1[sp]*fpow(hk - 4.5f0, BC_RG_HHT2[sp]) + dadj
+                dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])
+                dk += hk * 0.001f0
+                t.dbh[i] = dk; t.diam_growth[i] = dk
+                (t.dbh[i] + t.diam_growth[i]) < BC_RG_DIAM[sp] && (t.diam_growth[i] = BC_RG_DIAM[sp] - t.dbh[i])
+            end
+            # DGBND (dgbnd.f): DBH+DG past SIZCAP(1) with SIZCAP(3)<1.5 ⇒ DG = SIZCAP(1)−DBH, ≥0.01
+            if t.dbh[i] + t.diam_growth[i] > s.control.sp_size_cap[sp, 1] && s.control.sp_size_cap[sp, 3] < 1.5f0
+                t.diam_growth[i] = max(s.control.sp_size_cap[sp, 1] - t.dbh[i], 0.01f0)
+            end
+        end
+    end
+    # esgent.f:50-70 — HTG·WK4, HT += HTG, WK4<1 DBH rescale, HHTMAX clamp (storage order).
+    hhtmax = _BC_ES_HHTMAX
+    @inbounds for i in (nstart + 1):t.n
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        wk4 = t.htimlt[i]
+        t.ht_growth[i] = t.ht_growth[i] * wk4
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if wk4 < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]
+                t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > hhtmax[sp] && (t.height[i] = hhtmax[sp])
+    end
+    return s
+end

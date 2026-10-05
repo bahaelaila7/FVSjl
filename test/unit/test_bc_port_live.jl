@@ -209,4 +209,17 @@ end
     end
 end
 
+# strp/esgent.f → canada/bc/regent.f REGENT(LESTB): records ESTAB adds grow for the rest of their birth cycle — DO 13 crown
+# dub 0.89722−0.0000461·PCCF+0.07985·RAN (main stream, storage order), NTYR=FINT−5 subcycles interpolated from ATBA/ATCCF,
+# DO 30 ZZRAN height with XWT=0 and DBH=DG=DK, then esgent.f HTG·WK4, WK4<1 DBH rescale, HHTMAX. jl left them ungrown and
+# drew 249 extra main-stream numbers. PCCF is the dense.f point CCF from canada/bc/ccfcal.f (jl used the national crown
+# width ⇒ 0.12 vs 45.56). MEASURED FVSbc_instr YSM029-250 plant_cyc: REGENT(LESTB) entry S0 1593243675, RAN/CR/PCCF of
+# all 50 new records bit-exact; 2038 planted Ht 0.926 m live / 0.490 m jl before.
+@testset "BC REGENT(LESTB) birth-cycle growth + point CCF (strp/esgent.f, canada/bc/regent.f, ccfcal.f)" begin
+    for r in ("plant_cyc", "plant_cal")
+        c = _case("YSM029-250", r)
+        @test isempty(c.ms)
+    end
+end
+
 end # module

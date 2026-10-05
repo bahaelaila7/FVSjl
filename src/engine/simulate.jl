@@ -1479,7 +1479,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # SO/WS/CA/NC (strp esgent): REGENT(LESTB) reads that same gradd.f:192 DENSE for RELDEN/BA/AVH too (post-growth,
     # before ESUCKR's sprouts and the new regen — ESGENT runs inside ESTAB, before gradd.f:244's post-regen DENSE).
     _strp_esg = s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                s.variant isa Klamath || s.variant isa Kootenai   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
+                s.variant isa Klamath || s.variant isa Kootenai ||   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
+                s.variant isa BritishColumbia                        # BC: bc_esgent! (strp/esgent.f → canada/bc/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
@@ -1543,6 +1544,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         pccf_pre = es_pccf_pre)                                                                                  # ca/esgent.f (strp)
     s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
         pccf_pre = es_pccf_pre)                                                                                  # nc/esgent.f (strp)
+    s.variant isa BritishColumbia && bc_esgent!(s, es_nstart; fint = fint, atba = es_at_ba, atccf = es_at_relden,
+        atavh = es_at_avh, ba_pre = es_st_ba_pre, relden_pre = es_st_relden_pre, pccf_pre = es_pccf_pre)   # strp/esgent.f → bc/regent.f LESTB
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
         atccf = es_at_relden, relden_pre = es_wc_relden, ba_pre = es_wc_ba, avh_pre = es_wc_avh,
         pccf_pre = es_wc_pccf, ptba_pre = es_wc_ptba)   # CI: ci/esgent.f → REGENT(LESTB) (_ci_regent!)
