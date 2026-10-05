@@ -517,3 +517,36 @@ end
     @test _cr_case_mismatches("sn", "156207237010854", "simfire", ("FVS_Carbon",)) == 0
     @test _cr_case_mismatches("sn", "238813815010854", "simfire", ("FVS_Carbon",)) == 0
 end
+
+@testset "IE/KT NOAUTOES + PLANT: the esnutr.f catch-all ESTAB (NTALLY=99) plot chain vs live (esin.f ESNOAU, esnutr.f:345-359)" begin
+    # NOAUTOES ⇒ LAUTAL=LINGRW=.FALSE., STOADJ=0 (esin.f:784-788): a PLANT still reaches estb estab.f through the
+    # catch-all, whose no-stocking plot loop gives the planted trees their per-plot EMSQR heights. jl used establish!'s
+    # replicate chain (QMD from 2022, TPA 723 vs 724 on IE 11855985010690 2056). Goldens: FVSie_g16 / FVSkt_clean, the
+    # tiered plant_cal keys with NOAUTOES added.
+    gl = readlines(joinpath(@__DIR__, "..", "harness", "scenarios", "noautoes_plant.live.csv")); hdr = split(gl[1], ',')
+    rows = [Dict(zip(hdr, split(l, ','))) for l in gl[2:end]]
+    vmap = Dict("ie" => FVSjl.InlandEmpire(), "kt" => FVSjl.Kootenai())
+    for (v, cn) in unique([(r["Variant"], r["Stand"]) for r in rows])
+        fx = joinpath(@__DIR__, "..", "fixtures", "tiered", v)
+        dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+        key = String[]
+        for l in readlines(joinpath(fx, "$(cn)_plant_cal.key"))
+            l == "ESTAB" && push!(key, "NOAUTOES")
+            push!(key, l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l)
+        end
+        write(joinpath(dir, "s.key"), join(key, '\n'))
+        FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = vmap[v])
+        d = SQLite.DB(joinpath(dir, "out.db"))
+        jl = Dict(Int(r.Year) => Dict(String(c) => r[c] for c in propertynames(r))
+                  for r in DBInterface.execute(d, "SELECT * FROM FVS_Summary"))
+        nbad = 0
+        for g in rows
+            (g["Variant"] == v && g["Stand"] == cn) || continue
+            r = get(jl, parse(Int, g["Year"]), nothing); r === nothing && (nbad += 1; continue)
+            for c in hdr[3:end]
+                Float32(r[String(c)]) == Float32(parse(Float64, g[c])) || (nbad += 1)
+            end
+        end
+        @test nbad == 0
+    end
+end
