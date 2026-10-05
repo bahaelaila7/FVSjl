@@ -141,6 +141,10 @@ end
 @inline em_do220_dg(s::StandState, i::Int)::Float32 =
     do220_dg(s, i, s.trees.dbh[i], em_bratio(Int(s.trees.species[i]), s.trees.dbh[i]))
 
+# The western DO 220 forms: the shared one (em/ie/kt/cr/ut/so/ec/nc/ws dgdriv.f: cap at D, then the build's DGBND —
+# SIZCAP-only dgbnd.f everywhere but WS's DGMAX envelope, `ws_dgbnd`), and WC/PN's (wc/dgdriv.f:711-735: the unscaled
+# dub is capped and bounded, then OVERWRITTEN by the scaled dub — no cap, no bound). SCALE = 1/(YR/FINT) with the FINT in
+# COMMON at LSTART (dgdriv.f:385/775).
 @inline function do220_dg(s::StandState, i::Int, d::Float32, bark::Float32)::Float32
     t, c = s.trees, s.calib
     sp = Int(t.species[i])
@@ -151,10 +155,18 @@ end
     elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i   # no calibration dub stash (e.g. no DG-measured trees)
         return 0f0
     end
-    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
+    # SCALE = YR/FINT, then SCALE = 1./SCALE (dgdriv.f:385/775). The EM/IE/KT/TT/CI/BC callers keep FINT/10 (the same value
+    # at FINT 5/10; their tiered FINT 6/7/11/12/13 stands are not yet re-measured with the 1/(YR/FINT) form) — OPEN.
+    sc = (s.variant isa CentralRockies || s.variant isa Utah || s.variant isa SouthCentralOregon || s.variant isa WestSierra ||
+          s.variant isa EastCascades || s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest) ?
+         1f0 / (htg_period(s.variant) / inventory_fint(s)) : s.control.growth_fint / 10f0
     dd = c.dub_wk3[i] * bark
-    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+    ex = fexp(c.dub_wk2[i] + t.old_random[i])
+    (s.variant isa WestCascades || s.variant isa PacificNorthwest) && return sqrt(dd * dd + ex * sc) - dd
+    dub = sqrt(dd * dd + ex * sc) - dd
     dub > dd && (dub = dd)
+    s.variant isa WestSierra &&
+        return ws_dgbnd(sp, d, dub, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
     return dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
 end
 
