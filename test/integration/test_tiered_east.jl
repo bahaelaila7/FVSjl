@@ -115,6 +115,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "sum"))
         @test isempty(_cells(ms, "FVS_Summary"))
     end
+    @testset "LS 1536031362290487 none — BALMOD reads the last DENSE's RMSQD (dense.f:250), not a post-TREDEL recount" begin
+        ms = _case("LS", "1536031362290487", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; col = "HtG"))   # cycle-4 BF HtG were 1-6 ULP off
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
