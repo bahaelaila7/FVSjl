@@ -393,7 +393,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 fl = merge(fl, (removed = st.fire.tonrms,)); st.fire.tonrms = 0f0
             end
             push!(carbon_collect, (r.year, stand_carbon_report(st; vtrip = vtrip), fl,
-                                   snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
+                                   snag_summary(st), ffe_down_wood(st),
+                                   # fmcrbout.f:166-171 V(11)*TItoTM/ACRtoHA, evaluated left to right (not ×(TItoTM/ACRtoHA))
+                                   st.control.carbon_units == 1 ? (rel * 0.90718f0) / 0.4046945f0 : rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
         # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed

@@ -311,4 +311,13 @@ end
     @test length(c.ms) <= 4                       # 10 cells before
 end
 
+# fire/base/fmcrbout.f:166-171 converts V(11) (Carbon_Released_From_Fire) as V*TItoTM/ACRtoHA left to right; jl multiplied
+# by the pre-divided factor (1 ULP off). MEASURED FVSbc_dbfix Fir.20 simfire 2030 14.097148895 live / 14.097147942 jl.
+@testset "Metric Carbon_Released_From_Fire conversion order (fmcrbout.f:166)" begin
+    for cn in ("Fir.20", "SkyRanch-0.3m")
+        c = _case(cn, "simfire")
+        @test isempty(c.ms)
+    end
+end
+
 end # module
