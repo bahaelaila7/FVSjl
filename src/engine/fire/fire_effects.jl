@@ -209,8 +209,12 @@ Van Wagner crown scorch height (ft) from Byram fireline intensity `byram`
     # `**` (gfortran powf): `**(7/6)`, `FWIND**3.0` (a REAL exponent ⇒ powf, NOT x*x*x — gfortran lowers them
     # differently ~26% of the time!), and the outer `**0.5` (powf, NOT sqrt — differ ~0.07%). Route all three
     # through the companion (doctrine #8) to match FVS bit-exactly. (The old fwind^3 + sqrt caused the scorch Δ0.002.)
-    return (63f0 / (140f0 - atemp)) * (fpow(b, 7f0 / 6f0) / fpow(b + fpow(fwind, 3f0), 0.5f0))
+    return _scorch_finten(b, atemp, fwind)
 end
+
+# SCH from the intensity in BTU/ft/sec (fmburn.f:471-472 on BYRAM/60, :584-585 on FINTEN).
+@inline _scorch_finten(b::Float32, atemp::Float32, fwind::Float32)::Float32 =
+    (63f0 / (140f0 - atemp)) * (fpow(b, 7f0 / 6f0) / fpow(b + fpow(fwind, 3f0), 0.5f0))
 
 """
     crown_volume_scorched(sch, ht, crown_pct) -> Float32

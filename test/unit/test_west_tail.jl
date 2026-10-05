@@ -63,3 +63,16 @@ end
     end
 end
 
+@testset "FLAMEADJ FLMULT / user FLAME / user SCH on the FMBURN crown-fire path (fmburn.f:327-583) vs live FVSws_g16" begin
+    # FMCFIR runs whatever FLMULT is (fmburn.f:500), FLMULT then scales the crown-raised flame and FINTEN is bisected
+    # back from it (:544-583); a user FLAME skips the crown flame raise; FLAME+CRBURN+SCH all set ⇒ GOTO 490; any
+    # FLAMEADJ ⇒ Fire_Type USER_DEF. Before: w40mult15 (active crown fire, FLMULT 1.5) burned as a surface fire.
+    bcols = ["Flame_length", "Scorch_height", "Fire_Type"]
+    mcols = ["Killed_class1", "Killed_class2", "Killed_class3", "Killed_class4", "Killed_class5", "Killed_class6",
+             "Killed_class7", "Bakill", "Volkill"]
+    for name in ("ws_fa_w40mult15", "ws_fa_flame8", "ws_fa_all", "ws_fa_mult15crb", "ws_fa_default")
+        db = _wt_run("ws", name)
+        @test isempty(_wt_cmp(name, db, "FVS_BurnReport", bcols))
+        @test isempty(_wt_cmp(name, db, "FVS_Mortality", mcols; extra = ["SpeciesFVS"]))
+    end
+end

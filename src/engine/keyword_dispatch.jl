@@ -2558,10 +2558,17 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             fs.atemp = ev[4]; fs.mortcode = Int32(ev[5]); fs.psburn = ev[6]; fs.burnseas = Int32(ev[7])
         elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
             v = r.values
-            r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
-            # CRBURN = FPRMS(3)·.01 only when > −1 (fmburn.f:345-347); a blank/≤−1 field leaves the fmin.f:397 default −1
-            # = "not set" (FMCFIR's own crown fraction is used), NOT 0 (which would force a surface-only fire).
-            r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : Float32(v[4]))
+            # fmin.f:394-414 PRMS defaults FLMULT 1, FLAME −1, CRBURN −1, SCH −1 (only when field 5 is set); bounds
+            # FLMULT<0 ⇒ 1, FLAME<0 ⇒ −1, CRBURN<0 ⇒ −1, CRBURN>100 ⇒ 100. fmburn.f:337-351 then CRBURN·.01 when > −1.
+            fs.flameadj_on = true
+            fm = r.present[2] ? Float32(v[2]) : 1f0;  fs.flmult = fm < 0f0 ? 1f0 : fm            # FLMULT = FPRMS(1)
+            # metric/fire/base/fmin.f (BC/ON): FLAME and SCH are read in metres, ×MtoFT (3.28084)
+            mtf = _metric_variant(s.variant) ? 3.28084f0 : 1f0
+            fl = r.present[3] ? Float32(v[3]) * mtf : -1f0; fs.user_flame = fl < 0f0 ? -1f0 : fl   # FLAME = FPRMS(2)
+            # a blank/negative CRBURN stays −1 = "not set" (FMCFIR's own crown fraction is used), NOT 0 (surface-only)
+            cb = r.present[4] ? Float32(v[4]) : -1f0; cb < 0f0 && (cb = -1f0); cb > 100f0 && (cb = 100f0)
+            fs.crburn = cb > -1f0 ? cb * 0.01f0 : cb
+            fs.user_sch = (length(r.present) >= 5 && r.present[5]) ? Float32(v[5]) * mtf : -1f0    # SCH = FPRMS(4)
         elseif k == "CARBREPT"                             # request the FFE Stand Carbon Report (fmcrbout.f)
             s.control.carbon_report_on = true
         elseif k == "POTFIRE" || k == "POTFLAME"           # request the Potential Fire report (fmpofl.f)
