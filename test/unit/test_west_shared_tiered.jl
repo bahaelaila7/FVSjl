@@ -333,4 +333,11 @@ end
     c = _case("CR", "5278473010690", "none")
     @test _cells(c) == 0
 end
+# r3d2hv.f woodland (INT-391) square terms are (C·D2HA)·D2HA, not C·D2HA² (DVE 060/106/800/999).
+@testset "R3 woodland DVE (C*D2HA)*D2HA association (r3d2hv.f:320-461) vs FVScr_clean" begin
+    for cn in ("742164474290487", "2463020010690")
+        c = _case("CR", cn, "none")
+        @test _cells(c) == 0
+    end
+end
 end # module
