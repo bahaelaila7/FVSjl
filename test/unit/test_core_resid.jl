@@ -557,3 +557,9 @@ end
     # increment / −1 sentinel; WRD RDPR's CFVPA reads WK1. 4 KT rootdis cases (1 cell each) → 0.
     @test _cr_case_mismatches("kt", "4718785010690", "rootdis", ("FVS_RD_Sum",)) == 0
 end
+
+@testset "CA 23742358010900 simfire: FMBURN's FMCFIR is fmcfir.f (analytic OINIT1 start, INT(SWIND)) (fmburn.f:510)" begin
+    # The burn path bisected [0,999] from scratch, compared the fire type against the REAL wind and (CA/NE) took RACT from
+    # the selected models at OACT1: 230 cells (FVS_Summary/Mortality/BurnReport/Carbon/PotFire) → 57; the burn tables exact.
+    @test _cr_case_mismatches("ca", "23742358010900", "simfire", ("FVS_BurnReport", "FVS_Mortality", "FVS_Summary")) == 0
+end
