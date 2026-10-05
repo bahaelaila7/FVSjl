@@ -128,11 +128,8 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
         mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
         accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
-        # Dead coarse roots of the cut trees: FMSCUT BIOROOT += RBIO·(WK3−SSNG) (fmscut.f:68) plus FMSADD's
-        # RBIO·SNGNEW for the standing yarding-loss snags (fmsadd.f:320, fresh ⇒ XDCAY 1) = RBIO·PREM in all.
-        let (_, _, rbio) = jenkins_biomass(s.coef, sp, t.dbh[i])
-            s.fire.bioroot += rbio * prem
-        end
+        # Dead coarse roots of the cut trees (FMSCUT BIOROOT += RBIO·(WK3−SSNG), FMSADD RBIO·SNGNEW): booked in record
+        # order by fmscut_removal! at the end of CUTS.
         # ACTIVITY FUELS (FMSCUT, fmscut.f:88-96): the cut tree's CROWN slash → the surface fuel bed, for ANY
         # cut (not just YARDLOSS). Foliage (xv[1]) → litter cwd[10]; branch classes 1-5 (xv[2:6]) → woody
         # cwd[1:5]; all category 2, species decay class IDC. Scale = removed-TPA `prem` × P2T (cwd is TONS,
@@ -147,6 +144,13 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
         # fmscut.f:75-76: HARVYR = IY(ICYC) when the cut leaves crown slash (CTCRWN) or downed snags (DSNG = LOSS·PRDSNG).
         (_ctcrwn > 0f0 || _loss * s.control.yardloss_prdsng > 0f0) && (s.fire.harvyr = Int32(current_cycle_year(s)))
+        # cuts.f:1381-1391 per-record pools FMSCUT reads at the end of CUTS: WK3 += PREM, DSNG += LOSS·PRDSNG,
+        # SSNG += LOSS·(1−PRDSNG), CTCRWN += PRCRWN·(PREM−LOSS) + LOSS·PRDSNG, TKCRWN += (1−PRCRWN)·(PREM−LOSS).
+        let a = get(s.fire.cut_acc, Int32(i), (0f0, 0f0, 0f0, 0f0, 0f0)), pd = s.control.yardloss_prdsng,
+            pc = s.control.yardloss_prcrwn
+            s.fire.cut_acc[Int32(i)] = (a[1] + prem, a[2] + _loss * (1f0 - pd), a[3] + _loss * pd,
+                                        a[4] + ((pc * (prem - _loss)) + (_loss * pd)), a[5] + ((1f0 - pc) * (prem - _loss)))
+        end
         let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
@@ -273,6 +277,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
     al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
+    s.fire === nothing || empty!(s.fire.cut_acc)            # cuts.f:358-361 SSNG/DSNG/CTCRWN/TKCRWN zeroed per CUTS
     # AUTOES (IE/EM): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
@@ -340,13 +345,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             _ec_cut_on(s) && empty!(s.econ.calc.cut_prem)
             push!(s.control.years_cut, yr)   # evaluated: the 2nd (grow_cycle!) cuts! call must not value it again
-            s.fire === nothing || empty!(s.fire.pend_cut)
+            s.fire === nothing || (empty!(s.fire.pend_cut); empty!(s.fire.cut_acc))
             return _NO_REMOVAL
         end
         if !met
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             push!(s.control.years_cut, yr)   # evaluated (canceled): idempotent re-call is a no-op
-            s.fire === nothing || empty!(s.fire.pend_cut)
+            s.fire === nothing || (empty!(s.fire.pend_cut); empty!(s.fire.cut_acc))
             return _NO_REMOVAL
         end
     end
@@ -355,6 +360,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
+        fmscut_removal!(s)                          # FMSCUT TONRMH/BIOREM(1) (cuts.f:1823, before TREDEL)
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags

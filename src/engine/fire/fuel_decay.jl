@@ -522,7 +522,9 @@ decay) by new/old, or dumping into the hard/fast pool if the class was empty. No
 """
 function apply_fuelmove!(s::StandState)::Bool
     fs = s.fire
-    (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    (fs === nothing || !fs.active) && return false
+    fs.tonrmc = 0f0                                        # fmtret.f:217 TONRMC=0 on every FMFMOV call
+    isempty(s.control.schedule) && return false
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     cwd = fs.cwd
     # FORG/FSRC/FTRG by size class 0:11 (0 = outside sink); +1 offset so idx 1 = class 0, idx j+1 = class j.
@@ -542,8 +544,10 @@ function apply_fuelmove!(s::StandState)::Bool
             xget = q >= 0f0 ? max(x, y * fsrc[fi], fsrc[fi] - z, q - fsrc[ti]) : max(x, y * fsrc[fi], fsrc[fi] - z)
             xget > fsrc[fi] && (xget = fsrc[fi])
             fsrc[fi] -= xget
+            ito == 0 && (fs.tonrmc = fs.tonrmc + xget)    # fmtret.f:308 exported ⇒ removed
         else
             xget = q >= 0f0 ? max(x, q - fsrc[ti]) : x
+            fs.tonrmc = fs.tonrmc - xget                   # fmtret.f:320 imported
         end
         ftrg[ti] += xget
         xget > 0f0 && (altered = true)

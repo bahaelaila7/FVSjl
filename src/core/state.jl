@@ -1239,6 +1239,13 @@ mutable struct FireState
                                        # bm/fmcfmd.f BMSTAGE; FMCBA's year-start FMTBA) still read the pre-fire density
     harvyr::Int32                      # HARVYR (fminit.f:36 = 0; fmscut.f:75-76 = IY(ICYC) when a cut leaves crown slash or
                                        # downed snags): the last harvest year — FMCFMD's DSTLG/AFWT and FMCONS's activity test
+    tonrmh::Float32                    # TONRMH (fmscut.f:162-177): tons removed by this cycle's harvest — Σ FMSVL2·V2T·WK3
+                                       # − LVSNBM + TKCRBM; FMDOUT TONREM = TONRMS+TONRMH+TONRMC (fmdout.f:274), then zeroed
+    tonrmc::Float32                    # TONRMC (fmtret.f:217/308/320): FUELMOVE tons exported (+) / imported (−) this year
+    biorem1::Float32                   # BIOREM(1) (fmscut.f:124/184-187, fmdout.f:284): Jenkins-method removed biomass,
+                                       # accumulated until FMCRBOUT reports and zeroes it (fmcrbout.f:198)
+    cut_acc::Dict{Int32,NTuple{5,Float32}} # this CUTS call's per-record (WK3, SSNG, DSNG, CTCRWN, TKCRWN) (cuts.f:1381-1391),
+                                       # consumed by FMSCUT (cuts.f:1823) before TREDEL
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1249,7 +1256,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0))
+                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}())
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

@@ -397,11 +397,22 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                  st.control.carbon_units == 2 ? 0.90718f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
             fl = merge(ffe_fuel_loadings(st; vtrip = vtrip), (consumed = tcon,))
-            # FMDOUT TONREM = TONRMS (+TONRMH+TONRMC) → Biomass_Removed, then TONRMS=0 (fmdout.f:274-289)
+            # FMDOUT TONREM = TONRMS+TONRMH+TONRMC → Biomass_Removed; BIOREM(1) += TONRMS+TONRMC, BIOREM(2) = TONREM;
+            # TONRMS/H/C zeroed (fmdout.f:274-291). FMCRBOUT V(10) = BIOREM(1) (Jenkins) or BIOREM(2) (FFE), ×0.5 and the
+            # ICMETRC unit factor like every pool, then BIOREM zeroed (fmcrbout.f:136-141, :156-171, :198-199).
+            crb = stand_carbon_report(st; vtrip = vtrip); v10 = 0f0
             if st.fire !== nothing
-                fl = merge(fl, (removed = st.fire.tonrms,)); st.fire.tonrms = 0f0
+                fs = st.fire
+                tonrem = (fs.tonrms + fs.tonrmh) + fs.tonrmc
+                fs.biorem1 = (fs.biorem1 + fs.tonrms) + fs.tonrmc
+                fl = merge(fl, (removed = tonrem,))
+                v10 = (st.control.carbon_method == 1 ? fs.biorem1 : tonrem) * 0.50f0
+                v10 = st.control.carbon_units == 1 ? v10 * _TITOTM / _ACRTOHA :
+                      st.control.carbon_units == 2 ? v10 * _TITOTM : v10
+                fs.tonrms = 0f0; fs.tonrmh = 0f0; fs.tonrmc = 0f0; fs.biorem1 = 0f0
             end
-            push!(carbon_collect, (r.year, stand_carbon_report(st; vtrip = vtrip), fl,
+            crb = merge(crb, (removed = v10,))
+            push!(carbon_collect, (r.year, crb, fl,
                                    snag_summary(st), ffe_down_wood(st),
                                    # fmcrbout.f:166-171 V(11)*TItoTM/ACRtoHA, evaluated left to right (not ×(TItoTM/ACRtoHA))
                                    st.control.carbon_units == 1 ? (rel * 0.90718f0) / 0.4046945f0 : rel * uf, snag_detail(st)))

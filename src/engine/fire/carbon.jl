@@ -411,10 +411,7 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             tl1 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr
             j < 3 && (tl2 += _FM_P2T * pr * (xv[j + 4] + ocw[j + 3, i]))
         end
-        # FMSVL2('L', LMERCH=.FALSE., no top-kill): MAX(X,MCF) for CS/LS/NE/SN, MAX(X,TCF) for the western variants
-        vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
-             _ffe_west_vol(s.variant) ? max(_ffe_xfloor(s.variant, h), ffe_west_nocut(s, sp, d, h)[1]) :   # BC: VN, no floor
-                     max(0.005454154f0 * h, t.cuft_vol[i])
+        vt = _fmsvl2_live_total(s, i, sp, d, h; snfam = snfam)
         v2tp = v2t[sp] / 2000f0
         d <= 3f0 ? (tl1 += pr * vt * v2tp) : (tl2 += pr * vt * v2tp)
     end
@@ -422,6 +419,71 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             small2 = small2, large2 = large2, totlit = totlit, totduf = totduf,
             biolive = totfol + tl1 + tl2, biosnag = tsng1 + tsng2, bioddw = small2 + large2,
             bioflr = totlit + totduf, bioshrb = fs.flive[1] + fs.flive[2])
+end
+
+# FMSVL2(ISP,D,H,-1,VT,ICR,'L',LMERCH=.FALSE.) of live record i (no top-kill): MAX(X,MCF) for CS/LS/NE/SN,
+# MAX(X,TCF) for the western variants (BC: VN, no floor) — the call FMDOUT (fmdout.f:246) and FMSCUT (fmscut.f:107/167) make.
+function _fmsvl2_live_total(s::StandState, i::Integer, sp::Int, d::Float32, h::Float32;
+                            snfam::Bool = variant_code(s.variant) in ("CS", "LS", "NE", "SN"))
+    return snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, Int(i), sp, d, h)) :
+           _ffe_west_vol(s.variant) ? max(_ffe_xfloor(s.variant, h), ffe_west_nocut(s, sp, d, h)[1]) :
+                   max(0.005454154f0 * h, s.trees.cuft_vol[i])
+end
+
+"""
+    fmscut_removal!(s)
+
+FMSCUT's removal accounting (fmscut.f:60-187), run at the end of CUTS before TREDEL on this CUTS call's per-record
+(WK3, SSNG, DSNG, CTCRWN, TKCRWN) (`fire.cut_acc`, cuts.f:1381-1391), in record order I=1..ITRN:
+LVSNBM += FMSVL2·V2T·(SSNG+DSNG); TKCRBM += CROWNW(I,0:5)·TKCRWN·P2T; LVCRWN += CROWNW(I,0:5)·(CTCRWN−DSNG)·P2T;
+BIOREM(1) += ABIO·(WK3−SSNG−DSNG) (Jenkins FMCBIO); then TONRMH = Σ FMSVL2·V2T·WK3 − LVSNBM + TKCRBM and
+BIOREM(1) = MAX(BIOREM(1) − LVCRWN, 0); BIOROOT += RBIO·(WK3−SSNG) per record, then FMSADD's RBIO·SSNG. FMSVL2 = 'L', LMERCH=.FALSE.; V2T is FFE's pre-divided /2000 factor.
+"""
+function fmscut_removal!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    acc = fs.cut_acc
+    if isempty(acc) || !haskey(s.coef.species, :v2t)
+        empty!(acc); fs.tonrmh = 0f0; return s
+    end
+    t = s.trees; v2t = coef_col(s.coef, :v2t)
+    recs = sort!(collect(keys(acc)))
+    lvsnbm = 0f0; tkcrbm = 0f0; lvcrwn = 0f0; biorem1 = fs.biorem1
+    @inbounds for i in recs
+        wk3, ssng, dsng, ctcrwn, tkcrwn = acc[i]
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
+        y = tkcrwn * _FM_P2T; z = (ctcrwn - dsng) * _FM_P2T
+        tkcrbm = tkcrbm + xv[1] * y; lvcrwn = lvcrwn + xv[1] * z
+        for isz in 1:5
+            tkcrbm = tkcrbm + xv[isz + 1] * y
+            lvcrwn = lvcrwn + xv[isz + 1] * z
+        end
+        x = _fmsvl2_live_total(s, i, sp, d, h)
+        lvsnbm = lvsnbm + x * (v2t[sp] / 2000f0) * (ssng + dsng)
+        abio, _, rbio = jenkins_biomass(s.coef, sp, d; dbhmin = _jenkins_dbhmin(s, sp))
+        fs.bioroot = fs.bioroot + rbio * (wk3 - ssng)                 # fmscut.f:119
+        biorem1 = biorem1 + abio * ((wk3 - ssng) - dsng)
+    end
+    # FMSADD(IY(ICYC),2) (fmscut.f:157): the standing yarding-loss snags' roots, RBIO·SNGNEW·XDCAY(=1) (fmsadd.f:313-320)
+    @inbounds for i in recs
+        ssng = acc[i][2]
+        ssng > 0f0 || continue
+        sp = Int(t.species[i])
+        _, _, rbio = jenkins_biomass(s.coef, sp, t.dbh[i]; dbhmin = _jenkins_dbhmin(s, sp))
+        fs.bioroot = fs.bioroot + (rbio * ssng) * 1f0
+    end
+    tonrmh = 0f0
+    @inbounds for i in recs
+        sp = Int(t.species[i])
+        x = _fmsvl2_live_total(s, i, sp, t.dbh[i], t.height[i])
+        tonrmh = tonrmh + x * (v2t[sp] / 2000f0) * acc[i][1]
+    end
+    fs.tonrmh = (tonrmh - lvsnbm) + tkcrbm
+    biorem1 = biorem1 - lvcrwn
+    fs.biorem1 = max(biorem1, 0f0)
+    empty!(acc)
+    return s
 end
 
 """
@@ -578,7 +640,8 @@ function write_carbon_report_block(io::IO, rows::AbstractVector;
     for h in _CARBON_COLHDR; println(io, h); end
     println(io, _CARBON_SEP)
     for row in rows
-        println(io, _format_carbon_row(row[1], row[2]; released = length(row) >= 6 ? row[6] : 0f0))
+        println(io, _format_carbon_row(row[1], row[2]; removed = hasproperty(row[2], :removed) ? row[2].removed : 0f0,
+                                        released = length(row) >= 6 ? row[6] : 0f0))
     end
     return io
 end
