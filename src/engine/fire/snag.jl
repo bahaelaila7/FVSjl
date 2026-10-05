@@ -456,9 +456,12 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # SNAGFALL per-species overrides of FALLX / ALLDWN (default = CSV value when not overridden).
             fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
-            dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
-                                                  fallx = fx, alldwn = ad, variant = s.variant,
-                                                  itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code)))
+            # fmsfall.f DFALLN is NOT capped at DENTTL: DFIS/DFIH can exceed the pools and are cut only by the
+            # fmsnag.f:216-219 DZERO rule — AFTER the LASCO halving (a min() first halved the remainder instead:
+            # MEASURED FVSut_g16 42642675010690 aspen snag 2025 DENIH 0.014426 → 0.003766 live, jl 0.007213).
+            dfall = snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
+                                      fallx = fx, alldwn = ad, variant = s.variant,
+                                      itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -536,7 +539,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 kd = _cwd_size_class(sn.dbh[i])
                 fs.cwd[kd, 2, idc] += a * dfih; fs.cwd[kd, 1, idc] += a * dfis * 0.80f0
             end
-            fallen += dfall
+            fallen += dfis + dfih
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
             if sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
                 sn.den_soft[i] = 0f0; sn.den_hard[i] = 0f0

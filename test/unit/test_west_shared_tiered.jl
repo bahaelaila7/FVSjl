@@ -367,4 +367,13 @@ end
         @test _cells(c) == 0
     end
 end
+# fmsnag.f:200-219 LASCO half-rate post-burn fall (UT/TT/CR/BC aspen-cottonwood) on the UNCAPPED fmsfall.f DFALLN, cut only
+# by the DZERO rule.
+@testset "FMSNAG LASCO post-burn fall + uncapped DFALLN (fmsnag.f, fmsfall.f) vs live" begin
+    for (v, cn) in (("UT", "42642675010690"), ("CR", "3026069010690"))
+        c = _case(v, cn, "simfire")
+        @test !c.crashed
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
 end # module
