@@ -413,4 +413,14 @@ end
         @test count(m -> _rel(m) > 1e-5, c.ms) == 0
     end
 end
+# base/cwidth.f CRWDTH(I) (filled after CRATET and at gradd.f:254) is what sstage.f WK6 and fmcba.f CWIDTH read — an after-thin
+# StrClass row uses the pre-thin-BA widths.
+@testset "Stored CRWDTH for SSTAGE/FMCBA (cwidth.f, sstage.f:238/276, fmcba.f) vs live" begin
+    for (v, cn) in (("PN", "504512112126144"), ("SO", "15184869010497"), ("CI", "5385337010690"))
+        c = _case(v, cn, "thinbba")
+        @test count(m -> m.file == "FVS_StrClass", c.ms) == 0
+    end
+    c = _case("CR", "46279527020004", "simfire")
+    @test count(m -> _rel(m) > 1e-5, c.ms) <= 2
+end
 end # module

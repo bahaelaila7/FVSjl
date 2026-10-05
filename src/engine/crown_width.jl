@@ -85,7 +85,12 @@ end
 # grown small trees. Stored in `t.crown_width` for the variants whose consumers read it.
 # -----------------------------------------------------------------------------
 "Variants whose SSTAGE/FMCBA read the stored CRWDTH(I) that `cwidth!` fills."
-_stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana
+# TT/UT/CI/CR/NC/SO/EC/WC/PN: the same base/cwidth.f CRWDTH(I) array feeds their sstage.f WK6 and fmcba.f CWIDTH (MEASURED
+# FVSpn_g16 504512112126144 THINBBA 2027: the after-thin StrClass cover 21 live from the pre-thin-BA CRWDTH, 22 jl from a
+# recomputed post-thin-BA width; FVScr_clean 46279527020004 SIMFIRE 68 -> 24 cells from FMCBA's PERCOV).
+_stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa PacificNorthwest || v isa WestCascades ||
+                    v isa SouthCentralOregon || v isa CentralRockies || v isa CentralIdaho || v isa EastCascades ||
+                    v isa Utah || v isa Teton || v isa Klamath
 
 """
     cwidth!(s) -> s
