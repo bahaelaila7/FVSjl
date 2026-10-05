@@ -1481,10 +1481,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # For a NON-plant cycle establish! finds no due activity and returns early (engine/establishment.jl:340) with no
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) && ie_autoes_establish!(s; fint = fint)   # KT: the same estb estab/esnutr (kt es* = ie first 11 species)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa CentralIdaho) &&
+        ie_autoes_establish!(s; fint = fint)   # KT: the same estb estab/esnutr (kt es* = ie first 11 species); CI: estb estab.f/esnutr.f (no-stocking default)
     # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
     # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska ||
+     s.variant isa CentralIdaho) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?

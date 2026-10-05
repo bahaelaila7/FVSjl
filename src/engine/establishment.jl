@@ -377,6 +377,8 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     disp = emsqr * dil * _IE_ES_BNORML[iage]
     hht = if s.variant isa InlandEmpire || s.variant isa Kootenai   # kt/essubh.f = ie/essubh.f's species 1-11
         ie_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)
+    elseif s.variant isa CentralIdaho                               # ci/essubh.f (BNORML = ci/blkdat.f, = IE's)
+        ci_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)
     else
         em_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)   # em/essubh.f (EM species map)
     end
@@ -391,10 +393,12 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
         hht += hadj; hht < 0.05f0 && (hht = 0.05f0)
     else
         hht += hadj
-        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : s.variant isa Kootenai ? _KT_ES_XMIN[sp] : _EM_ES_XMIN[sp]
+        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : s.variant isa Kootenai ? _KT_ES_XMIN[sp] :
+              s.variant isa CentralIdaho ? _CI_ES_XMIN[sp] : _EM_ES_XMIN[sp]
         hht < xmn && (hht = xmn)
     end
-    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : s.variant isa Kootenai ? _KT_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
+    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : s.variant isa Kootenai ? _KT_ES_HHTMAX[sp] :
+          s.variant isa CentralIdaho ? _CI_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
     hht > hmx && (hht = hmx)
     return hht
 end
@@ -619,7 +623,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # the tally's seed chain; use them verbatim and leave ESS0 at the post-tally ESAVE it set. No ESTAB call this
     # cycle (no states) ⇒ the replicate chain below.
     es_ps = s.estab.es_plot_state
-    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) &&
+    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
+              s.variant isa CentralIdaho) &&
              s.estab.es_plot_year == yr && length(es_ps) == nptids * idup
     es0_post_tally = s.rng.es0
     pl_plot = Int32[]                  # plot NCOUNT of each record this pass creates (use_ps mode)
@@ -759,6 +764,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # cos/sin(aspect)·slope (estab.f:480). disp = EMSQR·DILATE·BNORM (per-stand 2-draw EMSQR × per-species
                 # sqrt-shrink DILATE × deterministic BNORML[IAGE]); MEASUREMENT PASS uses disp=0 (deterministic mean),
                 # validated .sum-inert on cit01 (planted seedlings stay sub-threshold, never enter the summary TPA).
+                # With the estb plot chain (use_ps) the height is re-derived below by estb_planted_height from the
+                # plot's EMSQR and FIRST(2,sp) — advance FIRST(2,sp)=SQRT(DILATE) here (estab.f:1039), as the IE branch does.
+                _ie_first2[sp] = sqrt(get(_ie_first2, sp, 0.1f0))
                 let _slo = s.plot.slope
                     ci_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0),
                               em_ihtser(Int(s.plot.habitat_code)), 1, 3,
