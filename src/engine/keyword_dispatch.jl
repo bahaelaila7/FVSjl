@@ -1841,9 +1841,12 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 Float32(species_selector(s, spfld))            # alpha code → species index
             end
             tpa  = Float32(v[3])
+            ht6  = Float32(v[6])
+            # metric/strp/esin.f:204-205 (ON): ARRAY(3)=ARRAY(3)/HAtoACR (trees/ha → /acre), ARRAY(6)=ARRAY(6)*MtoFT (m → ft)
+            s.variant isa Ontario && (tpa = tpa / _ON_HAtoACR; ht6 = ht6 * _ON_MtoFT)
             tpa <= 0f0 && continue                                # esin.f:143 (TPA must be >0)
             surv = (v[4] < 0.001f0 || v[4] > 100f0) ? 100f0 : Float32(v[4])  # esin.f:149
-            push!(sched, ScheduledActivity(yr, ic, (sp, tpa, surv, Float32(v[5]), Float32(v[6]), Float32(v[7]))))
+            push!(sched, ScheduledActivity(yr, ic, (sp, tpa, surv, Float32(v[5]), ht6, Float32(v[7]))))
         elseif k == "SPROUT"                                  # esin.f opt 26: enable stump sprouting
             # esin.f opt 26 fields: 1=date, 2=species (SPDECD: 0⇒all, <0⇒group), 3=SMULT (sprout-count mult,
             # default 1), 4=HMULT (height mult, default 1), 5=lower DBH (default 0), 6=upper DBH (default 999).

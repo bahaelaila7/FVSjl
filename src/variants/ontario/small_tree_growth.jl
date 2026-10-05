@@ -251,3 +251,98 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
     end
     return s
 end
+
+
+"""
+    on_esgent!(s, nstart; fint, ba_pre, pccf_pre)
+
+strp/esgent.f (the ON build) — SPESRT, REGENT(.TRUE.,ITRNIN) over this cycle's new records, then the WK4=HTIMLT tail.
+canada/on/regent.f LESTB (FNT=FINT−5, LSKIPH when FINT≤5; SCALE=FNT/REGYR): species-major new records, each first draws
+its crown CR=0.89722−0.0000461·PCCF(ITRE)+0.07985·RAN (RAN=BACHLO(0,1) in [−1,1], main stream, clamp .20-.90,
+ICR=INT(CR·100+.5)); then HTGR=0.1 when HTMAX−H≤1 else HTCALC MODE 9 = ONSTHG·YRS(10) at BAL=BA·(100−PCT)·0.01 (PCT=0 for a
+new record, BA the gradd.f:192 pre-regen DENSE's), ·CON·SCALE·HGADJ·XRHGRO, GMOD≡1, XWT=0, the ±10% RAN (DGSD≥1), HTG≥0.1,
+SIZCAP(4). HK≤4.5 ⇒ DG=0, DBH=D+0.001·HK; else DBH=HTDBH MODE 1 (LHTDRG .FALSE.), ≥DIAM (also when HK<4.5), +0.001·HK,
+DG=DBH, DGBND. esgent.f then scales HTG by WK4, caps HT at HHTMAX; estab.f:707 adds GENTIM to ABIRTH.
+"""
+function on_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    n = t.n
+    nstart >= n && return s
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    cur_year = current_cycle_year(s)
+    @inbounds for i in (nstart + 1):n; t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0; end   # estab.f:638-639
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / ON_REG_REGYR
+    random_on = s.control.dg_sd >= 1f0
+    sizcap = s.control.sp_size_cap
+    order = sort(collect((nstart + 1):n); by = i -> (Int(t.species[i]), i))   # SPESRT order of the new records
+    @inbounds for i in order
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        d >= ON_REG_XMAX && continue
+        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0
+        cr = 0.89722f0 - 0.0000461f0 * pccf
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr = cr + 0.07985f0 * ran
+        cr > 0.90f0 && (cr = 0.90f0); cr < 0.20f0 && (cr = 0.20f0)
+        icr = trunc(Int32, (cr * 100f0) + 0.5f0)
+        t.crown_pct[i] = icr; t.crown_ratio[i] = 0f0          # PCT(ITRN)=0 (estab.f:640)
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            si = p.sp_site_index[sp]
+            local htgr::Float32
+            if _on_htcalc_htmax(sp, si) - h <= 1f0
+                htgr = 0.10f0
+            else
+                bal = ba_pre * (100f0 - 0f0) * 0.01f0
+                xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                htgr = (((_on_onsthg(sp, d, h, si, bal) * 10f0) * fexp(c.htg_cor_small[sp])) * scale) * xrhgro
+            end
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            if random_on
+                rh = 0f0
+                while true; rh = bachlo(s.rng, 0f0, 1f0); (-1f0 <= rh <= 1f0) && break; end
+                htgr = htgr + rh * 0.1f0 * htgr
+            end
+            htg = htgr
+            htg < 0.1f0 && (htg = 0.1f0)
+            if (h + htg) > sizcap[sp, 4]
+                htg = sizcap[sp, 4] - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+        end
+        t.ht_growth[i] = htg
+        hk = h + htg
+        local dbh::Float32, dg::Float32
+        if hk <= 4.5f0
+            dg = 0f0; dbh = d + 0.001f0 * hk
+        else
+            dbh = _on_htdbh_dbh(sp, hk)
+            (dbh < ON_REG_DIAM[sp] || hk < 4.5f0) && (dbh = ON_REG_DIAM[sp])
+            dbh = dbh + 0.001f0 * hk
+            dg = dbh
+        end
+        dg = _on_dgbnd(dbh, dg)                                # DGBND(ISPC,DBH(K),DG(K))
+        t.dbh[i] = dbh; t.diam_growth[i] = dg
+    end
+    @inbounds for i in (nstart + 1):n                         # esgent.f:51-65
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * t.htimlt[i]
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if t.htimlt[i] < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > _ON_ES_HHTMAX[sp] && (t.height[i] = _ON_ES_HHTMAX[sp])
+    end
+    esgent_add_gentim!(s, nstart, fint)                       # estab.f:707 ABIRTH += GENTIM
+    return s
+end

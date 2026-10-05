@@ -105,4 +105,14 @@ end
     @test _n(c.ms; col = "PRESENCE") == 0
 end
 
+# ON PLANT (metric/strp/esin.f, metric/strp/estab.f, strp/essubh.f, strp/esgent.f → canada/on/regent.f LESTB): every ON
+# plant_cal/plant_cyc case crashed (KeyError :ht_curve_b1 — the SN ESSUBH site curve).
+@testset "ON establishment: metric PLANT, strp ESTAB/ESSUBH, ON REGENT(LESTB)" begin
+    for (cn, r) in (("92320368010661", "plant_cyc"), ("21769405010661", "plant_cal"), ("720549798290487", "plant_cal"))
+        c = _case("ON", cn, r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
