@@ -23652,8 +23652,8 @@ col = "MCuM"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 731
-issue = """tiered-east 2026-10-05 measured: ON growth drift on the dense metric-converted LS stands (245908831010661 .sum diverges at cycle 1, TPA 13909 live vs 14035) — small-tree REGENT / mortality path, not dug; FVS_StrClass(_Metric) follows | 731 cells over 3 stand(s), e.g. 245908831010661 year 2059: live=0.8561201095581055 jl=0.832150399684906"""
+max_cells = 774
+issue = """measured 2026-10-05 integ-1005d (tiered-east + core-resid-3, 24 variants) (max_cells 731→774) | tiered-east 2026-10-05 measured: ON growth drift on the dense metric-converted LS stands (245908831010661 .sum diverges at cycle 1, TPA 13909 live vs 14035) — small-tree REGENT / mortality path, not dug; FVS_StrClass(_Metric) follows | 731 cells over 3 stand(s), e.g. 245908831010661 year 2059: live=0.8561201095581055 jl=0.832150399684906"""
 
 [[residual]]
 variant = "ON"
@@ -25645,17 +25645,6 @@ year = "*"
 status = "OPEN"
 max_cells = 24
 issue = """tiered-east 2026-10-05 measured: CS .sum 'none' exact; remaining = FVS_TreeList per-record drift from cycle 1 seeded by the DG serial-correlation residual OLDRN (FRMT=FRM+CORR*OLDRN with the calibration-initialised OLDRN, dgdriv.f:398-640 RESLOG/BNY; HtG 1-ULP via (1+OLDRN), then MortPA/BAPctile/TPA) and the FFE simfire/salvage reports (PotFire_East/Carbon/Mortality/BurnReport) — not dug | 24 cells over 2 stand(s), e.g. 1229648290290487 year 2031: live=17.636095 jl=17.6360931"""
-
-[[residual]]
-variant = "CS"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """tiered-east 2026-10-05 measured: CS .sum 'none' exact; remaining = FVS_TreeList per-record drift from cycle 1 seeded by the DG serial-correlation residual OLDRN (FRMT=FRM+CORR*OLDRN with the calibration-initialised OLDRN, dgdriv.f:398-640 RESLOG/BNY; HtG 1-ULP via (1+OLDRN), then MortPA/BAPctile/TPA) and the FFE simfire/salvage reports (PotFire_East/Carbon/Mortality/BurnReport) — not dug | 1 cells over 1 stand(s), e.g. 1229648290290487 year 2031: live=4.6185627 jl=4.61856461"""
 
 [[residual]]
 variant = "CS"
@@ -28252,39 +28241,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """tiered-east 2026-10-05 measured: LS .sum 'none' exact; remaining = FFE simfire/salvage reports (PotFire/Carbon/Mortality), establishment plant_cal/plant_cyc FVS_Summary/sum, FVS54 INVALID SITE INDEX not emitted, per-record TreeList ULP — not dug | 2 cells over 1 stand(s), e.g. 301218549489998 year 2034: live=SURFACE jl=COND_CRN"""
-
-[[residual]]
-variant = "LS"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """tiered-east 2026-10-05 measured: LS .sum 'none' exact; remaining = FFE simfire/salvage reports (PotFire/Carbon/Mortality), establishment plant_cal/plant_cyc FVS_Summary/sum, FVS54 INVALID SITE INDEX not emitted, per-record TreeList ULP — not dug | 2 cells over 1 stand(s), e.g. 64155949010661 year 2011: live=3.7265377 jl=3.72653937"""
-
-[[residual]]
-variant = "LS"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """tiered-east 2026-10-05 measured: LS .sum 'none' exact; remaining = FFE simfire/salvage reports (PotFire/Carbon/Mortality), establishment plant_cal/plant_cyc FVS_Summary/sum, FVS54 INVALID SITE INDEX not emitted, per-record TreeList ULP — not dug | 2 cells over 1 stand(s), e.g. 64155949010661 year 2011: live=3.57123685 jl=3.57123804"""
-
-[[residual]]
-variant = "LS"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht2TDCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """tiered-east 2026-10-05 measured: LS .sum 'none' exact; remaining = FFE simfire/salvage reports (PotFire/Carbon/Mortality), establishment plant_cal/plant_cyc FVS_Summary/sum, FVS54 INVALID SITE INDEX not emitted, per-record TreeList ULP — not dug | 3 cells over 1 stand(s), e.g. 64155949010661 year 2011: live=43.7415466 jl=43.7415428"""
 
 [[residual]]
 variant = "LS"
