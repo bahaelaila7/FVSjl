@@ -493,3 +493,10 @@ end
     # 1/2's WK4 717.31/717.59 in the other order ⇒ the 70th-percentile window ⇒ Stratum_1_DBH 28.502727 vs live 28.502726.
     @test _cr_case_mismatches("bm", "12827438010497", "thinbba", ("FVS_StrClass",)) == 0
 end
+
+@testset "IE 3285544010690 / 3356357010690 salvage: FMSNAG falls and breaks each record before the next (fmsnag.f:121-287)" begin
+    # CWD1 then CWD2 per snag record; all falls first re-ordered the REAL*4 pool sums (CWD(1,4,2,4) 2015 4.022011757 live vs
+    # 4.0220113) ⇒ 2022 LARGE ⇒ FMDYN weights ⇒ Surf_Flame/Torch_Index/PTorch ULPs, Forest_Down_Dead_Wood.
+    @test _cr_case_mismatches("ie", "3285544010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+    @test _cr_case_mismatches("ie", "3356357010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+end

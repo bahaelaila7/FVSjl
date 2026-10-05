@@ -269,8 +269,7 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer; vtrip::Bool = false)
         # FMSNAG: snag bole → down wood (this year). Pass the ACTUAL annual year so a fire snag created
         # this cycle (before this loop) ages across the loop and falls in the years after the burn —
         # ordinary-mortality snags are created after the loop, so they're absent this cycle regardless.
-        isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
-        ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
+        fmsnag_year!(s, cur0 + (k - 1))               # FMSNAG: per record, the fall (CWD1) then the breakage (CWD2)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
         fmcadd!(s; vtrip = vtrip)                      # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
