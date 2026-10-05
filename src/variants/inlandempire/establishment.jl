@@ -2269,8 +2269,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         _as0 = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
         _ps = _autoes_prep_sumup!(s, est, _ntally, _ntally == 99, kdt, inv_year, icyc, year, next_year, ihab_code,
                                   _baaa0, _sl0, _as0)
-        if _ntally == 99 && s.variant isa CentralIdaho
-            est.es_ipprep = ones(Int32, Int(dupnpt))    # estab.f:222-236 ingrowth: PNONE=1 ⇒ every plot IPREP 1
+        if _ntally == 99
+            # estab.f:241-258 (the one estb file IE/EM/KT/CI share): the ingrowth catch-all sets PNONE=1 ⇒ every plot
+            # IPREP 1 — for every estb variant, not CI only (inert on the measured IE/KT/EM NOAUTOES cases).
+            est.es_ipprep = ones(Int32, Int(dupnpt))
         elseif _ntally == 1
             if _ps === nothing
                 est.es_ipprep = ones(Int32, Int(dupnpt))
