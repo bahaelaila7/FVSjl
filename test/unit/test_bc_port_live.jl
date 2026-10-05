@@ -231,4 +231,14 @@ end
     @test !any(m -> m.file in ("sum", "FVS_Summary_Metric"), c.ms)
 end
 
+# rd/rdtrp.f (grincr.f:220): with root disease active, LTRIP = ICYC.LE.ICL4 .AND. ITRN.LE.IRRTRE/3 .AND. .NOT.NOTRIP — a
+# >500-record stand is not tripled. jl tripled it ⇒ RDMORT on 0.6× PROBI copies. MEASURED FVSbc_instr SkyRanch-Control
+# rootdis RDMORT dump (live 1341 untripled records, jl 3311).
+@testset "Root disease suppresses tripling past IRRTRE/3 records (rd/rdtrp.f)" begin
+    for cn in ("SkyRanch-Control", "SkyRanch-2.0m")
+        c = _case(cn, "rootdis")
+        @test isempty(c.ms)
+    end
+end
+
 end # module

@@ -911,6 +911,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && max(nlive, itrn_grincr) <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
+    # rd/rdtrp.f (grincr.f:220 CALL RDTRP(LTRIP)): with root disease active (RDATV LGO) LTRIP is REPLACED by
+    # ICYC.LE.ICL4 .AND. ITRN.LE.IRRTRE/3 .AND. .NOT.NOTRIP — RD's PROBI/PROPI arrays hold IRRTRE=1500 records, so a
+    # stand of >500 records is not tripled. ITRN is the post-CUTS count at :220. MEASURED FVSbc_instr SkyRanch-Control
+    # rootdis (≈1100 records): live RDMORT walks the untripled records (PROBI 1.109), jl the tripled ones (0.6×).
+    (s.root_disease isa RootDiseaseState && rd_active(s.root_disease)) &&
+        (trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= RD_IRRTRE ÷ 3)
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
     # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)
