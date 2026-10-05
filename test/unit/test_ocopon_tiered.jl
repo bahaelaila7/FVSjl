@@ -115,4 +115,12 @@ end
     end
 end
 
+# op/sichg.f:36-37 `DATA REFLOC/10*'B','T',10*'B','T',17*'B'/` — the second 'T' is species 22 (RA), not 21.
+@testset "OP SICHG REFLOC (op/sichg.f:36-52): 'T' at LP(11) and RA(22)" begin
+    @test findall(==(1), FVSjl.OP_SICHG_REFLOC) == [11, 22]
+    sa = FVSjl.op_sichg(22, 60f0)                      # RA site species ('T'): every 'B' species gets DIFF=-1
+    @test sa[22] == Float32(FVSjl.OP_SICHG_REFAGE[22]) && sa[11] == Float32(FVSjl.OP_SICHG_REFAGE[11])
+    @test sa[21] < Float32(FVSjl.OP_SICHG_REFAGE[21])  # was DIFF=0 (21 mis-tagged 'T')
+end
+
 end # module
