@@ -22,7 +22,7 @@ snapshot tier sees every bit.
 
 **Variant groups** (`TIERED_VARIANTS`, tiered_runner.jl `TIERED_GROUPS`): unset = **CORE** (BM, EM, IE, SN — the
 variants under an active regime-close campaign; this is what `Pkg.test` runs). **WEST** = the western coverage fixtures
-(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK: 10 stands each, measured OPEN residual maps, not yet dug) — run them
+(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK, BC: 10 stands each, measured OPEN residual maps, not yet dug) — run them
 with `TIERED_VARIANTS=WEST` (or `ALL`, or a list such as `CORE,TT`). A variant moves into CORE when its campaign starts.
 
 ## Fixtures (`test/fixtures/tiered/<v>/`, git-tracked)
@@ -41,7 +41,9 @@ Built by `test/harness/tiered/make_fixtures.jl <VARIANT> <K>` from the **live or
   commit + dirty flag, generator commit, date, stand list, `sample_source`, and `regimes` / `skipped_regimes`: each
   regime is probed on the first stand and dropped when the oracle build STUBS its extension (FVS11 "requested
   extension is not part of this program" — e.g. CA/AK have no WRD, AK no Climate-FVS). The fast tier runs the
-  PROVENANCE `regimes` only. KT has no FIA population of its own (VARIANT is never 'KT'); its stands are drawn from
+  PROVENANCE `regimes` only. BC (metric, no FIA population: FIA is US-only) draws its stands from FVS's own tests/FVSbc
+  databases (`LOCAL_POOL` in make_fixtures.jl) and uses the private DB-capable relink `/workspace/.bcwork/dbfix/FVSbc_dbfix`
+  (the stock FVSbc_clean SIGSEGVs on DATABASE tree reads). KT has no FIA population of its own (VARIANT is never 'KT'); its stands are drawn from
   the IE-assigned FIA stands of KT's home forests 110/113/114 (`SAMPLE_SOURCE` in make_fixtures.jl);
 * `SNAPSHOT.tsv` — the blessed bit-identity manifest (one SHA-1 per stand×regime×{sum, table, cycle}).
 

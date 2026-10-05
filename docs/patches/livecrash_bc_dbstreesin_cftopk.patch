@@ -1,0 +1,53 @@
+--- FVSbc_buildDir/intree.f
++++ FVSbc_buildDir/intree.f (fixed)
+@@ -153,7 +153,8 @@
+      &        DBH(I),DG(I),HT(I),THT,HTG(I),ICR(I),IDAMCD(1),IDAMCD(2),
+      &        IDAMCD(3),IDAMCD(4),IDAMCD(5),IDAMCD(6),
+      &        IMC1,KUTKOD(I),IPVARS(1),IPVARS(2),IPVARS(3),IPVARS(4),
+-     &        IPVARS(5),DBSKODE,DEBUG,JOSTND,LKECHO,ABIRTH(I),LBIRTH(I))
++     &        IPVARS(5),DBSKODE,DEBUG,JOSTND,LKECHO,ABIRTH(I),LBIRTH(I),
++     &        CULL(I),DECAYCD(I),WDLDSTEM(I),LFIANVB)
+       IF(DBSKODE.EQ.0)THEN
+         IF (.NOT.LCONN) INQUIRE(UNIT=ISTDAT,exist=LCONN)
+         IF (LCONN) INQUIRE(UNIT=ISTDAT,opened=LCONN)
+--- FVSbc_buildDir/fmsvol.f
++++ FVSbc_buildDir/fmsvol.f (fixed)
+@@ -52,6 +52,7 @@
+       REAL     D, H, BARK, XHT, VOL2HT
+       INTEGER  IOUT,II,JSP,IHT
+       REAL     XH,XD,BRATIO,D2H,X
++      REAL     SCFDUM
+ 
+ C     CALCULATE THE VOLUME
+ 
+@@ -115,7 +116,8 @@
+      !        CTKFLG)
+       IF(CTKFLG .AND. LTKIL) THEN
+          VMAX = VN
+-         CALL CFTOPK (ISPC,D,H,VN,VM,VMAX,LCONE,BARK,IHT)
++         SCFDUM = 0.0
++         CALL CFTOPK (ISPC,D,H,VN,VM,SCFDUM,VMAX,LCONE,BARK,IHT)
+       ENDIF
+ 
+ C     Give some small volume to very tiny trees.
+--- FVSbc_buildDir/vols.f
++++ FVSbc_buildDir/vols.f (fixed)
+@@ -68,6 +68,7 @@
+       LOGICAL DEBUG
+       REAL SPCCC(MAXSP,3),SPCAC(MAXSP,3),SPCBV(MAXSP,3),SPCMC(MAXSP,3)
+       REAL DBHCLS(9),P,D,H,BARK,BRATIO
++      REAL SCFDUM
+       REAL D2H,VM,VN,VMAX,ALGSLP,VOLCOR
+       INTEGER I,J,IPASS,ILOW,IHI,ISPC,IT,IM,ICDF
+       LOGICAL TKILL,LCONE,CTKFLG
+@@ -159,8 +160,9 @@
+       IT=I
+       CALL CFVOL (ISPC,D,H,D2H,VN,VM,VMAX,TKILL,LCONE,BARK,ITRUNC(I),
+      1              CTKFLG)
++      SCFDUM=0.0
+       IF(CTKFLG .AND. TKILL .AND. VMAX .GT. 0.)
+-     1 CALL CFTOPK (ISPC,D,H,VN,VM,VMAX,LCONE,BARK,ITRUNC(I))
++     1 CALL CFTOPK (ISPC,D,H,VN,VM,SCFDUM,VMAX,LCONE,BARK,ITRUNC(I))
+ C----------
+ C  LOAD WK1 WITH MERCH CUBIC VOLUME PER TREE.
+ C----------

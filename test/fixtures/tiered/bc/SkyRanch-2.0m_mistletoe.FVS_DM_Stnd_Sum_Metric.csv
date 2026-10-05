@@ -1,0 +1,2 @@
+StandID,Year,Age,Stnd_TPH,Stnd_BA,Stnd_Vol,Inf_TPH,Inf_BA,Inf_Vol,Mort_TPH,Mort_BA,Mort_Vol,Inf_TPH_Pct,Inf_Vol_Pct,Mort_TPH_Pct,Mort_Vol_Pct,Mean_DMR,Mean_DMI
+SkyRanch-2.0m,2019,10,4353,0,0,787,0,0,39,0,0,18,83,1,5,0.4946386516094208,2.737285852432251
