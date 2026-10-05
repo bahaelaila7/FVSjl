@@ -81,6 +81,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("CS", "1813567613290487", "salvage")
         @test isempty(ms)                                      # oak stand: Canopy_Density 0 / Canopy_Ht −1 like live
     end
+    @testset "NE 17955726010661 salvage — ne/fmsfall.f ALGSLP snag fall (CS: KSP>2 linear branch)" begin
+        ms = _case("NE", "17955726010661", "salvage")
+        @test isempty(_cells(ms, "FVS_Carbon"; col = "Standing_Dead"))   # inventory snags DENIH 8.693 (was 11.172)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))

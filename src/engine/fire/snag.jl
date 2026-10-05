@@ -38,6 +38,18 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     if variant isa LakeStates
         modrate = clamp((-0.006f0 * d + 0.18f0) * fallx, 0.01f0, 1f0)   # FVS clamps MODRATE (not base)
         linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
+    elseif variant isa Northeast
+        # ne/fmsfall.f: BASE = ALGSLP(D,(1,5,12),(.20,.0667,.04),3), MODRATE = BASE·FALLX clamped [0.01,1], linear
+        # below 20" (no species exception). jl had kept the SN form (−0.001679·D+0.064311, 12") ⇒ NE snags fell too
+        # slowly — MEASURED live FVSne 17955726010661 2005: inventory aspen snag DENIH 8.693 vs jl 11.172.
+        modrate = clamp(algslp(d, _NE_FALL_DVALS, _NE_FALL_FRATE) * fallx, 0.01f0, 1f0)
+        linear = d < 20f0
+    elseif variant isa CentralStates
+        # cs/fmsfall.f: the SN BASE, but the linear small-snag branch needs KSP>2 (redcedar 1 AND juniper 2 take the
+        # last-5% ramp; SN exempts only KSP 2).
+        base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
+        modrate = min(1f0, base * fallx)
+        linear = d < 12f0 && ksp > 2
     else
         base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
         if variant !== nothing && _ffe_west_fallform(variant)
@@ -65,6 +77,9 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     end
     return dfalln
 end
+
+const _NE_FALL_DVALS = Float32[1.0, 5.0, 12.0]       # ne/fmsfall.f DATA DVALS
+const _NE_FALL_FRATE = Float32[0.20, 0.0667, 0.04]    # ne/fmsfall.f DATA FRATE
 
 """
     snag_decay_fraction(coef, ksp) -> Float32
