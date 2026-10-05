@@ -1,6 +1,6 @@
 # FVSjl — certification status
 
-_Last updated 2026-10-05 (master `f0272193`). Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
+_Last updated 2026-10-05 evening (integ-1006a: master `f0272193` + BC + CS/LS/NE; numbers below are measured on that branch). Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
 Method: **[DOCTRINE.md](DOCTRINE.md)**. Older narrative status (FIA sweeps, extensions, PPE): [PORT_STATUS.md](PORT_STATUS.md)._
 
 ## What "certified" means here
@@ -42,15 +42,15 @@ exactness.
 | | AK | 90 | 431,138 | 2,283 | 272 | 99.937% | FFE |
 | | CA | 100 | 434,154 | 14,475 | 670 | 99.846% | FFE |
 | | WS | 110 | 560,098 | 29,758 | 1,217 | 99.783% | FFE |
-| Eastern | NE | 70 | 461,313 | not measured | 2,413 | 99.48% | none-regime per-record drift, FFE |
-| | LS | 70 | 392,704 | not measured | 4,276 | 98.91% | none, FFE, plant |
-| | CS | 70 | 427,228 | not measured | 12,952 | 96.97% | none-regime per-record drift |
-| | ON | 60 | 357,738 | not measured | 19,106 + 40 crashes | 94.66% | growth drift; FFE + establishment unported |
+| Eastern | NE | 70 | 461,313 | not measured | **0** | 100% | — |
+| | LS | 70 | 392,704 | not measured | **0** | 100% | — |
+| | CS | 70 | 427,228 | not measured | **0** | 100% | — |
+| | ON | 60 | 357,738 | not measured | 20,209 + 40 crashes (ON branch: 7,351, 0 crashes) | 94.35% (97.9%) | ON branch pending: FFE + establishment ported; late-cycle growth drift |
 | ORGANON | OC | 100 | 192,907 | not measured | 15,700 | 91.86% | startup DG calibration unported |
 | | OP | 100 | 173,264 | not measured | 19,545 | 88.72% | Float32 math in the FVS-native paths |
-| Canada | BC | 90 | 1,968,465 | not measured | 467,601 (master) · **57** (pending `integ-1005e`) | 76.2% · 99.997% | post-fire down-wood carbon |
+| Canada | BC | 90 | 1,968,465 | not measured | **55** | 99.997% | post-fire down-wood carbon |
 
-Totals on master: core 4 — 0 / 2.41M; 13 original western — 2,679 / 6.0M (99.955%).
+Totals: core 4 — 0 / 2.41M; eastern CS/LS/NE — 0 / 1.28M; 13 original western — 2,679 / 6.0M (99.955%; the west-tail branch takes it to 1,437).
 
 CS/LS/NE/OC/OP/ON entered the tiered suite on 2026-10-05; before that they were validated only by shipped-test goldens,
 keyword-coverage tests and (CS/LS/NE) the FIA full-population `.sum` sweep, which a per-cell tiered comparison is much
@@ -60,10 +60,10 @@ stricter than.
 
 | Branch | Content | State |
 |---|---|---|
-| `integ-1005e` | `bc-port`: BC FFE port, Kozak volume, metric DBS/keyword/ESTAB conversions, BC growth/crown/REGENT/sprouting, MISTOFF, shared COMPRESS/RDTRP fixes — BC 467,601 → 57 | measuring, then suite |
-| `east-resid` | CS/LS/NE residual round 1 | final measurement |
-| `oc-op-on` | ON establishment, OC/OP site setup and math | in progress (ON first) |
-| `west-tail` | western tail + FLAMEADJ crown fire, removed carbon, activity fuels | wrapping up |
+| `integ-1006a` | BC (467,601 → 55), CS/LS/NE (→ 0: calibration DGF OB→IB, DGF powf, FMSVL2 NATCRS every live record, eastern LESTB/ESGENT and FFE snag/TFALL/TSOFT), these docs | suite |
+| `oc-op-on` | ON 20,209 + 40 crashes → 7,351, 0 crashes (ON FFE on the Lake States layer, ON establishment, top-kill volume, CCCOEF, InvReference) | Sonnet agent working; verified before integration |
+| `ocop-2` | OC 15,700 → 4,300, OP 19,545 → 6,762 | Sonnet agent working |
+| `west-tail` | west 2,734 → 1,437 (removed carbon, FLAMEADJ crown fire, activity fuels, WS/CA snags, WRD WK1) | waiting for integration |
 
 ## How work lands (the gate)
 
@@ -98,6 +98,11 @@ KT volume setup.
 
 ## Oracles
 
+The CS/LS/NE/SN goldens are reproduced byte-for-byte by a stock-flag (-O0) rebuild of the current buildDir sources
+(`/workspace/.{cs,ls,ne,sn}work/tiered/FVS*_tiered`, audit §9). The CS/LS "oracle object skew" corners were a jl defect:
+the buildDir objects had been hand-recompiled with optimisation in July, folding `X**2.0` to `X*X`; jl now follows the
+stock build (powf).
+
 Shared live oracles: `/workspace/.{v}work/FVS{v}_g16` (gfortran-16 rebuilds of each variant's buildDir; CR
 `FVScr_clean`, KT `FVSkt_clean`). Private relinks used for goldens where the shared binary crashes — each is the shared
 build's objects plus a call-site patch, documented in `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md`:
@@ -107,5 +112,6 @@ build's objects plus a call-site patch, documented in `/workspace/ORACLE_SOURCE_
 | `/workspace/.bcwork/dbfix/FVSbc_dbfix` | DBSTREESIN 34-argument call (every DB tree read segfaulted); CFTOPK SCF argument (FFE/top-kill SIGFPE) | 7 |
 | `/workspace/.ocwork/tiered/FVSoc_tiered`, `/workspace/.opwork/tiered/FVSop_tiered` | ORGANON mortality underflow trap after heavy thins | 8 |
 | `/workspace/.onwork/tiered/FVSon_tiered` | FMSVL2 / CFTOPK argument lists (SIGSEGV, garbage top-kill volume) | 8 |
+| `/workspace/.{cs,ls,ne,sn}work/tiered/FVS*_tiered` | none — stock-flag rebuild of current sources (verification only) | 9 |
 
 Shared oracle binaries and buildDir sources are never modified without explicit approval.
