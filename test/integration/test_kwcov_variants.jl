@@ -26,6 +26,8 @@ const _KCV_VARIANT = Dict("ne" => FVSjl.Northeast(), "cs" => FVSjl.CentralStates
 # permits ULP-class. Base stand + SN(R8) bit-exact. Not closed to bit-exact; tracked. See
 # docs/MODERNIZATION_R9_VOLUME_OVERRIDE_GAP.md (live-stamp findings).
 const _KCV_BROKEN = Dict{String,String}(
+    # 2026-10-05: cs_simfire, ls_simfire, cs_fixhtg and ls_estab are now exact vs live (integ-1006a eastern fixes) and
+    # no longer listed; the notes below are their history.
     # cs/ls_simfire: FFE SIMFIRE (fire in 2010). NE is FULL-ROW BIT-EXACT. CS/LS diverge only POST-fire
     #   (first at the 2020 report, growing): LS 2020 TPA 225 vs live 220 (~2.3%), CS 2020 TCuFt 2617/2616 —
     #   jl slightly under-kills at the fire, cascading <2-3% to downstream TPA/BA/vol. This is the KNOWN,
@@ -45,8 +47,6 @@ const _KCV_BROKEN = Dict{String,String}(
     #   FVS computes the scorch height from a HIGHER flame (2.247→BYRAM 32.985) than the FMEFF-logistic report
     #   flame (1.2426≈jl 1.305); jl reuses the one low flame for both, under-scorching short trees. Deterministic
     #   kill (all burn), so NOT a RANN-tie. FIX: source the scorch flame per fmburn.f:472. Task #100 (reopened).
-    "cs_simfire" => "FFE SIMFIRE — TPA + BA now BIT-EXACT vs live all cycles (post-S89 CS DKR table: _fm_dkr_default(CentralStates)=_FM_DKR_CS, cs/fmvinit.f decay-class-independent woody). Only residual = the post-fire volume ~1-3 units (<0.1%, MCuFt/SCuFt/BdFt) — an accepted per-tree Clark/ULP straddle, NOT the fire kill. Was 'kill-distribution', now cornered to a volume ULP.",
-    "ls_simfire" => "FFE SIMFIRE — FIXED (S87): the ~5-TPA under-kill was jl applying the SN fuel decay-rate table (litter DKR 0.65) to LS, which decays LS litter ~2× too fast (LS litter=0.31, ls/fmvinit.f:94) ⇒ SMALL down-wood ~1.47× low ⇒ FMDYN under-weighted the hot fuel model ⇒ under-scorch. Now _fm_dkr_default(LakeStates) uses the LS DKR table (fuel_decay.jl). 2020/2040 rows BIT-EXACT vs live; ONLY residual = 2030 QMD 11.1/11.2 (a sub-print BA/TPA straddle 2 cycles post-fire, same displayed BA 146/TPA 215) — ULP-class @test_broken. Was structural, now cornered.",
     # ls_thinpt: now FULL-ROW BIT-EXACT (integ-0934, 2026-09-27) — its only residual was the MAI column, fixed by
     #   em-resid b407efde (evtstv.f:414 TOTREM adds the INTEGER IOSUM(9) in every variant). Moved OUT of broken.
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the
@@ -81,7 +81,6 @@ const _KCV_BROKEN = Dict{String,String}(
     # on a ~21k value = ULP rounding boundary); all density + the other 3 volume cols bit-exact. ne/ls_fixhtg
     # fully bit-exact with identical FIXHTG logic ⇒ the ht-growth-multiplier semantic is faithful; the taller
     # CS stem crosses a board-foot integer boundary. Permitted ULP-class.
-    "cs_fixhtg"   => "FIXHTG ht-growth ×1.5 — ULP-class Δ1 board-foot on ONE cell (2040 col 12/BdFt, 21345/21346); all density + other volume cols bit-exact; ne/ls_fixhtg fully bit-exact ⇒ semantic faithful, board-foot rounding knife-edge.",
     # {ne,cs,ls}_estab: ESTAB + PLANT (300 TPA, 90% survival) — the planted cohort ESTABLISHES with the correct
     # COUNT (TPA at the first post-plant cycle 2010 is BIT-EXACT: cs 722/722), but its early DIMENSIONS (dbh→SDI/
     # CCF) diverge a little (cs 2010 SDI 236 vs 234), which then cascades into slightly different self-thinning/
@@ -109,7 +108,6 @@ const _KCV_BROKEN = Dict{String,String}(
     # ls_estab: genuine ULP — the LS establishment now applies CON=exp(htg_cor_small) too (same faithfulness fix as
     #   NE; inert for JP where CON≈1). Residual = 2 volume cells off-by-1 at ONE cycle (MCuFt 4838/4837, BdFt 18506/18505
     #   at 2030) — 0.02% rounding, every density/height column bit-exact. Permitted ULP-class (task #81/#82 complete).
-    "ls_estab"    => "ESTAB/PLANT — 2 ULP volume cells off-by-1 at 2030 (MCuFt 4838/4837, BdFt 18506/18505); all density/height cols bit-exact; CON now applied (inert for JP). Genuine ULP-class.",
     # ne_resetage: FIXED (S18, summary.jl MAI reset-to-0 zeroing) — now full-row bit-exact, moved out of broken.
     # ne_sdimax: FIXED (S19, keyword_dispatch.jl kw_sdimax! numeric field = species SEQUENCE INDEX per FVS
     #   SPDECD, float-parsed so "19.0" resolves to sp19; was mis-read as FIA-19→wrong species). Now bit-exact.
