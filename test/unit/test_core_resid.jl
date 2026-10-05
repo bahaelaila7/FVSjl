@@ -511,3 +511,9 @@ end
     # cycle 4's FMSDIT scaled the slot's stale value (1.0077E-2 → 5.7E-7); jl rebuilt it from CROWNW (7.8E-5) ⇒ 2048 BIOLIVE.
     @test _cr_case_mismatches("em", "684750664126144", "simfire", ("FVS_PotFire", "FVS_Carbon")) == 0
 end
+
+@testset "SN 156207237010854 simfire FVS_Carbon: FMSVL2's fresh NATCRS MCF, not the round-tripped MCFV (fmcrbout.f:127)" begin
+    # record 2 VT 15.9 live; the cached MCFV·PROB/PROB 15.899999 ⇒ 1984 Aboveground_Merch_Live 5.1446066 vs live 5.1446075.
+    @test _cr_case_mismatches("sn", "156207237010854", "simfire", ("FVS_Carbon",)) == 0
+    @test _cr_case_mismatches("sn", "238813815010854", "simfire", ("FVS_Carbon",)) == 0
+end
