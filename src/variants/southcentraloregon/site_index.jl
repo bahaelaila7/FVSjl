@@ -47,65 +47,65 @@ const SO_DUNL3 = Float32[2.375, 2.025, 1.650, 1.225, 1.075, 0.875]
 @inline function _so_dunlevitan(sindx::Float32, ag::Float32)::Float32
     indx = sindx <= 44f0 ? 6 : sindx <= 52f0 ? 5 : sindx <= 65f0 ? 4 :
            sindx <= 82f0 ? 3 : sindx <= 98f0 ? 2 : 1
-    return ag <= 40f0 ? SO_DUNL3[indx] * ag : SO_DUNL1[indx] + SO_DUNL2[indx] * log(ag)
+    return ag <= 40f0 ? SO_DUNL3[indx] * ag : SO_DUNL1[indx] + SO_DUNL2[indx] * flog(ag)
 end
 
 function so_htcalc(jfor::Int, sindx::Float32, ispc::Int, ag::Float32)::Float32
     if ispc == 1                                                  # WP Brickell
-        return sindx / (0.37504453f0 * (1f0 - 0.92503f0 * exp(-0.0207959f0 * ag))^(-2.4881068f0))
+        return sindx / (0.37504453f0 * fpow((1f0 - 0.92503f0 * fexp(-0.0207959f0 * ag)), -2.4881068f0))
     elseif ispc == 3 || ispc == 32                                # DF/OS Cochran-251
-        return 4.5f0 + exp(-0.37496f0 + 1.36164f0 * log(ag) - 0.00243434f0 * log(ag)^4) -
-               79.97f0 * (-0.2828f0 + 1.87947f0 * (1f0 - exp(-0.022399f0 * ag))^0.966998f0) +
-               (sindx - 4.5f0) * (-0.2828f0 + 1.87947f0 * (1f0 - exp(-0.022399f0 * ag)^0.966998f0))
+        return 4.5f0 + fexp(-0.37496f0 + 1.36164f0 * flog(ag) - 0.00243434f0 * fpowi(flog(ag), 4)) -
+               79.97f0 * (-0.2828f0 + 1.87947f0 * fpow((1f0 - fexp(-0.022399f0 * ag)), 0.966998f0)) +
+               (sindx - 4.5f0) * (-0.2828f0 + 1.87947f0 * (1f0 - fpow(fexp(-0.022399f0 * ag), 0.966998f0)))
     elseif ispc == 4 || ispc == 6 || ispc == 12 || ispc == 14     # WF/IC/GF/SF Cochran-252
-        la = log(ag)
-        x2 = -0.30935f0 + 1.2383f0 * la + 0.001762f0 * la^4 - 5.4f-6 * la^9 + 2.046f-7 * la^11 - 4.04f-13 * la^18
-        x3 = -6.2056f0 + 2.097f0 * la - 0.09411f0 * la^2 - 0.00004382f0 * la^7 + 2.007f-11 * la^16 - 2.054f-17 * la^24
-        return exp(x2) - 84.73f0 * exp(x3) + (sindx - 4.5f0) * exp(x3) + 4.5f0
+        la = flog(ag)
+        x2 = -0.30935f0 + 1.2383f0 * la + 0.001762f0 * fpowi(la, 4) - 5.4f-6 * fpowi(la, 9) + 2.046f-7 * fpowi(la, 11) - 4.04f-13 * fpowi(la, 18)
+        x3 = -6.2056f0 + 2.097f0 * la - 0.09411f0 * la^2 - 0.00004382f0 * fpowi(la, 7) + 2.007f-11 * fpowi(la, 16) - 2.054f-17 * fpowi(la, 24)
+        return fexp(x2) - 84.73f0 * fexp(x3) + (sindx - 4.5f0) * fexp(x3) + 4.5f0
     elseif ispc == 5                                              # MH interim-means (metric)
-        h = (22.8741f0 + 0.950234f0 * sindx) * (1f0 - exp(-0.00206465f0 * sqrt(sindx) * ag))^(1.365566f0 + 2.045963f0 / sindx)
+        h = (22.8741f0 + 0.950234f0 * sindx) * fpow((1f0 - fexp(-0.00206465f0 * sqrt(sindx) * ag)), 1.365566f0 + 2.045963f0 / sindx)
         return (h + 1.37f0) * 3.281f0
     elseif ispc == 7                                              # LP Dahms
         return sindx * (-0.0968f0 + 0.02679f0 * ag - 0.00009309f0 * ag * ag)
     elseif ispc == 8                                              # ES Alexander
-        return 4.5f0 + ((2.75780f0 * sindx^0.83312f0) * (1f0 - exp(-0.015701f0 * ag))^(22.71944f0 * sindx^(-0.63557f0)))
+        return 4.5f0 + ((2.75780f0 * fpow(sindx, 0.83312f0)) * fpow((1f0 - fexp(-0.015701f0 * ag)), 22.71944f0 * fpow(sindx, -0.63557f0)))
     elseif ispc == 9                                              # SH: R6 Dolph red fir else Dunning-Levitan
         if jfor <= 3 || jfor == 10
-            term = ag * exp(ag * (-0.0440853f0)) * 1.41512f-6
+            term = ag * fexp(ag * (-0.0440853f0)) * 1.41512f-6
             b = sindx * term - 3.04951f6 * term * term + 5.72474f-4
-            term2 = 50f0 * exp(50f0 * (-0.0440853f0)) * 1.41512f-6
+            term2 = 50f0 * fexp(50f0 * (-0.0440853f0)) * 1.41512f-6
             b50 = sindx * term2 - 3.04951f6 * term2 * term2 + 5.72474f-4
-            return (sindx - 4.5f0) * (1f0 - exp(-b * ag^1.51744f0)) / (1f0 - exp(-b50 * 50f0^1.51744f0)) + 4.5f0
+            return (sindx - 4.5f0) * (1f0 - fexp(-b * fpow(ag, 1.51744f0))) / (1f0 - fexp(-b50 * fpow(50f0, 1.51744f0))) + 4.5f0
         else
             return _so_dunlevitan(sindx, ag)
         end
     elseif ispc == 2 || ispc == 10                                # SP/PP Barrett
-        t = -0.7864f0 + 2.49717f0 * (1f0 - exp(-0.0045042f0 * ag))^0.33022f0
-        return (128.89522f0 * (1f0 - exp(-0.016959f0 * ag))^1.23114f0) - (t * 100.43f0) + (t * (sindx - 4.5f0)) + 4.5f0
+        t = -0.7864f0 + 2.49717f0 * fpow((1f0 - fexp(-0.0045042f0 * ag)), 0.33022f0)
+        return (128.89522f0 * fpow((1f0 - fexp(-0.016959f0 * ag)), 1.23114f0)) - (t * 100.43f0) + (t * (sindx - 4.5f0)) + 4.5f0
     elseif ispc == 13                                             # AF Johnson/DeMars
         return sindx * (-0.07831f0 + 0.0149f0 * ag - 4.0818f-5 * ag * ag)
     elseif ispc == 15                                             # NF Herman
         x1 = -564.38f0 + 22.250f0 * (sindx - 4.5f0) - 0.04995f0 * (sindx - 4.5f0)^2
-        x2 = 6.8f0 + 2843.21f0 / (sindx - 4.5f0) + 34735.54f0 / (sindx - 4.5f0)^2
+        x2 = 6.8f0 + 2843.21f0 * fpowi(sindx - 4.5f0, -1) + 34735.54f0 * fpowi(sindx - 4.5f0, -2)   # htcalc.f:159 (S-4.5)**(-1),(-2)
         return 4.5f0 + (sindx - 4.5f0) / (x1 * (1f0 / ag)^2 + x2 * (1f0 / ag) + 1f0 - 0.0001f0 * x1 - 0.01f0 * x2)
     elseif ispc == 17                                             # WL Cochran-424
         t = -0.12528f0 + 0.039636f0 * ag - 0.0004278f0 * ag * ag + 1.7039f-6 * ag^3
-        return 4.5f0 + 1.46897f0 * ag + 0.0092466f0 * ag * ag - 0.00023957f0 * ag^3 + 1.1122f-6 * ag^4 +
+        return 4.5f0 + 1.46897f0 * ag + 0.0092466f0 * ag * ag - 0.00023957f0 * ag^3 + 1.1122f-6 * fpowi(ag, 4) +
                (sindx - 4.5f0) * t - 73.57f0 * t
     elseif ispc == 18                                             # RC Hegyi
-        return 1.3283f0 * sindx * ((1f0 - exp(-0.0174f0 * ag))^1.4711f0)
+        return 1.3283f0 * sindx * (fpow((1f0 - fexp(-0.0174f0 * ag)), 1.4711f0))
     elseif ispc == 19                                             # WH Wiley
         z = 2500f0 / (sindx - 4.5f0)
         return ag * ag / (-1.73070f0 + 0.1394f0 * z + (-0.0616f0 + 0.0137f0 * z) * ag +
                (0.00192f0 + 0.00007f0 * z) * (ag * ag)) + 4.5f0
     elseif ispc == 20 || ispc == 21 || ispc == 23 || ispc == 25 || ispc == 26 ||
            (28 <= ispc <= 31) || ispc == 33                       # misc Curtis
-        return (sindx - 4.5f0) / (0.6192f0 - 5.3394f0 / (sindx - 4.5f0) + 240.29f0 * ag^(-1.4f0) +
-               (3368.9f0 / (sindx - 4.5f0)) * ag^(-1.4f0)) + 4.5f0
+        return (sindx - 4.5f0) / (0.6192f0 - 5.3394f0 / (sindx - 4.5f0) + 240.29f0 * fpow(ag, -1.4f0) +
+               (3368.9f0 / (sindx - 4.5f0)) * fpow(ag, -1.4f0)) + 4.5f0
     elseif ispc == 22                                             # RA Harrington
         c = 59.5864f0 + 0.79530f0 * sindx
-        return sindx + c * (1f0 - exp((0.00194f0 - 0.000740f0 * sindx) * ag))^0.9198f0 -
-               c * (1f0 - exp((0.00194f0 - 0.000740f0 * sindx) * 20f0))^0.9198f0
+        return sindx + c * fpow((1f0 - fexp((0.00194f0 - 0.000740f0 * sindx) * ag)), 0.9198f0) -
+               c * fpow((1f0 - fexp((0.00194f0 - 0.000740f0 * sindx) * 20f0)), 0.9198f0)
     elseif ispc == 27                                             # WO: R6 Powers else Dunning-Levitan
         if jfor <= 3 || jfor == 10
             term = sqrt(ag) - sqrt(50f0)

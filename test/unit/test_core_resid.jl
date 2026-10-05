@@ -3,7 +3,8 @@
 # as text) unless a test states an upstream ULP residual that is still open.
 using FVSjl, Test, SQLite, DBInterface
 
-const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern())
+const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(),
+                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai())
 
 "Run tiered fixture `<v>/<cn>_<rg>.key` through run_keyfile; returns the output DB path."
 function _cr_run(v::AbstractString, cn::AbstractString, rg::AbstractString)
@@ -58,14 +59,14 @@ end
 @testset "IE 11855985010690 salvage FVS_PotFire Pot_Smoke_Sev — FMEFF CWD2B head on the FMPOFL-year pools" begin
     # fmmain.f:196 FMPOFL → FMEFF (ICALL=1) burns CRBURN of the waiting snag crowns CWD2B/CWD2B2 (fmeff.f:118-138)
     # BEFORE the year's FMCADD drops them (fmmain.f:241). Before: 2016 0.3109127 vs live 0.3129615 (head 0.0017 vs
-    # 0.1941 t/ac). The 2006 cycle-0 Canopy_Density is 1 ULP off (open, upstream of this), so the later years are
-    # compared at 2e-6 relative.
+    # 0.1941 t/ac). FMEFF adds each record's crown terms to BCROWN one at a time (fmeff.f:373-374/446-453), not as a
+    # per-record subtotal: 2006 PBRNCR 6.144805 live vs 6.144801 (Pot_Smoke_Sev 0.27717915 vs 0.27717921). Bit-exact.
     db = _cr_run("ie", "11855985010690", "salvage")
     gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_PotFire")
     jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
     for g in gold, c in ("Pot_Smoke_Sev", "Pot_Smoke_Mod")
         y = parse(Int, g["Year"])
-        @test isapprox(_cr_f32(jd[y][c]), _cr_f32(g[c]); rtol = 2f-6)
+        @test _cr_f32(jd[y][c]) == _cr_f32(g[c])
     end
 end
 
@@ -213,5 +214,221 @@ end
     for g in gold
         g["Year"] in ("2022", "2032", "2042") || continue
         @test _cr_f32(jd[g["Year"]]["Live_Merch_CuFt"]) == _cr_f32(g["Live_Merch_CuFt"])
+    end
+end
+
+@testset "IE 11855985010690 salvage FVS_Carbon: the non-fire FMMAIN pass runs after REGENT's direct small-tree DBH (gradd.f:118)" begin
+    # FMCBA's TBA (fmcba.f:236-237) reads the seedlings' REGENT DBH (ie/regent.f:881) because FMMAIN follows GRINCR: sp-9 TBA
+    # 21.4268 live vs 21.4036 from the start-of-cycle DBH ⇒ PRCL ⇒ the initial dead fuels 1 ULP (2006 Forest_Down_Dead_Wood
+    # 14.608339 vs live 14.608341), drifting every later fuel/carbon row.
+    db = _cr_run("ie", "11855985010690", "salvage")
+    gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_Carbon")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    @test length(jl) == length(gold)
+    cols = ["Aboveground_Total_Live", "Aboveground_Merch_Live", "Belowground_Live", "Belowground_Dead", "Standing_Dead",
+            "Forest_Down_Dead_Wood", "Forest_Floor", "Forest_Shrub_Herb", "Total_Stand_Carbon"]
+    for g in gold, c in cols
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "IE 11855985010690 salvage FVS_PotFire 2006 canopy: FMCROWW on glibc expf/logf/powf vs live FVSie_g16" begin
+    # FMPOCR's crown fuel reads CROWNW from FMCROWW (fmcroww.f:384-405 AF, :925-946 ES): EXP/LOG/D**(-x) are glibc
+    # expf/logf/powf; Julia's Float32 exp/log/^ gave ES/AF CROWNW(0) 1-3 ULP off ⇒ Canopy_Density 0.06280630 vs live
+    # 0.06280629, Crown_Index 30.766708 vs 30.766710.
+    db = _cr_run("ie", "11855985010690", "salvage")
+    gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Canopy_Density", "Crown_Index", "Canopy_Ht")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+    @test FVSjl.cr_crownw(18, 17.8f0, 92f0, 0, 70, 50f0, 0.33f0)[1] ==
+          FVSjl.fexp(1.0404f0 + 1.7096f0 * FVSjl.flog(17.8f0)) * (0.5738f0 * FVSjl.fexp(-0.0325f0 * 17.8f0))
+end
+
+@testset "EM 242065538010661 / 474187636489998 rootdis: RDEND reads WK2 itself (rdend.f:102 BACKGD=WK2/PROB)" begin
+    # rdend.f's natural mortality NATIU=BACKGD·PROBIU (BACKGD=WK2/PROB) on the TRIPLEd copies reads WK2·WEIGHT (triple.f:69),
+    # not PROB−(PROB−WK2): the ×.25 copies' PROBIU after RDEND 14.322094 live vs 14.322093 ⇒ rdgrow.f's HTG·(OUTNUM+PROBIU)/
+    # BOTTOM 1 ULP ⇒ small-DF HtG drift from 2040 ⇒ 2060 QMD 2.2100935 vs live 2.2101290.
+    for (cn, tabs) in (("242065538010661", ("FVS_Summary", "FVS_RD_Sum")), ("474187636489998", ("FVS_RD_Sum",)))
+        db = _cr_run("em", cn, "rootdis")
+        for tb in tabs
+            gold, jl = _cr_table("em", cn, "rootdis", db, tb)
+            jd = Dict(string(r["Year"]) => r for r in jl)
+            @test length(jl) == length(gold)
+            cols = tb == "FVS_Summary" ? ("Tpa", "BA", "QMD", "ATQMD", "TCuFt", "TopHt") :
+                   ("UnInf_TPA", "Inf_TPA", "Live_Merch_CuFt", "Live_BA", "Stumps_per_Acre", "Stumps_BA", "Mort_TPA")
+            for g in gold, c in cols
+                @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+            end
+        end
+    end
+end
+
+@testset "IE 4769882010690 none FVS_TreeList: REGENT's (D*BARK)**2.0 is powf, not D·D (ie/regent.f:982)" begin
+    # A REAL exponent compiles to glibc powf, which is not always the correctly rounded square: RC record 314's 2034 DG
+    # 0.20906734 from (D·BARK)² vs live 0.20906758 from powf (same D/BARK/DDS) ⇒ DBH from 2034. Now bit-exact.
+    db = _cr_run("ie", "4769882010690", "none")
+    gold, jl = _cr_table("ie", "4769882010690", "none", db, "FVS_TreeList")
+    key(r) = (parse(Int, string(r["Year"])), parse(Int, string(r["TreeIndex"])))
+    jd = Dict(key(r) => r for r in jl)
+    @test length(jl) == length(gold)
+    num = ["TPA", "MortPA", "DBH", "DG", "Ht", "HtG", "TCuFt", "MCuFt", "BdFt"]
+    bad = [key(g) for g in gold if !haskey(jd, key(g)) || any(_cr_f32(jd[key(g)][c]) != _cr_f32(g[c]) for c in num)]
+    @test isempty(bad)
+    x = reinterpret(Float32, 0x401E94E7)          # that record's D·BARK
+    @test FVSjl.fpow(x, 2.0f0) != x * x            # the case where the two differ
+end
+
+@testset "SDICLS STAGE SDI (CROWN's SDIAC): DBH**2.0 is powf, the same pass as the reported Reineke SDI (sdical.f:275/327)" begin
+    # sdical.f sums SDSQ=Σ(DBH(I)**2.0)·PROB and SDIC=Σ(A+B·DBH(I)**2.0)·PROB; a REAL exponent compiles to powf, which is not
+    # always D·D. stand_sdi (the .sum Reineke column) and stand_sdi_reineke (SDIAC/SDIBC for CROWN) are that one pass.
+    s = FVSjl.StandState(FVSjl.InlandEmpire()); t = s.trees
+    d = reinterpret(Float32, UInt32(1065604403))         # 1.0299438: powf(d,2.0) ≠ d·d
+    @test FVSjl.fpow(d, 2f0) != d * d
+    t.n = 1; t.dbh[1] = d; t.tpa[1] = 1f0; t.species[1] = 3; t.height[1] = 40f0
+    s.control.zeide_sdi = false
+    @test FVSjl.stand_sdi_reineke(s) == FVSjl.stand_sdi(s) == 0.02603549f0
+end
+
+@testset "BM 12827438010497 salvage FVS_PotFire: FMCFMD STNDBA = Σ FMTBA over species (bm/fmcfmd.f:130-132)" begin
+    # STNDBA sums the per-species FMTBA, not the records: the record-order total moved PRDF/PRPP ⇒ WT1 ⇒ EQWT(2)/(5) 2 ULP ⇒
+    # FMDYN weights 5/2 3 ULP ⇒ the torching bisection (fmcfir.f:205-268) settled elsewhere: 2005 Torch_Index 69.88524 vs
+    # live 69.88519.
+    db = _cr_run("bm", "12827438010497", "salvage")
+    gold, jl = _cr_table("bm", "12827438010497", "salvage", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Torch_Index", "Surf_Flame_Sev", "Surf_Flame_Mod", "PTorch_Sev", "Fuel_Wt1", "Fuel_Wt2")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "IE 3027007010690 / 39518122010690 simfire: FMOLDC at FMMAIN — regen booked later keeps its slot's OLDCRL (fmoldc.f)" begin
+    # FMOLDC (fmmain.f:268) stores OLDHT/OLDCRL=HT·(FMICR/100) over FMMAIN's list, before ESTAB; the next FMSDIT's crown lift
+    # (fmsdit.f:103-119) reads them, so a record established after FMMAIN (a fresh slot: 0, fminit.f:970) sheds no crown lift.
+    # jl snapshotted after ESTAB (and as HT·ICR/100): 4769882010690's post-fire regeneration got OLDCRW > 0 ⇒ 2034
+    # Aboveground_Total_Live 26.598488 vs live 26.598484.
+    for cn in ("3027007010690", "39518122010690")
+        db = _cr_run("ie", cn, "simfire")
+        for tb in ("FVS_Carbon", "FVS_PotFire")
+            gold, jl = _cr_table("ie", cn, "simfire", db, tb)
+            jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+            @test length(jl) == length(gold)
+            cols = tb == "FVS_Carbon" ? ("Aboveground_Total_Live", "Forest_Down_Dead_Wood", "Forest_Floor", "Total_Stand_Carbon") :
+                   ("Surf_Flame_Sev", "Surf_Flame_Mod", "Torch_Index", "PTorch_Sev", "Pot_Smoke_Sev", "Pot_Smoke_Mod")
+            for g in gold, c in cols
+                @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+            end
+        end
+    end
+end
+
+@testset "EM 3087467010690 simfire FVS_PotFire canopy: FMPOCR's Black-Hills PP Weibull on glibc expf/powf (fmpocr.f:62-220)" begin
+    # EM/IE/KT ponderosa (ISP 10) spread their crown by the Keyser-Smith truncated Weibull: (DCM/25.4)**1.6, EXP(-((10/WEIBB)
+    # **WEIBC)) and the per-foot WPROP are REAL EXP/** ⇒ glibc expf/powf. Julia's exp/^ put 2008 Canopy_Density at 0.07557285
+    # vs live 0.07557286 (Crown_Index 27.791910 vs 27.791908).
+    db = _cr_run("em", "3087467010690", "simfire")
+    gold, jl = _cr_table("em", "3087467010690", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Canopy_Density", "Crown_Index", "Torch_Index", "Canopy_Ht")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "OP DGDRIV: no COR attenuation for a species without records this cycle (op/dgdriv.f:494-495 IF(I1.EQ.0) GO TO 50)" begin
+    s = FVSjl.StandState(FVSjl.Olympic()); t = s.trees; c = s.calib
+    t.n = 2; t.species[1] = 3; t.species[2] = 3; t.dbh[1] = 10f0; t.dbh[2] = 12f0; t.tpa[1] = t.tpa[2] = 10f0
+    c.dg_cor_goal[3] = 0.2f0; c.dg_cor[3] = 0.4f0                # present species: attenuated
+    c.dg_cor_goal[5] = 0.1f0; c.dg_cor[5] = 0.17f0               # absent species: keeps its previous COR
+    FVSjl._op_cor_attenuate!(s, 0.5f0)
+    @test c.dg_cor[3] == 0.2f0 + 0.5f0 * 0.2f0
+    @test c.dg_cor[5] == 0.17f0
+end
+
+@testset "IE 1627682513290487 simfire FVS_PotFire: FMPOCR TCLOAD summed layer by layer (fmpocr.f:236-239)" begin
+    # TCLOAD = Σ CRFILL(1..400) in order; Julia's sum(::Vector) reassociates: post-fire 2012 TCLOAD 0.56985438 vs live
+    # 0.56985432 (3356357010690) ⇒ FINTEN ⇒ Tot_Flame 81.63462 vs 81.63461; this stand's 18 PotFire/Carbon cells.
+    db = _cr_run("ie", "1627682513290487", "simfire")
+    gold, jl = _cr_table("ie", "1627682513290487", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Tot_Flame_Sev", "Tot_Flame_Mod", "Surf_Flame_Sev", "Torch_Index", "Canopy_Density", "PTorch_Sev")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "IE 3356357010690 climate/plant_cal .sum volumes: PCTILE totals in IND order (gradd.f:289-322, pctile.f)" begin
+    # FVS's stand TPA/volume totals are PCTILE's cumulative sums walking IND (DBH-descending RDPSRT) from the smallest
+    # tree, not a record-order sum: 2032 per-tree BdFt identical, record order Σ 81635.55 ⇒ 81635 vs live 81636.
+    for rg in ("climate", "plant_cal")
+        db = _cr_run("ie", "3356357010690", rg)
+        gold, jl = _cr_table("ie", "3356357010690", rg, db, "FVS_Summary")
+        jd = Dict(string(r["Year"]) => r for r in jl)
+        @test length(jl) == length(gold)
+        for g in gold, c in ("Tpa", "TCuFt", "MCuFt", "SCuFt", "BdFt")
+            @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+        end
+    end
+end
+
+@testset "IE 374547584489998 climate: FW2 GETDIB log dibs on SF_YHAT's mixed REAL/REAL*8 kernel (sf_yhat.f)" begin
+    # sf_yhat.f forms X and the coefficient sub-terms in REAL, Y in REAL*8: the all-Float64 kernel put the WL 12.05"×107'
+    # 83.5-ft log dib at 4.5010004 vs live 4.5009999 — across GETDIB's 0.501 class cut (profile.f) ⇒ 2035 MCuFt 29.8 /
+    # BdFt 154 vs live 29.3 / 148 ⇒ .sum BdFt 42867 vs 42865.
+    db = _cr_run("ie", "374547584489998", "climate")
+    gold, jl = _cr_table("ie", "374547584489998", "climate", db, "FVS_Summary")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("TCuFt", "MCuFt", "BdFt")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "EM 3087467010690 / 474157097489998 rootdis: RDMORT books stumps in species-major IND1 order (rdmort.f:112-177)" begin
+    # RDSTP's per-class weighted means (rdstp.f DBHDA/ROOTDA) accumulate in RDMORT's ISCT/IND1 walk; jl booked them in
+    # record order after the kernel (same 464 calls, different order ⇒ 1998 Stumps_BA 28.005869 vs live 28.005877).
+    for cn in ("3087467010690", "474157097489998")
+        db = _cr_run("em", cn, "rootdis")
+        gold, jl = _cr_table("em", cn, "rootdis", db, "FVS_RD_Sum")
+        jd = Dict(string(r["Year"]) => r for r in jl)
+        @test length(jl) == length(gold)
+        for g in gold, c in ("Stumps_per_Acre", "Stumps_BA", "Ave_Pct_Root_Inf", "Live_BA", "Live_Merch_CuFt", "Inf_TPA")
+            @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+        end
+    end
+end
+
+@testset "BM 12827438010497 climate FVS_Climate ViabMort: SPCALIB survival via ALGSLP's own form (clmorts.f:97)" begin
+    # ALGSLP(XV,VS*X*2.,SR,2) = Y(1)+((Y(2)-Y(1))/(X(2)-X(1)))*(XX-X(1)): (1/(HI-LO))·(XV-LO), not (XV-LO)/(HI-LO)
+    # (2025 ViabMort 0.0319396853 vs live 0.0319397449, one ULP of the survival near 1).
+    db = _cr_run("bm", "12827438010497", "climate")
+    gold, jl = _cr_table("bm", "12827438010497", "climate", db, "FVS_Climate")
+    k(r) = (string(r["Year"]), string(r["SpeciesFVS"]))
+    jd = Dict(k(r) => r for r in jl)
+    @test length(jl) == length(gold)
+    for g in gold, c in ("ViabMort", "Viability", "dClimMort", "GrowthMult")
+        @test _cr_f32(jd[k(g)][c]) == _cr_f32(g[c])
+    end
+end
+
+@testset "KT 4718785010690 salvage: FMCBA crown cover from the last CWIDTH dims, not the FMMAIN-time list (kt/fmcba.f:193)" begin
+    # CWIDTH=CRWDTH(I): the width CWIDTH stored at load / end of cycle. With the FMMAIN pass at gradd.f:118 the seam's REGENT-
+    # grown small-tree DBH moved the inventory PERCOV (2004 Forest_Shrub_Herb 0.16690 vs live 0.15348).
+    db = _cr_run("kt", "4718785010690", "salvage")
+    gold, jl = _cr_table("kt", "4718785010690", "salvage", db, "FVS_Carbon")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    g = only(x for x in gold if x["Year"] == "2004")
+    @test _cr_f32(jd[2004]["Forest_Shrub_Herb"]) == _cr_f32(g["Forest_Shrub_Herb"])
+end
+
+@testset "BM 177426703020004 / 12827438010497 salvage: the R6-deferred annual fuel loop walks the TRIPLEd list (fmcadd.f)" begin
+    # FMMAIN (gradd.f:118) runs after TRIPLE, so FMCADD's litterfall/breakage/crown-lift sums visit the .60/.25/.15 parts;
+    # BM's annual loop (deferred to the FMMAIN point for FMR6HTLS) summed the untripled records ⇒ Forest_Down_Dead_Wood
+    # 1 ULP from the second tripling cycle (177426703020004 2032 0.35850239 vs live 0.35850218).
+    for cn in ("177426703020004", "12827438010497")
+        db = _cr_run("bm", cn, "salvage")
+        gold, jl = _cr_table("bm", cn, "salvage", db, "FVS_Carbon")
+        jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+        for g in gold, c in ("Forest_Down_Dead_Wood", "Forest_Floor", "Total_Stand_Carbon")
+            @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+        end
     end
 end

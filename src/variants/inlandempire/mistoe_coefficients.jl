@@ -584,10 +584,17 @@ end
 # that merely carries DB damage codes (t.dmr>0) but has no MISTOE keyword would wrongly apply DM
 # mortality/growth-loss. `_dm_effects_on(s)` is the s-aware gate the effect functions use.
 @inline _dm_effects_variant(v)::Bool = _ie_mis_variant(v) || v isa BritishColumbia
+# BC: misin0.f:86 MISFLG=.TRUE. by default (only MISTOFF clears it), so misdam.f:63-79 loads IMIST from damage codes
+# 30-34 with no MISTOE/NEWSPRED keyword, and MISHGF/MISDGF/MISMRT act on it. MEASURED FVSbc (DB relink, tiered
+# YSM029-265 none): every DM-damaged Pl's 2028 HtG is 0 live (misintbc.f never sets HGPDMR ⇒ MISHGF 0), undamaged exact.
+# The base mistoe.f MISTOE (DMR spread + MISINF + MISMRT) runs for the N-Rockies Wykoff group and for BC: canada/bc's
+# mistoe.f is the base one plus a NEWSI branch (NEWSI = NEWMOD .AND. MISFLG ⇒ DMTREG/DMMDMR replace the spread, DMFLAG
+# stays .FALSE. ⇒ no MISMRT). So BC without NEWSPRED runs the base spread/MISMRT on the damage-code DMR.
+@inline _base_mistoe_on(s)::Bool = _ie_mis_variant(s.variant) ||
+    (s.variant isa BritishColumbia && !(s.mistletoe !== nothing && s.mistletoe.newmod))
 @inline function _dm_effects_on(s)::Bool
     _ie_mis_variant(s.variant) && return true
-    return s.variant isa BritishColumbia && s.mistletoe !== nothing &&
-           (s.mistletoe.active || s.mistletoe.newmod)
+    return s.variant isa BritishColumbia
 end
 
 # ============================================================================
@@ -644,7 +651,11 @@ variants whose live HGPDMR is not all 1.0 carry an HGP table (_mis_hgp); everyon
     m = @inbounds hgp[dmr + 1, sp]
     return m > 1f0 ? 1f0 : (m < 0f0 ? 0f0 : m)
 end
-@inline _mis_hgp(v) = v isa WestSierra ? WS_MIS_HGP : v isa CentralCalifornia ? CA_MIS_HGP : nothing
+# BC: canada/bc misintbc.f loads MISFIT/DGPDMR/PMCSP only — HGPDMR (COMMON, zero-initialized) is never set, so
+# mishgf.f:… MISHGF = HGPDMR(ISPC,IDMR+1) = 0 for every infected record: an infected BC tree gets no large-tree HTG.
+const BC_MIS_HGP = zeros(Float32, 7, 15)
+@inline _mis_hgp(v) = v isa WestSierra ? WS_MIS_HGP : v isa CentralCalifornia ? CA_MIS_HGP :
+                      v isa BritishColumbia ? BC_MIS_HGP : nothing
 
 @inline ie_dm_dg_mult(dgp, maxsp::Integer, sp::Integer, dmr::Integer) =
     (sp < 1 || sp > maxsp) ? 1f0 : @inbounds dgp[dmr + 1, sp]
@@ -729,13 +740,12 @@ tripled PROB; raise the kill wherever the DM kill is larger.
 """
 function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, fint::Float32;
                             wk2::Union{Nothing,AbstractVector{Float32}} = nothing)
-    _dm_effects_on(s) || return
+    (_dm_effects_on(s) || s.variant isa CentralRockies) || return   # CR: cr/mismrt.f, same seam
     t = s.trees
-    _, _, pmc, maxsp = _mis_tables(s.variant)
     @inbounds for c in 1:t.n
         dmr = Int(t.dmr[c]); dmr == 0 && continue
         pr = full_prob[c]; pr <= 0f0 && continue
-        wki = pr * ie_dm_mortality_rate(pmc, maxsp, Int(t.species[c]), dmr, t.dbh[c], fint)
+        wki = pr * _dm_mortality_rate(s, Int(t.species[c]), dmr, t.dbh[c], fint)
         # mismrt.f:191 IF(WK2(ITREE).LT.WKI) WK2(ITREE)=WKI — compare against WK2 itself when the caller tracks it
         cur = wk2 === nothing ? pr - t.tpa[c] : wk2[c]
         if cur < wki
@@ -745,6 +755,10 @@ function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, f
     end
     return
 end
+
+# MISTOE spread for the active DM model (cr_mistoe! for CR, ie_mistoe! for the shared western model).
+_dm_spread!(s::StandState; fint::Float32) =
+    s.variant isa CentralRockies ? cr_mistoe!(s; fint = fint) : ie_mistoe!(s; fint = fint)
 
 """
     ie_mistoe!(s; fint)
@@ -760,7 +774,7 @@ Draws rann! per host tree ONLY when that species carries infection (SMR>0), matc
 count/order. No-op for non-IE. Mirrors the validated cr_mistoe! exactly.
 """
 function ie_mistoe!(s::StandState; fint::Float32)
-    _ie_mis_variant(s.variant) || return s
+    _base_mistoe_on(s) || return s
     t = s.trees
     t.n == 0 && return s
     s.control.dm_flag = false                         # mistoe.f:193 DMFLAG=.FALSE. (after the ITRN=0 skip-out)
@@ -904,7 +918,7 @@ shortest→tallest). No-op when no card is due (⇒ byte-identical, RNG-safe).
 function dm_misinf!(s::StandState)
     isempty(s.control.mistpinf) && return s
     is_cr = s.variant isa CentralRockies
-    (is_cr || _ie_mis_variant(s.variant)) || return s
+    (is_cr || _base_mistoe_on(s)) || return s
     t = s.trees; n = t.n; n == 0 && return s
     c = s.control
     yr = Int(current_cycle_year(s)); per = cycle_period_at(c, Int(c.cycle)); fvscyc = Int(c.cycle) + 1

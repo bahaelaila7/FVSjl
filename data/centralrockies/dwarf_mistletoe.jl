@@ -125,16 +125,18 @@ Added to the stand's per-tree mortality in the gradd apply. Returns 0 for DMR 0.
 """
 function cr_dm_mortality_rate(sp::Integer, dmr::Integer, dbh::Real, fint::Real; dmmmlt::Real=1.0)
     dmr == 0 && return 0.0f0
-    b0,b1,b2 = CR_DM_PMCSP[sp]
-    m = b0 + b1*dmr + b2*dmr*dmr
-    m *= dmmmlt
-    small = dbh < 9.0
-    small && (m *= 1.2)
-    m < 0.0 && (m = 0.0)
+    # REAL arithmetic (mismrt.f:157-181): PMCSP/DMMMLT are REAL, IDMR**2 is an INTEGER power,
+    # 1.2/0.71/0.5 single constants, and (1.0-DMMORT)**(FINT/10.0) a REAL**REAL powf call.
+    b0,b1,b2 = Float32.(CR_DM_PMCSP[sp])
+    m = b0 + b1*Float32(dmr) + b2*Float32(dmr*dmr)
+    m *= Float32(dmmmlt)
+    small = Float32(dbh) < 9.0f0
+    small && (m *= 1.2f0)
+    m < 0.0f0 && (m = 0.0f0)
     # DBH-dependent ceiling (mismrt.f:174-178): <9" caps at 0.71, >=9" caps at 0.5
-    cap = small ? 0.71 : 0.5
+    cap = small ? 0.71f0 : 0.5f0
     m > cap && (m = cap)
-    return Float32(1.0 - (1.0 - m)^(fint/10.0))
+    return 1.0f0 - fpow(1.0f0 - m, Float32(fint) / 10.0f0)
 end
 
 """

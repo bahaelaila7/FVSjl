@@ -55,7 +55,10 @@ function variant_bratio(s::StandState, sp::Integer, d::Float32, h::Float32 = 0f0
     v isa Utah               && return ut_bratio(sd, isp, d)
     v isa SoutheastAlaska    && return ak_bratio(isp, d)
     v isa Kootenai           && return KT_BKRAT[isp]          # kt/bratio.f: BRATIO = BKRAT(IS) exactly ((0+b·d)/d is 1 ULP off)
-    (v isa Klamath && isp == 12) && return nc_bratio(sd[:bark1][12], sd[:bark2][12], Int(sd[:bark_imap][12]), d)
+    # nc/bratio.f for EVERY NC species: (D−(a+b·D))/D or (a+b·D)/D or a·D**b/D — the linear (bark_a+bark_b·D)/D cache
+    # re-associates the eqtype-1 form and is 1 ULP off (MEASURED FVSnc_g16 7690091010901 DF 37.8" inventory DG
+    # (DBH−PDBH)·BRATIO 0.9142477 live / 0.9142476 jl ⇒ RESLOG/OLDRN ⇒ the cycle-1 tripled DG 40 ULP).
+    v isa Klamath            && return nc_bratio(sd[:bark1][isp], sd[:bark2][isp], Int(sd[:bark_imap][isp]), d)
     return bark_ratio(s.calib.bark_a, s.calib.bark_b, isp, d)
 end
 
@@ -119,7 +122,8 @@ end
 # closer in every column; ON exact; KT 55→27 with its cycle-1 WK1/OLDFNT fixes, kt/htgf.f:114 HTG=EXP(CON+HDGCOF·ln DG)
 # and kt/morts.f:201/:310 reading the 10-year DG; CR 55→27 with REGENT's SCALE2=YR/FNT, cr/regent.f:171,417-418). The
 # others still scale inside the DG driver: SN/NC (YR=5) and LS/NE/CS carry their own FINT-basis emulation in REGENT/MORTS
-# (the switch made LS 11→49, NE 13→52, CS 14→52), BC and AK did not improve, and OC/OP run ORGANON's driver. WS/CA/SO
+# (the switch made LS 11→49, NE 13→52, CS 14→52), and OC/OP run ORGANON's driver. BC joined once its REGENT evaluates the
+# regent.f:1615-1625 DDS round trip with SCALE=YR/FINT (live FVSbc TIMEINT 5: YSM029-267 1 → 6 of 6 rows exact). WS/CA/SO
 # (ws|ca|so/regent.f SCALE2=YR/FNT, htgf.f/morts.f on the 10-year DG): WS 53→4, CA 24→6, SO 45→12. AK joins once its
 # DGF/REGENT read the /CONTRL/ YR=10 (ak/dgf.f:521 DGPRED=YR·BASEDG·PFMOD, ak/regent.f:200 SCALE2=YR/FNT) instead of the
 # TIMEINT cycle length: akt01 with TIMEINT 5, 54 → 0 of 56 rows off live FVSak_g16 (the 10-year key stays 0 of 56).
@@ -127,7 +131,7 @@ _gradd_rescale(v::AbstractVariant) = v isa Ontario || v isa BlueMountains || v i
                                     v isa EastCascades || v isa PacificNorthwest || v isa WestCascades || v isa Teton ||
                                     v isa Utah || v isa InlandEmpire || v isa Kootenai || v isa CentralRockies ||
                                     v isa WestSierra || v isa CentralCalifornia || v isa SouthCentralOregon ||
-                                    v isa SoutheastAlaska
+                                    v isa SoutheastAlaska || v isa BritishColumbia
 
 """
     gradd_dg_scale!(s, fint)

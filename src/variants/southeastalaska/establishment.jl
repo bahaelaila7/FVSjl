@@ -490,7 +490,7 @@ function ak_estab!(s::StandState, kdt::Integer; fint::Float32 = 10.0f0)::Int
                 (Int(est.idsdat) <= d <= kdt) || continue
                 if slot == 3; st.zburn = Float32(d); else; st.zmech = Float32(d); end
                 st.load = 0
-                pct = a.params[1]
+                pct = a.params[2]                        # jl 491/493 layout (year, %): PRMS(1)=% (ak/esetpr.f:85/125)
                 if pct <= 0f0
                     st.meth = slot; break
                 end

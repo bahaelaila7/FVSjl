@@ -14,8 +14,8 @@
         c = -0.0007338f0 + 0.0001977f0 * z
         return (ag * ag) / (a + b * ag + c * ag * ag) + 4.5f0
     elseif sp == 4 || sp == 6 || sp == 9              # WF/IC/RF
-        x1 = 38.0202f0 * ag^(-1.05213f0) * exp(0.009557f0 * ag)
-        x2 = 101.842894f0 * (1.0f0 - exp(-0.001442f0 * ag^1.679259f0))
+        x1 = 38.0202f0 * fpow(ag, -1.05213f0) * fexp(0.009557f0 * ag)
+        x2 = 101.842894f0 * (1.0f0 - fexp(-0.001442f0 * fpow(ag, 1.679259f0)))
         return (si - 69.91f0 + x1 * x2) / x1 + 4.5f0
     elseif sp == 5                                    # MA
         return si / (0.375f0 + 31.233f0 / ag)
@@ -25,7 +25,7 @@
     elseif sp == 8 || sp == 11                        # TO/OH
         return si / (0.204f0 + 39.787f0 / ag) * 0.85f0
     else                                              # SP(2)/PP(10)
-        return (1.88f0 * si - 7.178f0) * (1.0f0 - exp(-0.025f0 * ag))^(0.001f0 * si + 1.64f0)
+        return (1.88f0 * si - 7.178f0) * fpow(1.0f0 - fexp(-0.025f0 * ag), 0.001f0 * si + 1.64f0)
     end
 end
 
@@ -69,8 +69,8 @@ function height_growth!(s::StandState, ::Klamath; scale::Float32 = 1.0f0)
             # of FVS ⇒ redwood large-tree HTG understated (log(DG10) term), leaving RW stands short even
             # after the site-index fix.
             dg10 = h < 4.5f0 ? 0.1f0 : (dglt * 2f0) / brat
-            lthtg = exp(1.412947f0 - 0.000204f0 * d * d + 0.31971f0 * log(d) +
-                        0.394005f0 * log(si) + 0.399888f0 * log(dg10) - 0.451708f0 * log(h)) * 0.5f0
+            lthtg = fexp(1.412947f0 - 0.000204f0 * (d * d) + 0.31971f0 * flog(d) +
+                        0.394005f0 * flog(si) + 0.399888f0 * flog(dg10) - 0.451708f0 * flog(h)) * 0.5f0
             hgbnd = h < 217.0f0 ? 1.0f0 :
                     h < 380.0f0 ? max(1.0f0 - (h - 217.0f0) / (380.0f0 - 217.0f0), 0.1f0) : 0.1f0
             htg = lthtg * hgbnd
@@ -78,13 +78,17 @@ function height_growth!(s::StandState, ::Klamath; scale::Float32 = 1.0f0)
             sitage, sitht = nc_findag(h, sp, si)
             htmax = 300.0f0; agmax = 200.0f0
             if h >= htmax
-                htg = 0.1f0
-            elseif sitage >= agmax
-                pothtg = 0.10f0
-                htg = pothtg
+                htg = 0.1f0                              # nc/htgf.f:218-222: GO TO 2600 — skips the HTG≤0.1⇒0.01 trap
             else
-                hguess = nc_htcalc(si, sp, sitage + 5.0f0)
-                pothtg = hguess - sitht
+                # nc/htgf.f:226-232: SITAGE≥AGMAX ⇒ POTHTG=0.10 and GO TO 140 — the label that applies the RELHT/CR
+                # XMOD modifier, exactly as the site-curve path does (jl skipped XMOD there: MEASURED FVSnc_g16
+                # 7690091010901 2011 DF H 163 HtG 0.1064 live / 0.0100 jl).
+                if sitage >= agmax
+                    pothtg = 0.10f0
+                else
+                    hguess = nc_htcalc(si, sp, sitage + 5.0f0)
+                    pothtg = hguess - sitht
+                end
                 xmod = 1.0f0
                 if pccf >= 50.0f0
                     relht = avh > 0f0 ? h / avh : 1f0
@@ -96,10 +100,10 @@ function height_growth!(s::StandState, ::Klamath; scale::Float32 = 1.0f0)
                 htg = pothtg * xmod
             end
         end
-        htg <= 0.1f0 && (htg = 0.01f0)
-        htg = scale * htg * exp(htcon)                 # SCALE·XHT(=1)·EXP(HTCON); MISHGF=1 baseline
+        (sp != 12 && h >= 300.0f0) || (htg <= 0.1f0 && (htg = 0.01f0))
+        htg = scale * htg * fexp(htcon)                 # SCALE·XHT(=1)·EXP(HTCON); MISHGF=1 baseline
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.0f0))
+        (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))   # nc/htgf.f:2600 SIZCAP, floored at 0.1
         t.ht_growth[i] = htg
     end
     return s

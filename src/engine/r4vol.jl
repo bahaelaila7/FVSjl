@@ -1,7 +1,8 @@
 # =============================================================================
 # r4vol.jl — Region-4 Matney volume (NVEL R4VOL / R4MATTAPER). Used by TT (MATW eq).
 #
-# Ported from bin/FVStt_buildDir/r4vol.f. VOLEQ "400MATW<code>" (MDL=MAT) → the Matney
+# Ported from bin/FVStt_buildDir/r4vol.f. Float32 order is R4MATTAPER's: `HT67*STUMPD**2` multiplies HT67 by the
+# SQUARE (** binds first, __powisf2 x*x), not (HT67*STUMPD)*STUMPD, and every REAL `**` (incl. `**.5`) is glibc powf. VOLEQ "400MATW<code>" (MDL=MAT) → the Matney
 # taper: STUMPD/BUTTCF/CF0/B from CFCOEF(20,7) (indexed by II from VOLEQ code+geocode),
 # then a Smalian log-by-log cubic integration over 16.5-ft logs. Gross merch cubic (CFGRS).
 # =============================================================================
@@ -43,18 +44,18 @@ function r4vol_volumes(voleq::AbstractString, dbhob::Float32, httot::Float32, mt
     tht <= 5f0 && return (dbhob * dbhob * httot * 0.00272708f0, 0f0)   # small tree (THT≤5): total=Smalian, merch=0 (r4vol.f:169-172 only sets VOL(1))
     ii = _tt_r4_ii(strip(voleq)[8:10], strip(voleq)[1:3])
     ii == 0 && return (0f0, 0f0)
-    ht67 = TT_R4C1[ii] * dbhob^TT_R4C2[ii] * tht^TT_R4C3[ii]
+    ht67 = TT_R4C1[ii] * fpow(dbhob, TT_R4C2[ii]) * fpow(tht, TT_R4C3[ii])
     buttcf = TT_R4C5[ii] * dbhob + TT_R4C4[ii]
-    stumpd = sqrt(buttcf * buttcf * tht / (tht - 4f0))
+    stumpd = fpow(buttcf * buttcf * tht / (tht - 4f0), 0.5f0)
     d67 = TT_R4C7[ii] * dbhob * (2f0 / 3f0) + TT_R4C6[ii]
-    cf0 = 0.002727f0 * (ht67 * stumpd * stumpd + d67 * d67 * tht)
-    f = cf0 / (0.005454f0 * stumpd * stumpd * tht)
+    cf0 = 0.002727f0 * (ht67 * (stumpd * stumpd) + (d67 * d67) * tht)
+    f = cf0 / (0.005454f0 * (stumpd * stumpd) * tht)
     b = (1f0 - f) / (2f0 * f)
     trm = 0.5f0
     topdia = mtopp <= 0f0 ? 1f0 : mtopp
     topdia >= buttcf && return (cf0, 0f0)                           # M=3: TOPDIA≥BUTTCF → no merch vol
     dratio = topdia / stumpd; dratio <= 0f0 && (dratio = 0.0001f0)
-    merlen = tht - tht * dratio^(1f0 / b)
+    merlen = tht - tht * fpow(dratio, 1f0 / b)
     if ht1prd > 0f0 && ht1prd < merlen
         merlen = ht1prd
     end
@@ -77,7 +78,7 @@ function r4vol_volumes(voleq::AbstractString, dbhob::Float32, httot::Float32, mt
     totlgs = toplen < 16.5f0 ? Float32(_fint(totlgs) + 1) : Float32(_fint(totlgs))
     merlen = (totlgs - 1f0) * 16.5f0 + toplen
     numlgs = _fint(totlgs)
-    @inline dsm_at(hcut) = Float32(_fint(stumpd * ((tht - hcut) / tht)^b + 0.499f0))
+    @inline dsm_at(hcut) = Float32(_fint(stumpd * fpow((tht - hcut) / tht, b) + 0.499f0))
     @inline logcf(dlg, dsm, len) = Float32(_fint(0.002727f0 * (dlg * dlg + dsm * dsm) * len * 10f0 + 0.499f0)) / 10f0
     cfgrs = 0f0
     dsm_prev = 0f0
@@ -96,7 +97,7 @@ function r4vol_volumes(voleq::AbstractString, dbhob::Float32, httot::Float32, mt
     # top log
     dlg_top = numlgs == 1 ? Float32(_fint(buttcf + 0.499f0)) : dsm_prev
     len_top = toplen - trm
-    dsm_top = Float32(_fint(stumpd * ((tht - merlen) / tht)^b + 0.499f0))
+    dsm_top = Float32(_fint(stumpd * fpow((tht - merlen) / tht, b) + 0.499f0))
     cfgrs += logcf(dlg_top, dsm_top, len_top)
     return (cf0, cfgrs)
 end
@@ -113,18 +114,18 @@ function r4vol_board(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
     tht = httot - 1f0
     tht <= 5f0 && return 0f0
     ii = _tt_r4_ii(strip(voleq)[8:10], strip(voleq)[1:3]); ii == 0 && return 0f0
-    ht67 = TT_R4C1[ii] * dbhob^TT_R4C2[ii] * tht^TT_R4C3[ii]
+    ht67 = TT_R4C1[ii] * fpow(dbhob, TT_R4C2[ii]) * fpow(tht, TT_R4C3[ii])
     buttcf = TT_R4C5[ii] * dbhob + TT_R4C4[ii]
-    stumpd = sqrt(buttcf * buttcf * tht / (tht - 4f0))
+    stumpd = fpow(buttcf * buttcf * tht / (tht - 4f0), 0.5f0)
     d67 = TT_R4C7[ii] * dbhob * (2f0 / 3f0) + TT_R4C6[ii]
-    cf0 = 0.002727f0 * (ht67 * stumpd * stumpd + d67 * d67 * tht)
-    f = cf0 / (0.005454f0 * stumpd * stumpd * tht)
+    cf0 = 0.002727f0 * (ht67 * (stumpd * stumpd) + (d67 * d67) * tht)
+    f = cf0 / (0.005454f0 * (stumpd * stumpd) * tht)
     b = (1f0 - f) / (2f0 * f)
     trm = 0.5f0
     topdia = mtopp < 6f0 ? 6f0 : mtopp                     # M=1: board top ≥ 6" (r4vol.f:212)
     topdia >= stumpd && return 0f0                          # M=1 gate vs STUMPD
     dratio = topdia / stumpd; dratio <= 0f0 && (dratio = 0.0001f0)
-    merlen = tht - tht * dratio^(1f0 / b)
+    merlen = tht - tht * fpow(dratio, 1f0 / b)
     (ht1prd > 0f0 && ht1prd < merlen) && (merlen = ht1prd)
     merlen < 2.5f0 && return 0f0
     totlgs = merlen / 16.5f0
@@ -142,7 +143,7 @@ function r4vol_board(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
     totlgs = toplen < 16.5f0 ? Float32(_fint(totlgs) + 1) : Float32(_fint(totlgs))
     merlen = (totlgs - 1f0) * 16.5f0 + toplen
     numlgs = _fint(totlgs)
-    @inline dsm_at(hcut) = Float32(_fint(stumpd * ((tht - hcut) / tht)^b + 0.499f0))
+    @inline dsm_at(hcut) = Float32(_fint(stumpd * fpow((tht - hcut) / tht, b) + 0.499f0))
     volr4 = 0f0; dsm_prev = 0f0
     if numlgs > 1
         dsm1 = dsm_at(16.5f0)
@@ -153,7 +154,7 @@ function r4vol_board(voleq::AbstractString, dbhob::Float32, httot::Float32, mtop
         end
     end
     len_top = toplen - trm
-    dsm_top = Float32(_fint(stumpd * ((tht - merlen) / tht)^b + 0.499f0))
+    dsm_top = Float32(_fint(stumpd * fpow((tht - merlen) / tht, b) + 0.499f0))
     volr4 += _scribc(_fint(dsm_top - 5f0), _fint(len_top / 2f0))
     return volr4 * 10f0                                     # BFGRS = VOLR4(1)·10
 end

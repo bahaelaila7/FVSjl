@@ -20,12 +20,15 @@ Consumed fraction of each of the 11 surface fuel classes for natural (unpiled) f
 classes use a moisture-driven diameter-reduction `1 − ((PDIA−DIARED)/PDIA)²` and duff a
 moisture-linear `(83.7 − 0.426·m_duff%)/100`. `mois` is the fuel-moisture matrix.
 """
-function fire_consumption_fractions(mois::AbstractMatrix{Float32})::NTuple{11,Float32}
+# `so`: so/fmcons.f (SO's own FMCONS) never sets PRBURN(1,3) on the no-activity-fuels path — the 1-3" class is not
+# consumed (the shared base fmcons.f sets 0.65). MEASURED private FVSso_g16 FMCONS trace, 15364795010497 2010 FMPOFL:
+# PRBURN(1,1:11) = .9 .9 0 … — jl's 0.65 put 3.0 t/ac of 1-3" fuel into Pot_Smoke (0.4470 vs live 0.4354).
+function fire_consumption_fractions(mois::AbstractMatrix{Float32}; so::Bool = false)::NTuple{11,Float32}
     m100 = mois[1, 4]                                  # 3+" (100-hr+) moisture drives the large classes
     diared = m100 > 1.25f0 ? 0f0 : max(0f0, 3.38f0 - 0.027f0 * m100 * 100f0)
     big = ntuple(i -> (pd = _FM_PDIA[i]; 1f0 - ((pd - diared) / pd)^2), 6)   # classes 4–9
     prduf = min(1f0, max(0f0, 83.7f0 - 0.426f0 * mois[1, 5] * 100f0) / 100f0)
-    return (0.9f0, 0.9f0, 0.65f0, big[1], big[2], big[3], big[4], big[5], big[6], 1.0f0, prduf)
+    return (0.9f0, 0.9f0, so ? 0f0 : 0.65f0, big[1], big[2], big[3], big[4], big[5], big[6], 1.0f0, prduf)
 end
 
 """
@@ -71,8 +74,9 @@ the <1" classes burn 100% when the 1-3" class is empty (fmcons.f:125-137). `burn
 material burned, tons/ac) enters the smoke only. Activity fuels (a harvest ≤5 yr before the fire, IYR−HARVYR≤5)
 are not tracked by jl's FFE state, so the natural-fuels path is always taken.
 """
-function fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn::Float32 = 100f0, burncr::Float32 = 0f0)
-    pr0 = fire_consumption_fractions(mois)
+function fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn::Float32 = 100f0, burncr::Float32 = 0f0,
+                           so::Bool = false)
+    pr0 = fire_consumption_fractions(mois; so = so)
     burnz3 = 0f0
     @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
     small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0

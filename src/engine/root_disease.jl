@@ -2855,8 +2855,11 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     isp_rec = Int[Int(t.species[i]) for i in 1:n]
     dbh_rec = Float32[t.dbh[i] for i in 1:n]
     rd_mort_kernel!(rd, d.probi, d.propi, d.rrkill, d.rdkill, dbh_rec, isp_rec, istep, fintf)
-    @inbounds for i in 1:n
-        d.rdkill[i] > 0.0f0 && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
+    # rdmort.f:112-177 books each killed record's stump (RDSTP) inside its species-major `DO 400 J=ISCT(KSP,1),ISCT(KSP,2);
+    # I=IND1(J)` walk, so the stump-class weighted means (rdstp.f DBHDA/ROOTDA) accumulate in IND1 order, not record order
+    # (MEASURED FVSem_g16 3087467010690 rootdis 1998: same 464 RDSTP calls, record order ⇒ Stumps_BA 28.005869 vs live 28.005877).
+    @inbounds for i in species_major_order(s)
+        (i <= n && d.rdkill[i] > 0.0f0) && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
     end
     rd_prinf_store!(rd, s, d.probi, d.propi, istep, 2)          # RDCNTL DO 800 (rdcntl.f:487-526), right after RDMORT
     rd_sum!(d.probit, d.probi, istep)
@@ -2873,16 +2876,20 @@ Updates the driver PROBIU/FPROB/PROBI/PROBIT (natural-mortality reallocation) th
 RDGROW reads, and creates DIENAT stumps. `old_tpa` is the cycle-start PROB (record
 order). Gated: only the non-tripled, non-fire turnkey path calls this.
 """
-function rd_end_apply!(rd::RootDiseaseState, s::StandState, old_tpa::Vector{Float32})
+function rd_end_apply!(rd::RootDiseaseState, s::StandState, old_tpa::Vector{Float32};
+                       wk2_in::Union{Nothing,Vector{Float32}} = nothing)
     d = rd.driver::RDDriver; t = s.trees; n = t.n
     minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); istep = Int(rd.istep)
     tparea = 0.0f0
     @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
-    (n == 0 || tparea == 0.0f0) && return
+    (n == 0 || tparea == 0.0f0) && return nothing
     prob = Vector{Float32}(undef, n); wk2 = Vector{Float32}(undef, n)
+    # WK2 itself when the caller has it (`wk2_in`: MORTS's kill, or TRIPLE's WK2·WEIGHT, triple.f:69) — rdend.f's
+    # BACKGD=WK2/PROB and NATIU=BACKGD·PROBIU read that array, not PROB−(PROB−WK2), which rounds to the survivor's ULP
+    # (MEASURED FVSem_g16 242065538010661 rootdis 2020: the ×.25 copies' PROBIU after RDEND 14.322094 live vs 14.322093).
     @inbounds for i in 1:n
         prob[i] = old_tpa[i]
-        wk2[i]  = old_tpa[i] - t.tpa[i]                    # MORTS kill already applied
+        wk2[i]  = (wk2_in !== nothing && i <= length(wk2_in)) ? wk2_in[i] : old_tpa[i] - t.tpa[i]   # MORTS kill already applied
     end
     isp_rec = Int[Int(t.species[i]) for i in 1:n]
     dbh_rec = Float32[t.dbh[i] for i in 1:n]
@@ -2895,7 +2902,7 @@ function rd_end_apply!(rd::RootDiseaseState, s::StandState, old_tpa::Vector{Floa
         t.tpa[i] = old_tpa[i] - wk2[i]
         t.tpa[i] < 0.0f0 && (t.tpa[i] = 0.0f0)
     end
-    return
+    return wk2                                             # RDEND's WK2 (what UPDATE subtracts and OMORT/MortPA read)
 end
 
 """

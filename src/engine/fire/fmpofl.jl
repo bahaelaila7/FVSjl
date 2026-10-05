@@ -153,7 +153,7 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)
             pmort *= active_fmort_mult(s.control, sp, year, d)
             pmort = clamp(pmort, 0f0, 1f0)
-            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true; icr = icr)
+            bcrown = _fm_bcrown(bcrown, s, i, crburn, sch, cyclen, true; icr = icr)
         end
         pomort = pmort * fmprob                                                        # fmeff.f:556-564
         lpsburn && (pomort = pomort + crburn * (fmprob - pomort))
@@ -186,8 +186,8 @@ end
 # FMCONS ICALL=1 (fmcons.f:196-360, BTYPE=0, IPM=1): TSMOKE = Σ PRBURN·BURNZ·EMMFAC over the fuel classes, then
 # PLVBRN·FLIVE·EMFACL for herb and shrub one at a time — the pools are not touched. PBRNCR·EMFACL(4) is added by
 # `_pofl_smoke` once FMEFF has produced PBRNCR (the FMMAIN seam), and PSMOKE·P2T is what DBSFMPF reports.
-function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32)::Float32
-    pr0 = fire_consumption_fractions(mois)
+function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32; so::Bool = false)::Float32
+    pr0 = fire_consumption_fractions(mois; so = so)
     burnz3 = 0f0
     @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
     small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
@@ -212,7 +212,7 @@ function _pofl_nprob_upper(z::Float64)::Float64
     zabs = abs(z)
     zabs > 12.7 && return z < 0 ? 1.0 : 0.0
     y = 0.5 * z * z
-    pdf = exp(-y) * 0.398942280385
+    pdf = dexp(-y) * 0.398942280385                    # DOUBLE PRECISION EXP ⇒ glibc exp
     q = zabs > 1.28 ?
         pdf / (zabs - 3.8052e-8 + 1.00000615302 / (zabs + 3.98064794e-4 + 1.98615381364 / (zabs - 0.151679116635 +
                5.29330324926 / (zabs + 4.8385912808 - 15.1508972451 / (zabs + 0.742380924027 + 30.789933034 /
@@ -255,7 +255,7 @@ function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32
         @inbounds for ii in 1:mxi
             i = indx[ii]
             ran = rann!(s.rng)
-            if prb[i] > 1000f0 || ran > exp(-prb[i] * 0.025f0)
+            if prb[i] > 1000f0 || ran > fexp(-prb[i] * 0.025f0)   # fmpofl.f:544 REAL EXP ⇒ glibc expf
                 nyes += 1; yes[nyes] = i
                 ht[i] >= crit && (itop = true)
             end
@@ -284,12 +284,12 @@ function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32
         end
     end
     sel = [i for i in 1:30 if mincb[i] != -1f0]
-    lmin = Float32[log(mincb[i]) for i in sel]
+    lmin = Float32[flog(mincb[i]) for i in sel]       # fmpofl.f:605-611 REAL LOG ⇒ glibc logf
     p = 1f0 / 30f0
     ptr(flm) = begin
         acc = 0f0
         if flm > 0.0001f0
-            mxnt = log(fpow(flm / 0.0775f0, 1.45f0) / 30.5f0)
+            mxnt = flog(fpow(flm / 0.0775f0, 1.45f0) / 30.5f0)
             for lm in lmin
                 z = Float64(lm - mxnt) / 0.25
                 pt = _pofl_nprob_upper(z)
@@ -376,7 +376,7 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             sch = (63f0 / (140f0 - potemp)) * (fpow(finten, 7f0 / 6f0) / fpow(finten + fpow(fwind, 3f0), 0.5f0))
         end
         sc[k] = (; surf, pflam, sch, crburn = cfir.crburn, burnseas, psburn, cftype = cfir.cftype, oinit = cfir.oinit,
-                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn),
+                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn; so = s.variant isa SouthCentralOregon),
                  bcrown0 = _pofl_bcrown_cwd2b(fs, cfir.crburn, psburn), models = collect(models), prewnd,
                  potemp, mois)
     end

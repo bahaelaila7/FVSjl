@@ -144,4 +144,146 @@ end
     end
 end
 
+# ---------------------------------------------------------------------------------------------------------------------
+# west-shared-3 (round 3): Float32-faithfulness clusters. These pin EXACT equality (no tolerance) — the mechanism is a
+# 1-ULP order/primitive difference that cascades through record tripling, so a 1e-5 test would not see it.
+_cells(c; pred = m -> true) = count(pred, c.ms)
+
+# r4vol.f R4MATTAPER: CF0=.002727*(HT67*STUMPD**2+D67**2*THT) — HT67 times the SQUARE, REAL ** = powf (FVStt_g16 1998 TCuFt).
+@testset "R4 Matney CF0 Float32 order (r4vol.f R4MATTAPER) vs FVStt_g16 inventory TCuFt" begin
+    for (eq, d, h, live) in (("400MATW108", 10.9f0, 62f0, 18.452423095703125), ("400MATW108", 10.6f0, 59f0, 16.697031021118164),
+                             ("400MATW108", 7.7f0, 52f0, 7.950294494628906), ("400MATW108", 13.2f0, 65f0, 27.994131088256836),
+                             ("400MATW746", 9.0f0, 64f0, 11.517925262451172))
+        @test Float64(FVSjl.r4vol_volumes(eq, d, h, 6f0, 0f0)[1]) == live
+    end
+end
+
+# dense.f RELDSP species-major RELDEN (all variants) + tt/bratio.f in HTGF/DGFASP + tt/morts.f IND1 sums / PEFF powf:
+# the TT stand's whole projection is exact but for the known FVS_InvReference LocationCode source skew.
+@testset "TT stand exact: RELDEN RELDSP walk, tt/bratio.f in HTGF, tt/morts.f IND1/powf vs FVStt_g16" begin
+    c = _case("TT", "2750433010690", "none")
+    @test !c.crashed
+    @test _cells(c; pred = m -> m.file != "FVS_InvReference") == 0
+end
+
+# so/regent.f:482-512 WB copies read ICR(K) of the unfilled slot (stale_icr) + so/htgf.f glibc ops.
+@testset "SO WB tripled-copy ICR(K) + HTGF glibc (so/regent.f, so/htgf.f) vs FVSso_g16" begin
+    c = _case("SO", "15184869010497", "none")
+    @test _cells(c; pred = m -> m.file == "FVS_TreeList" && m.col in ("DBH", "DG", "HtG") && m.year <= "2040") == 0
+    @test _cells(c; pred = m -> m.file == "FVS_Summary" && m.col == "QMD") == 0
+end
+
+# Calibration DGF reads cratet.f's dead-inclusive RMSQD (every variant) + ut/morts.f IND1 + UT glibc/Curtis-Arney association.
+@testset "UT stand exact: calibration RMSQD, ut/morts.f IND1, UT glibc (FVSut_g16)" begin
+    for cn in ("42642675010690", "2402179010690", "286785821489998")
+        c = _case("UT", cn, "none")
+        @test _cells(c) == 0
+    end
+end
+
+# ci/dgf.f CASE(15) MC DDS −0.000981·BA + ci/morts.f SD2SQ association.
+@testset "CI MC DDS BA term (ci/dgf.f:459-463) vs FVSci_g16" begin
+    c = _case("CI", "12276084010690", "none")
+    @test _cells(c) == 0
+end
+
+# ec/ glibc + __powisf2 htcalc + REAL AB PCTRED, and ec/ccfcal.f D*D*RD3 (RELDEN ⇒ PCTRED).
+@testset "EC HTCALC/REGENT Float32 + CCFCAL D*D*RD3 (ec/htcalc.f, regent.f:89, ccfcal.f:221) vs FVSec_g16" begin
+    for cn in ("450445010497", "374300286489998")
+        c = _case("EC", cn, "none")
+        @test _cells(c) == 0
+    end
+end
+
+# nc/htgf.f AGMAX → label-140 XMOD, nc/bratio.f for every species, nc/morts.f IND1 + gates.
+@testset "NC HTGF XMOD / BRATIO / MORTS IND1 (nc/htgf.f, bratio.f, morts.f) vs FVSnc_g16" begin
+    c = _case("NC", "7690091010901", "none")
+    @test _cells(c; pred = m -> m.year < "2031") == 0
+    c = _case("NC", "15303130010497", "none")
+    @test _cells(c) == 0
+end
+
+# wc|pn/regent.f label-40 small-tree HCOR calibration (was unported ⇒ CON=1) + PN/WC htcalc association.
+@testset "WC/PN REGENT small-tree height calibration (regent.f label 40) vs FVSpn_g16/FVSwc_g16" begin
+    c = _case("PN", "720634155290487", "none")
+    @test _cells(c) == 0
+    c = _case("WC", "22404557010497", "none")
+    @test _cells(c) == 0
+end
+
+# CRATET RELDEN under the read-order IND1 (dead interleaved) ⇒ SO REGENT-calibration PCTRED ⇒ LP HCOR.
+@testset "CRATET RELDEN read-order IND1 (dense.f/cratet.f:171) vs FVSso_g16" begin
+    c = _case("SO", "449489561489998", "none")
+    @test _cells(c; pred = m -> m.file != "FVS_StrClass") == 0
+end
+
+# cr/ccfcal.f CCFT·P directly (not 0.001803·CRWDTH²) ⇒ point CCF ⇒ GEMHT CCFTEM.
+@testset "CR CCF from CCFT not CRWDTH² (cr/ccfcal.f) vs FVScr_clean" begin
+    c = _case("CR", "3026069010690", "none")
+    @test _cells(c; pred = m -> !(m.col in ("Ht2TDCF", "Ht2TDBF"))) == 0   # left: report-only NVEL Ht2TD 1-ULP (open)
+end
+
+# r6vol.f:105 short-tree Smalian VOL(1)=0.00272708*(DBHIB*DBHIB)*TTH squares first (EC/NC/SO/WC/PN Behre/R6VOL path).
+@testset "R6VOL short-tree cylinder Float32 order (r6vol.f:105) vs FVSso_g16" begin
+    c = _case("SO", "850566877290487", "none")
+    @test _cells(c) == 0
+end
+
+# SSTAGE reads WK6=CRWDTH(I) — the TreeList CrWidth (sstage.f:238/276); SO used a stale so_cwcalc.
+@testset "SO SSTAGE crown width = CRWDTH (sstage.f:238) vs FVSso_g16" begin
+    for cn in ("7690240010901", "449489561489998")
+        c = _case("SO", cn, "none")
+        @test _cells(c; pred = m -> m.file == "FVS_StrClass") == 0
+    end
+end
+
+# strp estab.f PLANT RAN∈[0,1.5] for NC + nc/esgent.f birth-cycle REGENT(LESTB).
+@testset "NC PLANT RAN draw + ESGENT (estab.f:485-489, nc/regent.f LESTB) vs FVSnc_g16" begin
+    for r in ("plant_cyc", "plant_cal")
+        c = _case("NC", "450603388489998", r)
+        @test _cells(c) == 0
+    end
+end
+# gradd.f:96 MISTOE after MORTS+TRIPLE+REASS: spread, MISINF (MISRAN over the 27 TRIPLED records) and MISMRT on the
+# tripled list (cr/mistoe.f:517-522) + cr/mismrt.f REAL rate. Was 254 cells (Mort 2005 16 vs 17, DMR mix off).
+@testset "CR MISTOE post-TRIPLE seam: MISINF/MISRAN + MISMRT on tripled records (cr/mistoe.f, misinf.f) vs FVScr_clean" begin
+    c = _case("CR", "5278473010690", "mistletoe")
+    @test !c.crashed
+    @test _cells(c) == 0
+end
+
+# f_other.f BRK_OT: Float32-literal BK, REAL DR/DBT roundings (R2 aspen 200FW2W746 Ht2TD via SF_HS/BRK_UP).
+@testset "BRK_OT REAL roundings (f_other.f) - CR aspen Ht2TD vs FVScr_clean" begin
+    c = _case("CR", "3026069010690", "none")
+    @test _cells(c) == 0
+end
+
+# NC FFE: FMPOCR LSW white fir (nc/fmvinit.f CASE(4,9)), FMCFMD CWHR reads CRWDTH (R5CRWD, cwcalc.f:382), snag HTX/HTR1
+# (nc/fmvinit.f:122,278-283) and the NC TFALL table — the fire stand's PotFire/carbon/snags all within 1e-5 of live.
+@testset "NC FFE: LSW, CWHR CRWDTH, snag HTX, TFALL (nc/fmvinit.f, fmcfmd.f) vs FVSnc_g16" begin
+    c = _case("NC", "23660512010900", "simfire")
+    @test isempty(_material(c.ms))
+end
+
+# CR/CI/TT/UT TFALL tables (fmvinit.f, dumped from FMVINIT) for the snag-crown fall.
+@testset "CR/CI/TT/UT TFALL (fmvinit.f) snag-crown fall vs live" begin
+    c = _case("CI", "3369538010690", "simfire")
+    @test isempty(_material(c.ms))
+end
+
+# SO: so/fmcons.f (1-3in unburned on the natural path), so/fmcba.f forest-dependent snag/decay parameters + TFALL,
+# FMCBA PERCOV from _forest_crwdth, FMCFMD DSTLG from HARVYR/BURNYR.
+@testset "SO FFE: fmcons, forest snag/decay params, PERCOV CRWDTH, DSTLG (so/fmcons.f, fmcba.f, fmcfmd.f) vs FVSso_g16" begin
+    for (cn, r) in (("15364795010497", "salvage"), ("7690240010901", "salvage"), ("15184869010497", "simfire"),
+                    ("850566877290487", "simfire"))
+        c = _case("SO", cn, r)
+        @test isempty(_material(c.ms))
+    end
+end
+
+# CR SSTAGE/FMCBA read CRWDTH clamped to [0.5,99.9] (cwcalc.f:2391-2392): seedling stratum species order.
+@testset "CR CRWDTH clamp in SSTAGE (sstage.f:276, cwcalc.f:2391) vs FVScr_clean" begin
+    c = _case("CR", "46279527020004", "none")
+    @test _cells(c) == 0
+end
 end # module

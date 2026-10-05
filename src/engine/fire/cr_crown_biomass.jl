@@ -16,6 +16,10 @@
 # STATUS: crt01-exercised species groups (SPIE 4 grand/white fir, 13 ponderosa, 15 western white
 # pine, 18 Engelmann spruce) are ported + validated per-tree vs the live FMCROWW dump
 # (/workspace/.crwork/fmcroww_live_dump.txt). Other groups error loudly (doctrine #5) until ported.
+#
+# REAL*4 EXP/LOG/LOG10 and REAL**REAL are glibc expf/logf/log10f/powf in the gfortran build (fexp/flog/log10f/fpow),
+# not Julia's own Float32 exp/log/^, which differ by an ULP on some inputs (MEASURED FVSie_g16 11855985010690 2006
+# FMPOCR: ES/AF CROWNW(0) 126.548698 live vs 126.548706 ⇒ Canopy_Density/Crown_Index). D**3 (INTEGER) stays D·D·D.
 # =============================================================================
 
 # ISPMAP (fmcrow.f:100-103): CR species 1..38 → crown group SPIE. (KODFOR 203/207 ⇒ ISPMAP[13]=25.)
@@ -260,16 +264,16 @@ end
 function _cr_dbrx_large(spi::Int, d::Float32, h::Float32, sg::Float32)
     if spi == 12 || spi == 9               # pinyon / bristlecone — same eqs, different DRC (fmcroww.f:653-654)
         drc = spi == 9 ? 2.54f0 * (d + 1.9410f0) / 1.0222f0 : d * 2.54f0
-        l = log10(drc)
-        dfol = 10f0^(-0.946f0 + 1.565f0 * l)
-        base1 = 10f0^(-1.613f0 + 2.088f0 * l)
+        l = log10f(drc)
+        dfol = fpow(10f0, -0.946f0 + 1.565f0 * l)
+        base1 = fpow(10f0, -1.613f0 + 2.088f0 * l)
         dbr1 = base1 * 0.33f0
         dbr2 = base1 * 0.67f0
-        dbr3 = 10f0^(-2.971f0 + 3.007f0 * l) * 0.25f0
+        dbr3 = fpow(10f0, -2.971f0 + 3.007f0 * l) * 0.25f0
         dbr4 = 0f0; dbr5 = 0f0
-        dbr1 += 10f0^(-1.873f0 + 1.675f0 * l)                 # old twigs → <1/4"
+        dbr1 += fpow(10f0, -1.873f0 + 1.675f0 * l)                 # old twigs → <1/4"
         x = dbr2 + dbr3                                        # dead branches redistributed over 0.25-1.5"
-        temp = 10f0^(-5.400f0 + 4.470f0 * l)
+        temp = fpow(10f0, -5.400f0 + 4.470f0 * l)
         if x > 1f-6
             dbr2 += temp * dbr2 / x; dbr3 += temp * dbr3 / x
         else
@@ -278,15 +282,15 @@ function _cr_dbrx_large(spi::Int, d::Float32, h::Float32, sg::Float32)
         return (dfol, dbr1, dbr2, dbr3, dbr4, dbr5)
     elseif spi == 16                       # western juniper (fmcroww.f:871-891): DRC = D·2.54
         drc = d * 2.54f0
-        l = log10(drc)
-        base = 10f0^(-1.737f0 + 1.382f0 * l)
+        l = log10f(drc)
+        base = fpow(10f0, -1.737f0 + 1.382f0 * l)
         dfol = base * 0.67f0
         dbr1 = base * 0.33f0
-        dbr2 = 10f0^(-1.476f0 + 1.787f0 * l)
-        dbr3 = 10f0^(-1.356f0 + 1.782f0 * l) * 0.25f0
+        dbr2 = fpow(10f0, -1.476f0 + 1.787f0 * l)
+        dbr3 = fpow(10f0, -1.356f0 + 1.782f0 * l) * 0.25f0
         dbr4 = 0f0; dbr5 = 0f0
         x = dbr2 + dbr3
-        temp = 10f0^(-3.543f0 + 2.774f0 * l)
+        temp = fpow(10f0, -3.543f0 + 2.774f0 * l)
         if x > 1f-6
             dbr2 += temp * dbr2 / x; dbr3 += temp * dbr3 / x
         else
@@ -301,9 +305,9 @@ function _cr_dbrx_large(spi::Int, d::Float32, h::Float32, sg::Float32)
             -0.0534f0 + 2.3077f0 * x + 0.0467f0 * 3f0 * (x0 * x0 - x0 * x0 * x0 / x)
         v <= 0.01f0 && (v = 0.01f0)
         v *= sg * 2000f0                                       # SG = raw V2T (lb/ft³) → wt of plant+branches >1.5"
-        lv = log10(v)
-        dfol = 10f0^(-0.5655f0 + 0.8382f0 * lv - 0.0094f0 * h)
-        dbr3 = 10f0^(0.3036f0 + 0.7752f0 * lv - 0.0049f0 * h)
+        lv = log10f(v)
+        dfol = fpow(10f0, -0.5655f0 + 0.8382f0 * lv - 0.0094f0 * h)
+        dbr3 = fpow(10f0, 0.3036f0 + 0.7752f0 * lv - 0.0049f0 * h)
         dbr1 = dfol * 0.5f0
         dbr2 = max(0f0, (dbr3 - dbr1) * 0.67f0)
         dbr3 = max(0f0, (dbr3 - dbr1) * 0.33f0)
@@ -322,8 +326,8 @@ end
 
 # small-tree TOTWT (fmcroww.f:174-255)
 @inline function _cr_crownw_small_totwt(spi::Int, h::Float32)::Float32
-    spi == 1 && return exp(-3.335f0 + 2.303f0 * log(h))      # subalpine/corkbark fir
-    spi == 3 && return exp(-4.212f0 + 2.7168f0 * log(h))     # Douglas-fir
+    spi == 1 && return fexp(-3.335f0 + 2.303f0 * flog(h))      # subalpine/corkbark fir
+    spi == 3 && return fexp(-4.212f0 + 2.7168f0 * flog(h))     # Douglas-fir
     spi == 4 && return 0.4284f0 * h                          # grand fir
     spi == 5 && return 0.977f0 * h / 7.728f0                  # bigleaf maple
     (spi == 7 || spi == 19 || spi == 20) &&
@@ -336,9 +340,9 @@ end
     spi == 17 && return 0.81135f0 * h / 5.1213f0             # tanoak / CA black oak
     spi == 21 && return 0.81135f0 * h / 5.3539f0             # Pacific madrone (fmcroww.f:246-247)
     spi == 10 && return 0.54599f0 * h / 8.2176f0             # (fmcroww.f:213-214)
-    spi == 18 && return exp(-3.932f0 + 2.571f0 * log(h))     # Engelmann spruce
+    spi == 18 && return fexp(-3.932f0 + 2.571f0 * flog(h))     # Engelmann spruce
     (spi == 6 || spi == 24) &&
-        return exp(-5.126f0 + 2.563f0 * log(h))              # western/mountain hemlock (CASE 6,24)
+        return fexp(-5.126f0 + 2.563f0 * flog(h))              # western/mountain hemlock (CASE 6,24)
     spi == 23 && return 0.277f0 * h / 7.728f0                 # red alder
     error("cr_crownw: small-tree TOTWT for SPIE group $spi not ported")
 end
@@ -366,35 +370,35 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
     p4 = 1f0
     if spi == 1                          # subalpine / corkbark fir
         livewt = 0.1862f0 * d * d * r + 1.066f0
-        deadwt = d <= 16f0 ? exp(4.0365f0 * log(d) - 6.5431f0) : 0.31f0 * livewt
-        p1 = 0.5966f0 * exp(-0.04247f0 * d)
-        p2 = 0.8643f0 * exp(-0.03733f0 * d)
+        deadwt = d <= 16f0 ? fexp(4.0365f0 * flog(d) - 6.5431f0) : 0.31f0 * livewt
+        p1 = 0.5966f0 * fexp(-0.04247f0 * d)
+        p2 = 0.8643f0 * fexp(-0.03733f0 * d)
         p3 = d <= 2.9f0 ? 1f0 : 1.0221f0 - 0.01083f0 * d
-        dp1 = d < 1.5f0 ? 1f0 : 1.2105f0 * d^(-0.565f0)
+        dp1 = d < 1.5f0 ? 1f0 : 1.2105f0 * fpow(d, -0.565f0)
         dp2 = 1f0
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 3                      # Douglas-fir
         if hp < dompct
-            livewt = exp(0.1508f0 + 1.8621f0 * log(d))
-            deadwt = exp(-1.928f0 + 2.353f0 * log(d))
+            livewt = fexp(0.1508f0 + 1.8621f0 * flog(d))
+            deadwt = fexp(-1.928f0 + 2.353f0 * flog(d))
         else
-            livewt = d < 17f0 ? exp(1.1368f0 + 1.5819f0 * log(d)) : 1.0237f0 * d * d - 20.74f0
+            livewt = d < 17f0 ? fexp(1.1368f0 + 1.5819f0 * flog(d)) : 1.0237f0 * d * d - 20.74f0
             deadwt = 0.01094f0 * d * d * d
         end
         if d > 36f0
             p1 = 0.227f0; p2 = 0.315f0; p3 = 0.465f0
         else
-            p1 = 0.484f0 * exp(-0.02102f0 * d)
-            p2 = 0.7289f0 * exp(-0.02332f0 * d)
+            p1 = 0.484f0 * fexp(-0.02102f0 * d)
+            p2 = 0.7289f0 * fexp(-0.02332f0 * d)
             p3 = d <= 2.9f0 ? 1f0 : 1.0342f0 - 0.01584f0 * d
         end
         p4 = d <= 14f0 ? 1f0 : 1.0221f0 - 0.001821f0 * d
         dp1 = d < 1.8f0 ? 1f0 : 0.08355f0 + (1.5893f0 / d)
-        dp2 = d < 9f0 ? 1f0 : 1.5673f0 * exp(-0.05232f0 * d)
+        dp2 = d < 9f0 ? 1f0 : 1.5673f0 * fexp(-0.05232f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 4                      # grand fir
-        livewt = exp(1.3094f0 + 1.6076f0 * log(d))
-        deadwt = d <= 18f0 ? exp(3.5638f0 * log(d) - 5.3154f0) : 0.38f0 * livewt
+        livewt = fexp(1.3094f0 + 1.6076f0 * flog(d))
+        deadwt = d <= 18f0 ? fexp(3.5638f0 * flog(d) - 5.3154f0) : 0.38f0 * livewt
         if d > 36f0
             p1 = 0.286f0; p2 = 0.378f0; p3 = 0.488f0
         else
@@ -402,8 +406,8 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
             p2 = 1f0 / (1.1495f0 + 0.04165f0 * d)
             p3 = d <= 2.9f0 ? 1f0 : 1.0267f0 - 0.01495f0 * d
         end
-        dp1 = d < 3f0 ? 1f0 : (d > 27f0 ? 0.01f0 : 1.4336f0 * exp(-0.1816f0 * d))
-        dp2 = d < 8f0 ? 1f0 : 1.2623f0 * exp(-0.0347f0 * d)
+        dp1 = d < 3f0 ? 1f0 : (d > 27f0 ? 0.01f0 : 1.4336f0 * fexp(-0.1816f0 * d))
+        dp2 = d < 8f0 ? 1f0 : 1.2623f0 * fexp(-0.0347f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 11                     # lodgepole pine
         livewt = 0.02238f0 * d * d * d + 0.1233f0 * d * d * r - 2f0
@@ -421,27 +425,27 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
         if d > 20f0
             dp1 = 0.139f0; dp2 = 0.226f0
         else
-            dp1 = d < 1.5f0 ? 1f0 : 1.3527f0 * d^(-0.7585f0)
-            dp2 = d < 9f0 ? 1f0 : 2.7979f0 * exp(-0.1257f0 * d)
+            dp1 = d < 1.5f0 ? 1f0 : 1.3527f0 * fpow(d, -0.7585f0)
+            dp2 = d < 9f0 ? 1f0 : 2.7979f0 * fexp(-0.1257f0 * d)
         end
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 13                     # ponderosa pine
         if hp < dompct
-            livewt = exp(-0.7572f0 + 2.216f0 * log(d))
-            deadwt = exp(-2.5176f0 + 2.51f0 * log(d))
-            p1 = 0.6501f0 * exp(-0.1544f0 * d)
-            p2 = 0.8435f0 * exp(-0.1665f0 * d)
-            p3 = 1.0865f0 * exp(-0.0833f0 * d)
+            livewt = fexp(-0.7572f0 + 2.216f0 * flog(d))
+            deadwt = fexp(-2.5176f0 + 2.51f0 * flog(d))
+            p1 = 0.6501f0 * fexp(-0.1544f0 * d)
+            p2 = 0.8435f0 * fexp(-0.1665f0 * d)
+            p3 = 1.0865f0 * fexp(-0.0833f0 * d)
             p4 = 1f0
         else
-            livewt = exp(2.2812f0 * log(d) + 1.5098f0 * log(r) - 3.0957f0)
-            deadwt = exp(2.8376f0 * log(d) - 3.7398f0)
-            p1 = 0.5578f0 * exp(-0.04754f0 * d)
-            p2 = d >= 31f0 ? p1 + 0.01f0 : 0.6254f0 * exp(-0.05114f0 * d)
+            livewt = fexp(2.2812f0 * flog(d) + 1.5098f0 * flog(r) - 3.0957f0)
+            deadwt = fexp(2.8376f0 * flog(d) - 3.7398f0)
+            p1 = 0.5578f0 * fexp(-0.04754f0 * d)
+            p2 = d >= 31f0 ? p1 + 0.01f0 : 0.6254f0 * fexp(-0.05114f0 * d)
             if d <= 1f0
                 p3 = 1f0; p4 = 1f0
             else
-                p3 = 0.985f0 * exp(-0.03102f0 * d)
+                p3 = 0.985f0 * fexp(-0.03102f0 * d)
                 p4 = d <= 6.5f0 ? 1f0 : 1.083f0 - 0.01306f0 * d
             end
         end
@@ -454,133 +458,133 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 15                     # western white pine
         livewt = 0.0947f0 * d * d * r
-        deadwt = exp(2.6076f0 * log(d) - 4.397f0)
-        p1 = 0.5497f0 * exp(-0.0345f0 * d)
+        deadwt = fexp(2.6076f0 * flog(d) - 4.397f0)
+        p1 = 0.5497f0 * fexp(-0.0345f0 * d)
         p2 = 0.9138f0 - 0.0978f0 * sqrt(d)
-        p3 = d <= 3.9f0 ? 1f0 : 1.0564f0 * exp(-0.0181f0 * d)
-        dp1 = 1.0077f0 * d^(-0.4556f0)
+        p3 = d <= 3.9f0 ? 1f0 : 1.0564f0 * fexp(-0.0181f0 * d)
+        dp1 = 1.0077f0 * fpow(d, -0.4556f0)
         dp2 = d < 7f0 ? 1f0 : 1.0291f0 - 0.004964f0 * d
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 18                     # Engelmann spruce
-        livewt = exp(1.0404f0 + 1.7096f0 * log(d))
-        deadwt = exp(3.6172f0 * log(d) - 6.686f0)
+        livewt = fexp(1.0404f0 + 1.7096f0 * flog(d))
+        deadwt = fexp(3.6172f0 * flog(d) - 6.686f0)
         if d < 40f0
-            p1 = 0.5738f0 * exp(-0.0325f0 * d)
-            p2 = 0.8519f0 * exp(-0.02811f0 * d)
+            p1 = 0.5738f0 * fexp(-0.0325f0 * d)
+            p2 = 0.8519f0 * fexp(-0.02811f0 * d)
             p3 = d <= 2.9f0 ? 1f0 : 1.03781f0 - 0.01537f0 * d
         else
             p1 = 0.158f0; p2 = 0.277f0; p3 = 0.423f0
         end
-        dp1 = d < 1.8f0 ? 1f0 : 1.4657f0 * d^(-0.6454f0)
+        dp1 = d < 1.8f0 ? 1f0 : 1.4657f0 * fpow(d, -0.6454f0)
         dp2 = d < 10f0 ? 1f0 : 1f0 / (0.847f0 + 0.01678f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 7 || spi == 20         # western redcedar, incense cedar (CASE 7,20)
-        livewt = exp(1.7273f0 * log(d * r) - 2.8086f0)
+        livewt = fexp(1.7273f0 * flog(d * r) - 2.8086f0)
         deadwt = 0.01063f0 * d * d * d
-        p1 = 0.6174f0 * exp(-0.02326f0 * d)
-        p2 = 0.7562f0 * exp(-0.02411f0 * d)
-        p3 = d <= 2.9f0 ? 1f0 : 1.0602f0 * exp(-0.02226f0 * d)
+        p1 = 0.6174f0 * fexp(-0.02326f0 * d)
+        p2 = 0.7562f0 * fexp(-0.02411f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.0602f0 * fexp(-0.02226f0 * d)
         dp1 = d < 1.5f0 ? 1f0 : -0.01578f0 + (1.4673f0 / d)
-        dp2 = d < 8f0 ? 1f0 : 1.4534f0 * exp(-0.05395f0 * d)
+        dp2 = d < 8f0 ? 1f0 : 1.4534f0 * fexp(-0.05395f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 8                      # western larch (no dead crown)
-        livewt = exp(0.4373f0 + 1.6786f0 * log(d))
+        livewt = fexp(0.4373f0 + 1.6786f0 * flog(d))
         if hp < dompct
             livewt *= d <= 7.5f0 ? 0.5f0 : 0.6f0
         end
-        p1 = 0.3468f0 * exp(-0.04343f0 * d)
-        p2 = 0.745f0 * exp(-0.03622f0 * d)
-        p3 = d <= 2.9f0 ? 1f0 : 1.05448f0 * exp(-0.0213f0 * d)
+        p1 = 0.3468f0 * fexp(-0.04343f0 * d)
+        p2 = 0.745f0 * fexp(-0.03622f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.05448f0 * fexp(-0.0213f0 * d)
         p4 = d <= 11f0 ? 1f0 : 0.9223f0 + 0.7197f0 / d
         deadwt = 0f0; dp1 = 0f0; dp2 = 0f0
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 14                     # whitebark pine
         livewt = 0.06056f0 * d * d * d + 0.05477f0 * d * d * r + 0.646f0
         deadwt = 0.001713f0 * d * d * c + 0.33f0
-        p1 = d > 20f0 ? 0.242f0 : 0.5120f0 * exp(-0.03737f0 * d)
-        p2 = d > 20f0 ? 0.268f0 : 0.8644f0 * exp(-0.05854f0 * d)
-        p3 = d <= 3.9f0 ? 1f0 : (d > 20f0 ? 0.670f0 : 1.0733f0 * exp(-0.02376f0 * d))
+        p1 = d > 20f0 ? 0.242f0 : 0.5120f0 * fexp(-0.03737f0 * d)
+        p2 = d > 20f0 ? 0.268f0 : 0.8644f0 * fexp(-0.05854f0 * d)
+        p3 = d <= 3.9f0 ? 1f0 : (d > 20f0 ? 0.670f0 : 1.0733f0 * fexp(-0.02376f0 * d))
         dp1 = d < 1.4f0 ? 1f0 : 0.268f0 + (1.1733f0 / d)
         dp2 = 1f0
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 10                     # fmcroww.f:699-722 (CASE 10)
-        livewt = exp(-0.7881f0 + 2.4839f0 * log(d))
-        deadwt = exp(-2.3938f0 + 2.2936f0 * log(d))
-        p1 = 1f0 / (1.6013f0 + 0.3591f0 * d^1.3090f0)
-        p2 = 1f0 / (1.0357f0 + 0.2263f0 * d^1.3567f0)
-        p3 = 1f0 / (1.0281f0 + 0.0084f0 * d^2.1850f0)
-        p4 = d >= 4.2f0 ? 1f0 / (0.8778f0 + 0.0115f0 * d^1.6394f0) : 1f0
-        dp1 = -0.0632f0 + (0.7214f0 * d^0.25f0) - (0.4655f0 * log(d))
-        dp2 = d >= 2.5f0 ? 1.2671f0 - (0.1686f0 * d^0.5f0) : 1f0
-        dp3 = d >= 7.6f0 ? exp(0.0281f0 - (0.0004714f0 * d * d)) : 1f0
+        livewt = fexp(-0.7881f0 + 2.4839f0 * flog(d))
+        deadwt = fexp(-2.3938f0 + 2.2936f0 * flog(d))
+        p1 = 1f0 / (1.6013f0 + 0.3591f0 * fpow(d, 1.3090f0))
+        p2 = 1f0 / (1.0357f0 + 0.2263f0 * fpow(d, 1.3567f0))
+        p3 = 1f0 / (1.0281f0 + 0.0084f0 * fpow(d, 2.1850f0))
+        p4 = d >= 4.2f0 ? 1f0 / (0.8778f0 + 0.0115f0 * fpow(d, 1.6394f0)) : 1f0
+        dp1 = -0.0632f0 + (0.7214f0 * fpow(d, 0.25f0)) - (0.4655f0 * flog(d))
+        dp2 = d >= 2.5f0 ? 1.2671f0 - (0.1686f0 * fpow(d, 0.5f0)) : 1f0
+        dp3 = d >= 7.6f0 ? fexp(0.0281f0 - (0.0004714f0 * d * d)) : 1f0
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 17 || spi == 21        # tanoak / CA black oak / Pacific madrone (CASE 17,21; Snell & Little 1983)
-        livewt = exp(-0.3169f0 + 2.2774f0 * log(d))
-        deadwt = exp(-2.4895f0 + 2.0374f0 * log(d))
-        p1 = 1f0 / (1.7936f0 + 0.5952f0 * d^0.7239f0)
-        p2 = 1f0 / (0.9940f0 + 0.4229f0 * d^0.6520f0)
-        p3 = d < 1.5f0 ? 1f0 : 1f0 / (0.8759f0 + 0.0927f0 * d^0.7843f0)
-        dp1 = -0.1424f0 + (0.7684f0 * d^0.25f0) - (0.4730f0 * log(d))
-        dp2 = d < 4.1f0 ? 1f0 : exp(-2.810f0 + (4.379f0 * d^0.25f0) - (1.691f0 * d^0.5f0))
+        livewt = fexp(-0.3169f0 + 2.2774f0 * flog(d))
+        deadwt = fexp(-2.4895f0 + 2.0374f0 * flog(d))
+        p1 = 1f0 / (1.7936f0 + 0.5952f0 * fpow(d, 0.7239f0))
+        p2 = 1f0 / (0.9940f0 + 0.4229f0 * fpow(d, 0.6520f0))
+        p3 = d < 1.5f0 ? 1f0 : 1f0 / (0.8759f0 + 0.0927f0 * fpow(d, 0.7843f0))
+        dp1 = -0.1424f0 + (0.7684f0 * fpow(d, 0.25f0)) - (0.4730f0 * flog(d))
+        dp2 = d < 4.1f0 ? 1f0 : fexp(-2.810f0 + (4.379f0 * fpow(d, 0.25f0)) - (1.691f0 * fpow(d, 0.5f0)))
         dp3 = d < 7.9f0 ? 1f0 : 1.027f0 - (0.003439f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 24                     # mountain hemlock (Gholz 1979 weights, hemlock proportions)
-        ldm = log(d * 2.54f0)
-        livewt = (exp(-3.8169f0 + 1.9756f0 * ldm) + exp(-5.2581f0 + 2.6045f0 * ldm)) * 2.2046f0
-        deadwt = exp(-9.9449f0 + 3.2845f0 * ldm) * 2.2046f0
+        ldm = flog(d * 2.54f0)
+        livewt = (fexp(-3.8169f0 + 1.9756f0 * ldm) + fexp(-5.2581f0 + 2.6045f0 * ldm)) * 2.2046f0
+        deadwt = fexp(-9.9449f0 + 3.2845f0 * ldm) * 2.2046f0
         if d <= 40f0
-            p1 = 0.5474f0 * exp(-0.03697f0 * d)
-            p2 = 0.8352f0 * exp(-0.03802f0 * d)
-            p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * exp(-0.02735f0 * d)
+            p1 = 0.5474f0 * fexp(-0.03697f0 * d)
+            p2 = 0.8352f0 * fexp(-0.03802f0 * d)
+            p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * fexp(-0.02735f0 * d)
         else
             p1 = 0.125f0; p2 = 0.183f0; p3 = 0.361f0
         end
-        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * exp(-0.2064f0 * d))
+        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * fexp(-0.2064f0 * d))
         dp2 = d < 12f0 ? 1f0 : 1f0 / (0.2772f0 + 0.06141f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 5                      # bigleaf maple (Snell & Little 1983)
-        livewt = exp(-0.0582f0 + 2.1505f0 * log(d))
-        deadwt = exp(-3.3678f0 + 2.5033f0 * log(d))
-        p1 = 1f0 / (4.6762f0 + 0.1091f0 * d^2.0390f0)
-        p2 = 1f0 / (3.3212f0 + 0.0777f0 * d^2.0496f0)
-        p3 = d < 1.9f0 ? 1f0 : 1f0 / (0.9341f0 + 0.0158f0 * d^2.1627f0)
-        p4 = d < 4.8f0 ? 1f0 : 1f0 / (0.8625f0 + 0.0093f0 * d^1.7070f0)
-        dp1 = exp(-1.0444f0 - 0.1892f0 * d)
-        dp2 = d < 1f0 ? 1f0 : exp(0.0553f0 - 0.0660f0 * d)
-        dp3 = d < 2.5f0 ? 1f0 : exp(0.0083f0 - 0.0033f0 * d)
+        livewt = fexp(-0.0582f0 + 2.1505f0 * flog(d))
+        deadwt = fexp(-3.3678f0 + 2.5033f0 * flog(d))
+        p1 = 1f0 / (4.6762f0 + 0.1091f0 * fpow(d, 2.0390f0))
+        p2 = 1f0 / (3.3212f0 + 0.0777f0 * fpow(d, 2.0496f0))
+        p3 = d < 1.9f0 ? 1f0 : 1f0 / (0.9341f0 + 0.0158f0 * fpow(d, 2.1627f0))
+        p4 = d < 4.8f0 ? 1f0 : 1f0 / (0.8625f0 + 0.0093f0 * fpow(d, 1.7070f0))
+        dp1 = fexp(-1.0444f0 - 0.1892f0 * d)
+        dp2 = d < 1f0 ? 1f0 : fexp(0.0553f0 - 0.0660f0 * d)
+        dp3 = d < 2.5f0 ? 1f0 : fexp(0.0083f0 - 0.0033f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 6                      # western hemlock
         livewt = 0.3729f0 * d * d + 0.284f0 * d * c - 0.005525f0 * d * d * c - 4.501f0
-        deadwt = exp(3.3664f0 * log(d) - 6.6768f0)
+        deadwt = fexp(3.3664f0 * flog(d) - 6.6768f0)
         if d <= 40f0
-            p1 = 0.5474f0 * exp(-0.03697f0 * d)
-            p2 = 0.8352f0 * exp(-0.03802f0 * d)
-            p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * exp(-0.02735f0 * d)
+            p1 = 0.5474f0 * fexp(-0.03697f0 * d)
+            p2 = 0.8352f0 * fexp(-0.03802f0 * d)
+            p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * fexp(-0.02735f0 * d)
         else
             p1 = 0.125f0; p2 = 0.183f0; p3 = 0.361f0
         end
-        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * exp(-0.2064f0 * d))
+        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * fexp(-0.2064f0 * d))
         dp2 = d < 12f0 ? 1f0 : 1f0 / (0.2772f0 + 0.06141f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 19                     # giant sequoia (cedar weights, western-hemlock proportions)
-        livewt = exp(1.7273f0 * log(d * r) - 2.8086f0)
+        livewt = fexp(1.7273f0 * flog(d * r) - 2.8086f0)
         deadwt = 0.01063f0 * d^3
-        p1 = 0.5474f0 * exp(-0.03697f0 * d)
-        p2 = 0.8352f0 * exp(-0.03802f0 * d)
-        p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * exp(-0.02735f0 * d)
-        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * exp(-0.2064f0 * d))
+        p1 = 0.5474f0 * fexp(-0.03697f0 * d)
+        p2 = 0.8352f0 * fexp(-0.03802f0 * d)
+        p3 = d <= 2.9f0 ? 1f0 : 1.0781f0 * fexp(-0.02735f0 * d)
+        dp1 = d < 4f0 ? 1f0 : (d > 28f0 ? 0.005f0 : 1.9608f0 * fexp(-0.2064f0 * d))
         dp2 = d < 12f0 ? 1f0 : 1f0 / (0.2772f0 + 0.06141f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     elseif spi == 23                     # red alder (Snell & Little 1983)
-        livewt = exp(-1.3290f0 + 2.6232f0 * log(d))
-        deadwt = exp(-4.3788f0 + 2.6243f0 * log(d))
-        p1 = 1f0 / (2.7638f0 + 0.2155f0 * d^1.3364f0)
-        p2 = 1f0 / (1.286f0 + 0.1016f0 * d^1.3525f0)
-        p3 = d < 2.1f0 ? 1f0 : 1f0 / (0.8847f0 + 0.0441f0 * d^1.3021f0)
-        p4 = d < 6.1f0 ? 1f0 : 1f0 / (0.995f0 + 0.0013f0 * d^1.9736f0)
-        dp1 = exp(-0.6880f0 - 0.1532f0 * d)
-        dp2 = d < 2.5f0 ? 1f0 : exp(0.2134f0 - 0.0869f0 * d)
-        dp3 = d < 11f0 ? 1f0 : exp(0.3473f0 - 0.0315f0 * d)
+        livewt = fexp(-1.3290f0 + 2.6232f0 * flog(d))
+        deadwt = fexp(-4.3788f0 + 2.6243f0 * flog(d))
+        p1 = 1f0 / (2.7638f0 + 0.2155f0 * fpow(d, 1.3364f0))
+        p2 = 1f0 / (1.286f0 + 0.1016f0 * fpow(d, 1.3525f0))
+        p3 = d < 2.1f0 ? 1f0 : 1f0 / (0.8847f0 + 0.0441f0 * fpow(d, 1.3021f0))
+        p4 = d < 6.1f0 ? 1f0 : 1f0 / (0.995f0 + 0.0013f0 * fpow(d, 1.9736f0))
+        dp1 = fexp(-0.6880f0 - 0.1532f0 * d)
+        dp2 = d < 2.5f0 ? 1f0 : fexp(0.2134f0 - 0.0869f0 * d)
+        dp3 = d < 11f0 ? 1f0 : fexp(0.3473f0 - 0.0315f0 * d)
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
     end
     error("cr_crownw: large-tree model for SPIE group $spi not ported")

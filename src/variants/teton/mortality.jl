@@ -34,7 +34,7 @@ function _tt_ttmrt!(killed::AbstractVector{Float32}, tokill::Float32, s::StandSt
     pass1 = 0f0
     @inbounds for i in 1:n
         pct = Float32(t.crown_ratio[i])                      # PCT (BA percentile)
-        peff = 0.84525f0 - 0.01074f0 * pct + 0.0000002f0 * pct * pct * pct
+        peff = 0.84525f0 - 0.01074f0 * pct + 0.0000002f0 * fpow(pct, 3f0)   # ttmrt.f PCT(I)**3.0 = powf (gfortran -O0 call)
         peff > 1f0 && (peff = 1f0); peff < 0.01f0 && (peff = 0.01f0)
         sp = Int(t.species[i]); cri = Float32(t.crown_pct[i])
         efftr[i] = (sp == 15 || sp == 18) ? peff * ((100f0 - cri) / 100f0) * TT_VARADJ[sp] * 0.01f0 :
@@ -111,19 +111,19 @@ function _tt_tn10_iter(tt::Float32, dia0::Float32, d10::Float32, const_::Float32
     slp = 0f0; cept = 0f0; knt = 1
     while true
         tem = ipath2 ? tt : treeit
-        d55m = (log(tem) - log(pmsdil * const_)) / (-1.605f0)
-        t55m = log(tem)
+        d55m = (flog(tem) - flog(pmsdil * const_)) / (-1.605f0)
+        t55m = flog(tem)
         d85m = d55m * 1.25f0
         while true                                    # tt/morts.f label 221: bump D85M until SLP ≤ −0.5
             d85m > 5f0 && (d85m = 5f0); d85m < 0.125f0 && (d85m = 0.125f0)
-            t85m = log(const_ * (exp(d85m)^(-1.605f0)) * pmsdiu)
+            t85m = flog(const_ * fpow(fexp(d85m), -1.605f0) * pmsdiu)
             slp = (t85m - t55m) / (d85m - d55m)
             (slp > -0.5f0 && d85m < 5f0) ? (d85m += 0.1f0) : break
         end
         cept = t55m - slp * d55m
         (ipath2 || tt <= t55d0) && break              # GOTO 230 (no Newton for the IPATH=2 path)
-        tprime = cept + slp * log(dia0)
-        diff = tt - exp(tprime)
+        tprime = cept + slp * flog(dia0)
+        diff = tt - fexp(tprime)
         (diff <= 5f0 && diff >= -5f0) && break
         treeit += 0.5f0 * diff; knt += 1
         knt > 100 && break
@@ -134,7 +134,7 @@ function _tt_tn10_iter(tt::Float32, dia0::Float32, d10::Float32, const_::Float32
         dens.mort_intercept == 0f0 && (dens.mort_intercept = cept)
         slp = dens.mort_slope; cept = dens.mort_intercept
     end
-    tn10 = exp(cept + slp * log(d10))
+    tn10 = fexp(cept + slp * flog(d10))
     tn10 >= t85d10 && (tn10 = t85d10)
     return tn10
 end
@@ -149,12 +149,19 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     # ★ #148 (Zeide-QMD fix): TT is a Zeide-SDI variant (tt/grinit.f LZEIDE), so the self-thin diameter is
     # Reineke's DR10=(Σ p·(D+G)^1.605 / T)^(1/1.605), NOT the quadratic mean (tt/morts.f LZEIDE path) — same as UT
     # #147 (6e57347). QMD over-states D10 on dense sub-1" cohorts ⇒ TMD10 uncapped ⇒ TN10 low ⇒ RN self-thin OVER-KILL.
-    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; dsum = 0f0
-    @inbounds for i in 1:n
+    # tt/morts.f:215-238 DO 20 ISPC / DO 12 I3 / I=IND1(I3) (species-major IND1, D≥DBHZEIDE) — REAL*4 sums in that
+    # order; AVED (:297-303) is a separate RECORD-order DSUM/WPROB over all ITRN.
+    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; dsum = 0f0; wprob = 0f0
+    dbhz = s.control.dbh_zeide
+    @inbounds for i in _ind1_order(s)
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
+        d < dbhz && continue
         bark = tt_bratio(sp, d)
         g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
-        sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr; dsum += d * pr
+        sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
+    end
+    @inbounds for i in 1:n
+        wprob += t.tpa[i]; dsum += t.dbh[i] * t.tpa[i]
     end
     tt < 1f0 && @goto morts45   # morts.f IF(T.LT.1.0) GO TO 45 — still reaches CLMORTS
     # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
@@ -166,7 +173,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     end
     dq10 = fpow(sumdr10 / tt, 1f0 / 1.605f0)   # Reineke DR10 (Zeide self-thin diameter; tt/morts.f:267 D10=DR10)
     dq0  = fpow(sumdr0 / tt, 1f0 / 1.605f0)     # DR0 = pre-growth Reineke diameter
-    aved = dsum / tt
+    aved = dsum / wprob
     # DIA0<0.3 reset (morts.f 374-376)
     if dq0 < 0.3f0; dq10 = 0.3f0 + dq10 - dq0; dq0 = 0.3f0; end
     # SDI self-thinning boundary (morts.f 455-485)
@@ -176,7 +183,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
     # DIA0-side (pre-growth) SDI density lines are constant across the D10 recalibration passes.
-    tmd0  = const_ * dq0^(-1.605f0);  tmd0  > 35000f0 && (tmd0  = 35000f0)
+    tmd0  = const_ * fpow(dq0, -1.605f0);  tmd0  > 35000f0 && (tmd0  = 35000f0)
     t85d0  = tmd0  * pmsdiu; t55d0  = tmd0  * pmsdil
     # BAMAX defaults from weighted SDImax (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU); PP consumes RZ/BAMAX.
     bamax = sdimax0 * 0.5454154f0 * pmsdiu       # LBAMAX=false default (no user BAMAX keyword in ttpp)   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
@@ -202,7 +209,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         end
     end
     for ipass in 1:10
-        tmd10 = const_ * d10^(-1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
+        tmd10 = const_ * fpow(d10, -1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
         t85d10 = tmd10 * pmsdiu; t55d10 = tmd10 * pmsdil
         # TN10 target (morts.f 200-271): the SDI mature-stand-boundary self-thinning.
         local tn10::Float32
@@ -217,26 +224,26 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
             tn10 = _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true; dens = s.density)   # IPATH=2
         end
         tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
-        rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
+        rn = 1f0 - fpow(1f0 - (tt - tn10) / tt, 1f0 / fint)
         tem = t55d10     # SDI-in-effect gate (tt/morts.f:633-635): min(CONST·D10^-1.605,35000)·PMSDIL (capped) #140
         # PP CI-variant stand projection (tt/morts.f 273-293): BA forward 10y; RZ = annual TPA-mort rate.
         deltba = 0.005454154f0 * d10 * d10 * tt - ba
         ba10 = bamax > 0f0 ? ba + ((bamax - ba) / bamax) * deltba : ba
         tb = ba10 / (0.005454154f0 * d10 * d10)
         ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-        rz = 1f0 - (1f0 - ttb)^0.1f0
+        rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
         fill!(killed, 0f0)
         lastrip = NaN32                                   # RIP of the last record the DO 50/DO 40 loop processes
         @inbounds for i in 1:n
             sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
             d = t.dbh[i]
             if _tt_mort_default(sp)
-                ri = 0.5f0 * (1f0 / (1f0 + exp(TT_PMSC[sp] + TT_PMD[sp] * d + TT_PMDSQ[sp] * d * d)))
+                ri = 0.5f0 * (1f0 / (1f0 + fexp(TT_PMSC[sp] + TT_PMD[sp] * d)))   # tt/morts.f:619 EXP(B0+B1*D)
                 rip = rn
                 (tt <= tem || rn <= 0f0) && (rip = ri)              # background when SDI not yet limiting
                 rip > 1f0 && (rip = 1f0)
                 i == lastrec && (lastrip = rip)
-                wki = pr * (1f0 - (1f0 - rip)^fint)
+                wki = pr * (1f0 - fpow(1f0 - rip, fint))
                 wki > pr && (wki = pr)
                 sdimax < 5f0 && (wki = pr)
                 killed[i] = wki
@@ -266,7 +273,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                 rip = 2.76253f0 + 0.222310f0 * sqrt(dm) - 0.0460508f0 * sqrt(ba) + 11.2007f0 * g -
                       0.554421f0 / dm + TT_PMSC[10] + 0.246301f0 * reldbh + 6.07129f0 * g / dm
                 rip = rip > 88.5f0 ? 88.5f0 : (rip < -88.5f0 ? -88.5f0 : rip)
-                rip = 1f0 / (1f0 + exp(rip))
+                rip = 1f0 / (1f0 + fexp(rip))
                 rip *= TT_PP_REIN[ip]                     # POTENT = REIN(IP)
                 i == lastrec && (lastrip = rip)
                 ripp = ba * rz
@@ -274,7 +281,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                 ripp /= bamax
                 ripp < rip && (ripp = rip)
                 ripp > 1f0 && (ripp = 1f0)
-                wki = pr * (1f0 - (1f0 - ripp)^fint)      # X=1 (no MORTMULT); establishment "best-tree" deferred
+                wki = pr * (1f0 - fpow(1f0 - ripp, fint))      # X=1 (no MORTMULT); establishment "best-tree" deferred
                 wki > pr && (wki = pr)
                 sdimax < 5f0 && (wki = pr)
                 killed[i] = wki
@@ -323,7 +330,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                     d = t.dbh[i]; sp = Int(t.species[i])
                     bark = tt_bratio(sp, d)
                     g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
-                    ba_ = 0.0054542f0 * (d + g)^2
+                    ba_ = 0.0054542f0 * fpow(d + g, 2f0)               # tt/morts.f:840 (D+G)**2. (powf)
                     banew  += ba_ * (t.tpa[i] - killed[i])
                     badead += ba_ * killed[i]
                 end

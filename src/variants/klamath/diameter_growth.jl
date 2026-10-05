@@ -92,7 +92,8 @@ const NC_DGSLSQ = Float32[-1.09400,0.0,-0.87145,-1.05045,0.87335,0.0,-1.17209,-0
     d <= 0f0 && return 0.99f0
     r = eqtype == 1 ? (d - (a + b * d)) / d :
         eqtype == 2 ? (a + b * d) / d :
-                      (a * d^b) / d
+                      (a * fpow(d, b)) / d
+    r > 0.99f0 && (r = 0.99f0)                       # nc/bratio.f: 0.99 cap THEN the 0.80 floor
     return r < 0.80f0 ? 0.80f0 : r
 end
 
@@ -107,7 +108,7 @@ function nc_dgcons!(s::StandState)
     @inbounds for sp in 1:12
         si = p.sp_site_index[sp]
         if sp == 12                                   # redwood
-            dgcon = -3.502444f0 + 0.415435f0 * log(max(si, 1f0))
+            dgcon = -3.502444f0 + 0.415435f0 * flog(max(si, 1f0))
         elseif sp == 2 || sp == 6 || sp == 9          # SP/IC/RF: site form
             dgcon = NC_DGLAT2_5[sp] + NC_DGEL2[sp] * elev + NC_DGSLP2[sp] * slope +
                     NC_DGSLQ2[sp] * slope * slope + NC_DGSITE[sp] * si
@@ -115,9 +116,9 @@ function nc_dgcons!(s::StandState)
             asp = p.aspect; si3 = max(p.sp_site_index[3], 1f0)   # nc/dgf.f:478-485; SITEAR(3)=DF site, ALL sp
             dgcon = NC_DGFOR[sp, NC_MAPLOC[sp, ifor]] +
                     NC_DGEL2[sp] * elev * elev +
-                    (NC_DGSASP[sp] * sin(asp) + NC_DGCASP[sp] * cos(asp) + NC_DGSLOP[sp]) * slope +
+                    (NC_DGSASP[sp] * fsin(asp) + NC_DGCASP[sp] * fcos(asp) + NC_DGSLOP[sp]) * slope +
                     NC_DGSLSQ[sp] * slope * slope +
-                    NC_DGSITE[sp] * log(si3)
+                    NC_DGSITE[sp] * flog(si3)
         end
         c.dg_const[sp] = dgcon
         # Encode NC's real bark (nc/bratio.f) into the shared linear cache (bark_a+bark_b·D)/D, which the
@@ -148,8 +149,8 @@ function dgf!(s::StandState, ::Klamath)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     relden = p.relative_density
-    alrd = relden > 0f0 ? log(relden) : 0f0
-    alba = ba > 0f0 ? log(ba) : 0f0
+    alrd = relden > 0f0 ? flog(relden) : 0f0
+    alba = ba > 0f0 ? flog(ba) : 0f0
     slope = p.slope; asp = p.aspect
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 7) && (ifor = 1)
     @inbounds for i in 1:t.n
@@ -160,36 +161,36 @@ function dgf!(s::StandState, ::Klamath)
         ptba = (1 <= pt_i <= length(dens.point_ba)) ? dens.point_ba[pt_i] : ba
         icr = Float32(t.crown_pct[i]); cr = icr * 0.01f0
         pctfrac = 1f0 - t.crown_ratio[i] / 100f0       # 1 − PCT/100 (crown_ratio field holds PCT)
-        ald = log(d)
+        ald = flog(d)
         bal = pctfrac * ba
         pbal = pctfrac * ptba; pbal <= 0f0 && (pbal = bal)
-        crid = d < 2f0 ? 1.8f0 : ((icr * icr) / log(d + 1f0)) / 1000f0
-        alpba = ptba > 0f0 ? log(ptba) : 0f0
+        crid = d < 2f0 ? 1.8f0 : ((icr * icr) / flog(d + 1f0)) / 1000f0
+        alpba = ptba > 0f0 ? flog(ptba) : 0f0
         cor = c.dg_cor[sp]                             # COR additive calib (0 baseline)
         if sp == 12                                    # REDWOOD
             si = p.sp_site_index[sp]
             prd = 0f0                                   # PRD point-Zeide (TODO precompute; 0 baseline)
             conspp = c.dg_const[sp]
-            dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
-                       0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
-                       0.002203f0 * (slope * 100f0) * cos(asp))
+            dglt = fexp(conspp + 0.185911f0 * flog(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
+                       0.42078f0 * prd + 0.589318f0 * flog(cr * 100f0) - 0.000926f0 * slope * 100f0 -
+                       0.002203f0 * (slope * 100f0) * fcos(asp))
             brat = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
             t1 = d * brat; t2 = (d + dglt) * brat
-            dds = log(t2 * t2 - t1 * t1) + cor          # + LN(COR2)=0 baseline
-            dds = log(exp(dds) / 2f0)                    # redwood: TDDS/2 (nc/dgf.f:393-394)
+            dds = flog(t2 * t2 - t1 * t1) + cor          # + LN(COR2)=0 baseline
+            dds = flog(fexp(dds) / 2f0)                    # redwood: TDDS/2 (nc/dgf.f:393-394)
         elseif sp == 2 || sp == 6 || sp == 9           # SP/IC/RF (set-2)
             conspp = c.dg_const[sp] + cor + NC_DGCCFA[sp] * alrd + NC_DGBA[sp] * alba
             dds = conspp + NC_DGLD2[sp] * ald + NC_DGDSQ2[sp] * d * d / 1000f0 +
-                  NC_DGCR2[sp] * crid + NC_DGDBA2[sp] * pbal / log(d + 1f0) / 100f0 +
+                  NC_DGCR2[sp] * crid + NC_DGDBA2[sp] * pbal / flog(d + 1f0) / 100f0 +
                   NC_DGBA2[sp] * alpba
             dds < -8.52f0 && (dds = -8.52f0)
-            dds = log(exp(dds) / 2f0)                    # sp2/6/9: TDDS/2 (nc/dgf.f:410-411)
+            dds = flog(fexp(dds) / 2f0)                    # sp2/6/9: TDDS/2 (nc/dgf.f:410-411)
         else                                           # DEFAULT — NO TDDS/2 (nc/dgf.f has none here)
             dgdsq = NC_DGDS[sp, NC_MAPDSQ[sp, ifor]]
             conspp = c.dg_const[sp] + cor + NC_DGCCFA[sp] * alrd + NC_DGBA[sp] * alba
             hoavh = avh > 0f0 ? min(t.height[i] / avh, 1.5f0) : 1f0
             dds = conspp + NC_DGLD[sp] * ald + cr * (NC_DGCR[sp] + cr * NC_DGCRSQ[sp]) +
-                  dgdsq * d * d + NC_DGDBAL[sp] * bal / log(d + 1f0) +
+                  dgdsq * d * d + NC_DGDBAL[sp] * bal / flog(d + 1f0) +
                   NC_DGPCCF[sp] * pccf + NC_DGHAH[sp] * hoavh
             sp == 4 && (dds -= 0.15032f0)
         end

@@ -57,14 +57,14 @@ function so_findag(ispc::Int, ifor::Int, h::Float32, sindx::Float32)
     (ifor > 3 && ifor < 10) && (agmax1 = 400f0)          # R5 forests
     htmax1 = SO_FINDAG_HTMAX[ispc]
     ag = 2.0f0
-    (ispc == 2 || ispc == 10) && (ag = 98.38f0 * exp(sindx * (-0.0422f0)) + 1.0f0)
+    (ispc == 2 || ispc == 10) && (ag = 98.38f0 * fexp(sindx * (-0.0422f0)) + 1.0f0)
     ag < 2.0f0 && (ag = 2.0f0)
     ispc == 3 && (ag = 18.0f0)
     if h >= htmax1                                        # H exceeds site max ⇒ 0.10 ft/yr extrapolation
         return (agmax1 + (h - htmax1) / 0.10f0, h, agmax1, htmax1)
     end
     if ispc == 24                                         # AS: Sheppard age eqn (no iteration)
-        return ((h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0), h, agmax1, htmax1)
+        return (fpow(h * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0), h, agmax1, htmax1)
     elseif ispc == 11 || ispc == 16                       # JU/WB: age irrelevant
         return (0f0, h, agmax1, htmax1)
     end
@@ -100,10 +100,10 @@ end
     ((xi2 + cof[2, keycr]) <= h) && return 0.1f0
     y1 = (d - xi1) / cof[1, keycr]
     y2 = (h - xi2) / cof[2, keycr]
-    fby1 = log(y1 / (1.0f0 - y1))
-    fby2 = log(y2 / (1.0f0 - y2))
+    fby1 = flog(y1 / (1.0f0 - y1))
+    fby2 = flog(y2 / (1.0f0 - y2))
     z = (cof[4, keycr] + cof[6, keycr] * fby2 - cof[7, keycr] * (cof[3, keycr] + cof[5, keycr] * fby1)) *
-        (1.0f0 - cof[7, keycr]^2)^(-0.5f0)
+        fpow(1.0f0 - cof[7, keycr]^2, -0.5f0)
     # ZBIAS is 0 for WB/AS (AZBIAS/BZBIAS all 0), except the AS elev-window ZADJ below.
     if ispc == 24
         zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
@@ -125,8 +125,8 @@ end
     end
     dia = d + dg / bark
     ((xi1 + cof[1, keycr]) > dia) || return 0.1f0         # DIA exceeds range ⇒ HTG=0.1 (GO TO 185 inverted)
-    psi = cof[8, keycr] * ((dia - xi1) / (xi1 + cof[1, keycr] - dia))^cof[9, keycr] *
-          exp(z * ((1.0f0 - cof[7, keycr]^2))^0.5f0 / cof[6, keycr])
+    psi = cof[8, keycr] * fpow((dia - xi1) / (xi1 + cof[1, keycr] - dia), cof[9, keycr]) *
+          fexp(z * fpow(1.0f0 - cof[7, keycr]^2, 0.5f0) / cof[6, keycr])
     hht = (psi / (1.0f0 + psi)) * cof[2, keycr] + xi2
     hht < h && (hht = h)
     htg = hht - h
@@ -169,8 +169,8 @@ function height_growth!(s::StandState, ::SouthCentralOregon; scale::Float32 = 1.
                 relht = avh > 0f0 ? h / avh : 0f0
                 relht > 1.0f0 && (relht = 1.0f0)
                 pccf < 100.0f0 && (relht = 1.0f0)
-                crmod = 1.0f0 - exp(-4.26558f0 * cratio)
-                rhmod = exp(2.54119f0 * (relht^0.250537f0 - 1.0f0))
+                crmod = 1.0f0 - fexp(-4.26558f0 * cratio)
+                rhmod = fexp(2.54119f0 * (fpow(relht, 0.250537f0) - 1.0f0))
                 xmod = 1.016605f0 * crmod * rhmod
                 htg = pothtg * xmod
                 htg < 0.1f0 && (htg = 0.1f0)
@@ -190,7 +190,7 @@ function height_growth!(s::StandState, ::SouthCentralOregon; scale::Float32 = 1.
         else                                              # CASE DEFAULT (incl WB/AS 16,24)
             if h >= htmax
                 htg = 0.1f0
-                htg = scale * htg * exp(htcon)
+                htg = scale * htg * fexp(htcon)
                 t.ht_growth[i] = htg; done_161 = true
             elseif ispc == 16 || ispc == 24               # Johnson-SBB (no 1320 modifier)
                 bark = so_bratio(sd, ispc, d)
@@ -211,14 +211,14 @@ function height_growth!(s::StandState, ::SouthCentralOregon; scale::Float32 = 1.
             relht = avh > 0f0 ? h / avh : 0f0
             relht > 1.5f0 && (relht = 1.5f0)
             crf = Float32(icr) / 100.0f0
-            hgmdcr = SO_HTGF_CRA * crf^SO_HTGF_CRB * exp(SO_HTGF_CRC * crf)
+            hgmdcr = SO_HTGF_CRA * fpow(crf, SO_HTGF_CRB) * fexp(SO_HTGF_CRC * crf)
             hgmdcr > 1.0f0 && (hgmdcr = 1.0f0)
             rhx = relht
-            fctrkx = (SO_HTGF_RHK / SO_HTGF_RHYXS[ispc])^(SO_HTGF_RHM[ispc] - 1.0f0) - 1.0f0
+            fctrkx = fpow(SO_HTGF_RHK / SO_HTGF_RHYXS[ispc], SO_HTGF_RHM[ispc] - 1.0f0) - 1.0f0
             fctrrb = -1.0f0 * (SO_HTGF_RHR[ispc] / (1.0f0 - SO_HTGF_RHB[ispc]))
-            fctrxb = rhx^(1.0f0 - SO_HTGF_RHB[ispc]) - SO_HTGF_RHXS^(1.0f0 - SO_HTGF_RHB[ispc])
+            fctrxb = fpow(rhx, 1.0f0 - SO_HTGF_RHB[ispc]) - fpow(SO_HTGF_RHXS, 1.0f0 - SO_HTGF_RHB[ispc])
             fctrm = -1.0f0 / (SO_HTGF_RHM[ispc] - 1.0f0)
-            hgmdrh = SO_HTGF_RHK * (1.0f0 + fctrkx * exp(fctrrb * fctrxb))^fctrm
+            hgmdrh = SO_HTGF_RHK * fpow(1.0f0 + fctrkx * fexp(fctrrb * fctrxb), fctrm)
             htgmod = 0.25f0 * hgmdcr + 0.75f0 * hgmdrh
             htgmod >= 2.0f0 && (htgmod = 2.0f0)
             htgmod <= 0.0f0 && (htgmod = 0.1f0)
@@ -230,7 +230,7 @@ function height_growth!(s::StandState, ::SouthCentralOregon; scale::Float32 = 1.
         temph = h + htg
         temph > htmax && (htg = htmax - h)
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = scale * htg * exp(htcon)
+        htg = scale * htg * fexp(htcon)
         t.ht_growth[i] = htg
     end
     return s

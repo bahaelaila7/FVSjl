@@ -107,11 +107,13 @@ end
         @test r == base
     end
 
-    # 5) CORNERED (documented): LEVEL=3 raises the introduction-cycle Mean_DMR above LEVEL=1 (the
-    #    round-robin assigns DMR>1) — DIRECTION matches the oracle (2000 Mean_DMR climbs from 2.581),
-    #    but the exact value straddles the oracle because FVS round-robins over the tripled treelist
-    #    while jl carries one DMR per central record (see the header note).
+    # 5) LEVEL=3, method 2 is now BIT-EXACT vs live FVScr_clean in every reported year (measured 2026-10-05, tree file via
+    #    stdin). It used to straddle the oracle (round-robin DMR over the tripled list vs one DMR per central record); MISTOE
+    #    now runs on the post-TRIPLE seam (cr mistoe.f via gradd.f:96, west-shared-3 3497c902), so MISINF sees the tripled
+    #    records as FVS does. (The old `inf == 1414` assumed LEVEL=3 leaves the LEVEL=1 TPA unchanged; live is 1413.)
     l3 = mktempdir(d -> _run_mistpinf(d; card = "MISTPINF           1         3       1.0       3.0       2.0\n"))
-    @test l3[2000].dmr > m0[2000].dmr        # higher LEVEL ⇒ higher Mean_DMR (both jl and oracle)
-    @test l3[2000].inf == 1414               # same infected population, just a higher rating
+    @test l3[2000].dmr > m0[2000].dmr
+    @test l3 == Dict(1990 => (dmr = 2.359, inf = 1110, mort = 56), 2000 => (dmr = 2.653, inf = 1413, mort = 57),
+                     2010 => (dmr = 2.661, inf = 1354, mort = 55), 2020 => (dmr = 2.793, inf = 1291, mort = 58),
+                     2030 => (dmr = 2.972, inf = 1223, mort = 63))
 end

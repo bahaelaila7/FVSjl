@@ -148,15 +148,15 @@ function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32
         dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark*xrdgro : (dk - dkk)*bark*xrdgro
         dg < 0f0 && (dg = 0.1f0); dg > dgmx && (dg = dgmx)
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
         dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)  # common block (681-688): re-converts
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
     elseif sp == 9 || sp == 27                         # SH/WO — XDWT blend; GO TO 23 skips DGBND
         xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
         dgsm = (dk - dkk)*bark*xrdgro; dgsm < 0f0 && (dgsm = 0f0)
         dds = dgsm*(2f0*bark*d + dgsm)*scale2
-        dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
+        dgsm = sqrt(fpow(d*bark, 2f0) + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
         dg = dgsm*(1f0 - xdwt) + dglt*xdwt
         (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
         return (-1f0, dg)
@@ -165,7 +165,7 @@ function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32
         dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
         (sp == 16 && (d + dg) < SO_RG_DIAM[sp]) && (dg = SO_RG_DIAM[sp] - d)
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
     end
     (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
     return (-1f0, dg_bound(nothing, nothing, sp, d, dg, s.control.sp_size_cap))   # so/dgbnd.f = SIZCAP cap
@@ -245,7 +245,11 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
             htg = htgr*(1f0 - xwt) + xwt*lthg
             htg < 0.1f0 && (htg = 0.1f0)
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-            dbhk, dg = _so_regent_dg(s, sp, ifor, d, h, htg, icr, si_raw, bkpt, scale, scale2, dgmx, dglt, xrdgro, i)
+            # WB DK/DKK read ICR(K) (so/regent.f:494-512). A tripled copy K = ITRN+2I−2+L is the copy's FUTURE slot, which
+            # TRIPLE fills only later ⇒ FVS reads that slot's current contents: 0 if never used, else what TREDEL left
+            # (t.stale_icr) — the same quirk as bm/regent.f (MEASURED FVSso_g16 15184869010497 2020 WB K=416: ICR 0).
+            icrk = l == 0 ? icr : Float32(t.stale_icr[n + 2i - 2 + l])
+            dbhk, dg = _so_regent_dg(s, sp, ifor, d, h, htg, icrk, si_raw, bkpt, scale, scale2, dgmx, dglt, xrdgro, i)
             if l == 0
                 t.ht_growth[i] = htg; t.diam_growth[i] = dg
                 dbhk >= 0f0 && (t.dbh[i] = dbhk)

@@ -261,6 +261,7 @@ _snag_htr1(::Teton) = 0.0228f0
 _snag_htr1(::Utah) = 0.0228f0
 _snag_htr1(::CentralRockies) = 0.0228f0
 _snag_htr1(::SoutheastAlaska) = 0.02f0      # ak/fmvinit.f:140 HTR1
+_snag_htr1(::Klamath) = 0.03406f0           # nc/fmvinit.f:122 HTR1 (50% height loss in 20 yr)
 "HTR2 (after-50% snag height-loss rate, {v}/fmvinit.f): 0.01 everywhere but AK (ak/fmvinit.f:141 HTR2=0.02)."
 _snag_htr2(v) = v isa SoutheastAlaska ? 0.02f0 : 0.01f0
 "HTXSFT (soft-snag height-loss multiplier, {v}/fmvinit.f): UT/CR 10, the default 2 elsewhere."

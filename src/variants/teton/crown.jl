@@ -22,7 +22,7 @@ const TT_RDB = Float32[1.76, 1.76, 1.5571, 1.76, 1.736, 1.78, 1.76, 1.736, 1.756
     # point CCF the LSTART DUBSCR reads (2783239010690: TPCCF 353.42 → live 355.27 ⇒ seedling ICR 53 → live 52).
     d <= 0f0 && return (sp == 10 || sp == 13 || sp == 16) ? 0f0 : 0.001f0
     poly()  = TT_RD1[sp] + d * TT_RD2[sp] + d * d * TT_RD3[sp]
-    small() = TT_RDA[sp] * d ^ TT_RDB[sp]
+    small() = TT_RDA[sp] * fpow(d, TT_RDB[sp])
     brk = (sp == 10 || sp == 15 || sp == 18) ? 10f0 : 1f0
     if d >= brk
         return poly()
@@ -84,7 +84,7 @@ const TT_CRSD  = Float32[0.5,0.5,0.6957,0.2,0.6957,0.931,0.6124,0.6957,0.6957,0.
         cr = ((cr - 1f0)*10f0 + 1f0)/100f0
     else
         abs(cr + fcr) >= 86f0 && (cr = 86f0)            # overflow guard (faithful: +86 regardless of sign)
-        cr = 1f0/(1f0 + exp(cr + fcr))
+        cr = 1f0/(1f0 + fexp(cr + fcr))
     end
     cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
     return cr
@@ -127,7 +127,7 @@ function _adjmai(inspec::Integer, si::Float32, points::Float32)::Float32   # bas
     elseif inum == 8
         si < 32f0 && return 0f0; a = -53.892857f0 + 1.7178571f0*si
     elseif inum == 9
-        a = -4.89001f0 + 311.29546f0*((exp((si/170f0 - 1f0)^3/0.343f0) - 0.055f0)/0.95f0)
+        a = -4.89001f0 + 311.29546f0*((fexp((si/170f0 - 1f0)^3/0.343f0) - 0.055f0)/0.95f0)
     elseif inum == 10
         si < 62f0 && return 0f0; a = 157.94643f0 - 1.78125f0*si + 0.014330357f0*si^2
     end

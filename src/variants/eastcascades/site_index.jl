@@ -204,7 +204,7 @@ function ec_sitset!(s::StandState)
         if (ispc == 12 && isisp != 12) || (ispc == 31 && isisp != 31)
             v = v / 3.281f0; v > 28f0 && (v = 28f0)                   # MH/OS metric, cap 28
         elseif ispc == 28 && isisp != 28
-            v = 114.2f0 * (1f0 - exp(-0.0266f0 * v))^2.26f0          # WO King's DF
+            v = 114.2f0 * fpow(1f0 - fexp(-0.0266f0 * v), 2.26f0)          # WO King's DF
         elseif ispc != isisp && redux[ispc] != 1f0
             v = v * redux[ispc]                                       # WC-form site reduction
         end

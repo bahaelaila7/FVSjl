@@ -171,7 +171,7 @@ function wc_sitset!(s::StandState)
             v = v / 3.281f0
             v > 28f0 && (v = 28f0)
         elseif ispc == 28 && isisp != 28                      # WO: Gould max-height transform (King DF SI)
-            v = 114.2f0 * (1f0 - exp(-0.0266f0 * v))^2.26f0
+            v = 114.2f0 * fpow((1f0 - fexp(-0.0266f0 * v)), 2.26f0)
         elseif ispc != isisp && redux[ispc] != 1f0
             v = v * redux[ispc]                               # misc-hardwood SI reductions (sp 21,23-27,29,31,33-37)
         end

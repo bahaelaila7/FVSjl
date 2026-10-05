@@ -51,10 +51,14 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
     # mirror the same branch the reported SDI uses — otherwise Zeide (≤ Reineke, power-mean) understates D10 ⇒
     # tmd10=const·D10^-1.605 overstates the self-thin target ⇒ systematic UNDER-kill on R6 dense stands.
     zeide = s.control.zeide_sdi
+    # nc/morts.f:186-208 DO 20 ISPC / DO 12 I3 / I=IND1(I3) (species-major IND1) with the D<DBHZEIDE (LZEIDE) or
+    # D<DBHSTAGE gate — REAL*4 sums in that order (also the DO 30 D10N loop's gate below).
     tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; sdq0 = 0f0; sd2sq = 0f0
-    @inbounds for i in 1:n
+    dgate = zeide ? s.control.dbh_zeide : s.control.dbh_stage
+    @inbounds for i in _ind1_order(s)
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        d < dgate && continue
+        bark = variant_bratio(s, sp, d)          # nc/bratio.f
         g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
         ciobds = 2f0 * d * g + g * g
         sd2sq += pr * (d * d + ciobds); sdq0 += pr * fpow(d, 2f0)
@@ -145,7 +149,8 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
             ttn = 0f0; sdr = 0f0; sd2sqn = 0f0
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
-                bark = bark_ratio(bark_a, bark_b, Int(t.species[i]), d)
+                d < dgate && continue
+                bark = variant_bratio(s, Int(t.species[i]), d)   # nc/bratio.f
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
                 ciobds = 2f0 * d * g + g * g
                 sd2sqn += pr * (d * d + ciobds)
@@ -170,7 +175,7 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
             banew = 0f0; badead = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]; sp = Int(t.species[i])
-                bark = bark_ratio(bark_a, bark_b, sp, d)
+                bark = variant_bratio(s, sp, d)          # nc/bratio.f
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
                 ba = 0.0054542f0 * fpow(d + g, 2f0)
                 banew  += ba * (t.tpa[i] - killed[i])

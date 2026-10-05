@@ -106,11 +106,11 @@ function ut_cratet_site_adjust!(s::StandState)
                 0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si -
                 0.0000455f0 * 50f0^2 * si
         elseif sp == 4 || sp == 5 || sp == 8 || sp == 9       # Alexander RM-32
-            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * si^0.83312f0) *
-                (1f0 - exp(-0.015701f0 * 50f0))^(22.71944f0 * si^(-0.63557f0))
+            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * fpow(si, 0.83312f0)) *
+                fpow(1f0 - fexp(-0.015701f0 * 50f0), 22.71944f0 * fpow(si, -0.63557f0))
         elseif sp == 10                                        # Meyer 1961 (TB-630) — PP
-            p.sp_site_index[sp] = (3.635794f0 * si^0.916307f0) /
-                (1f0 + exp(6.09478f0 - 0.96483f0 * log(50f0) - 0.277025f0 * log(si)))
+            p.sp_site_index[sp] = (3.635794f0 * fpow(si, 0.916307f0)) /
+                (1f0 + fexp(6.09478f0 - 0.96483f0 * flog(50f0) - 0.277025f0 * flog(si)))
         end
     end
     return s

@@ -42,6 +42,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
+    oldfnt = morts_oldfnt(s)          # grincr.f:60-64 OLDFNT (cycle 1: FINT as read; later: the previous cycle's length)
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
@@ -52,7 +53,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         dgi = t.diam_growth[i]
         ip = d <= 5f0 ? 2 : 1
         gmult = ip == 1 ? gmult1 : gmult2
-        wk1 = t.dg_prev[i]; oldfnt = 10f0                     # WK1 = previous cycle's applied DG
+        wk1 = t.dg_prev[i]                                    # WK1 = previous cycle's applied DG
         dgt = wk1 / oldfnt
         d <= 1f0 && dgt < 0.05f0 && (dgt = 0.05f0)
         (1f0 < d <= 5f0) && dgt < 0.05f0 && (dgt = 0.05f0 * (5f0 - d) / 4f0)

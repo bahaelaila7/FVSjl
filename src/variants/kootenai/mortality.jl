@@ -78,7 +78,10 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     ba = p.basal_area
     itype = Int(p.habitat_input)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? KT_BAMAXA[itype] : 0f0)
+    # kt/sitset.f:39-42 seeds BAMAX=BAMAXA(ITYPE) without LBAMAX, so kt/morts.f:188 CALL SDICAL(0,SDIMAX) re-derives
+    # BAMAX=XMAX·0.5454154·PMSDIU (kt/sdical.f:203-204) — not the identity in REAL*4 (habitat 310 ⇒ 309.99994), and BAMAX
+    # divides RIPP (morts.f:286): 3021216010690 cycle 2 record 11 RIPP 3.943175E-3 live / 3.9431746E-3 jl.
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : _ie_sdical_bamax(s, itype)
     bamax <= 0f0 && (bamax = 1f0)
     sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b

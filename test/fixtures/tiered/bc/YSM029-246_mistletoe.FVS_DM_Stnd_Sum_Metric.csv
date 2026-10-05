@@ -1,0 +1,2 @@
+StandID,Year,Age,Stnd_TPH,Stnd_BA,Stnd_Vol,Inf_TPH,Inf_BA,Inf_Vol,Mort_TPH,Mort_BA,Mort_Vol,Inf_TPH_Pct,Inf_Vol_Pct,Mort_TPH_Pct,Mort_Vol_Pct,Mean_DMR,Mean_DMI
+YSM029-246,2018,33,3700,13,31,1650,9,21,43,0,1,45,66,1,2,0.9054054617881775,2.0303027629852295

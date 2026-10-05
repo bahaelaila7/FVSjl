@@ -33,7 +33,10 @@ const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 # Oracle binary per variant. Western oracles live in /workspace/.<v>work/ (persistent); a fresh relink lands as
 # FVS<v>_g16 (preferred), else the older FVS<v>_clean. ⚠ RESTART⇒RELINK ALL before a sweep (binaries can go stale);
 # _oracle_bin picks the g16 if present. Eastern keep their tmp/oracles/*_new paths.
+# BC: the stock FVSbc_clean SIGSEGVs on every DATABASE tree read (metric intree.f passes 30 of DBSTREESIN's 34 args);
+# /workspace/.bcwork/dbfix/FVSbc_dbfix is the same objects relinked with that call completed (build_dbfix.sh there).
 _oracle_bin(v) = let w = "/workspace/." * lowercase(v) * "work"
+    lowercase(v) == "bc" && isfile("$w/dbfix/FVSbc_dbfix") ? "$w/dbfix/FVSbc_dbfix" :
     isfile("$w/FVS$(lowercase(v))_g16") ? "$w/FVS$(lowercase(v))_g16" : "$w/FVS$(lowercase(v))_clean"
 end
 const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new",

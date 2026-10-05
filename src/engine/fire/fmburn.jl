@@ -216,7 +216,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         @inbounds for i in 1:t.n
             (rann!(s.rng) * 100f0 > psburn) && continue
             t.tpa[i] > 0f0 || continue
-            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, false)
+            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, false)
         end
         rannput!(s.rng, _rs0)
     end
@@ -240,7 +240,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
             (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
             t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
-            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
+            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
             # FMEFF new fire-model crown length (fmeff.f:170, :401-419, :513): for the non-crown-fire part
             # (CRBURN<1) of a record whose crown base sits below the scorch height, the scorched length CRBNL
             # is lost: FMICR = IFIX(100·(CRL−CRBNL)/HT). CRL = HT·(FMICR/100) in FVS's own association.
@@ -311,7 +311,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
     # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
     cons = if fire_carries
-        c = fire_consumption!(fs, mois; psburn, burncr = bcrown)
+        c = fire_consumption!(fs, mois; psburn, burncr = bcrown, so = s.variant isa SouthCentralOregon)
         fs.exposr_last = c.exposr
         c
     else
@@ -380,13 +380,14 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 # FMEFF BCROWN share of one record (fmeff.f:372-374 crown fire, :444-453 scorch), tons/ac, on the PRE-kill FMPROB
 # (TPA) and the fire-time FMICR (= ICR; call before the scorch shortening). `mk` = MKODE≠0: the crown-fire part (CRBURN·FMPROB burns all foliage + half the
 # 0-0.25" crown and its crown-lift) needs MKODE≠0, and the scorched part is weighted (1−CRBURN), else 1.0.
-function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
+# Each term is added to the running BCROWN `b` itself (BCROWN = BCROWN + …, term by term), not summed per record first:
+# the association differs by an ULP (MEASURED FVSie_g16 11855985010690 2006 FMPOFL PBRNCR 6.14480 live, 6.14479 per-record).
+function _fm_bcrown(b::Float32, s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
                     icr::Integer = Int(s.trees.crown_pct[i]))::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
     xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
     yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
-    b = 0f0
     if crfrac > 0f0 && mk
         b += crfrac * fmprob * _FM_P2T * xc[1]
         b += 0.5f0 * crfrac * fmprob * _FM_P2T * (xc[2] + yrscyc * ol1)
@@ -475,7 +476,8 @@ fm_canopy_lsw(sp::Integer, ::BritishColumbia) = (1 <= sp <= 10) || sp == 14
 fm_canopy_lsw(sp::Integer, ::Union{PacificNorthwest,WestCascades,Olympic}) = (1 <= sp <= 20) || (29 <= sp <= 33) || sp == 38
 fm_canopy_lsw(sp::Integer, ::EastCascades) = (1 <= sp <= 19) || sp == 31
 fm_canopy_lsw(sp::Integer, ::WestSierra) = (1 <= sp <= 27) || sp == 42
-fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 3) || sp == 6 || sp == 9 || sp == 10 || sp == 12
+fm_canopy_lsw(sp::Integer, ::SouthCentralOregon) = (1 <= sp <= 20) || sp == 32   # so/fmcba.f:997-1004 CASE(1:20,32) (fmvinit.f sets all FALSE)
+fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 4) || sp == 6 || (9 <= sp <= 10) || sp == 12   # nc/fmvinit.f CASE(2),(3,1),(4,9),(6),(10),(12)
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 # PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2)),
@@ -506,9 +508,9 @@ crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
 function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska})::Float32
     cbd > 0f0 || return -1f0
     r = rothermel_surface_fire(_fm10(s)..., fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
-    r.xio < 1f-5 && return -1f0
+    r.xio < 1f0 && return -1f0                     # fmcfir.f:157 `IF (SIRXI(2) .LT. 00001)` — the INTEGER 1
     o = ((2.95f0 * r.rhobqig / (r.xio * cbd)) - r.phis - 1f0) / 0.001612f0
-    return o > 0f0 ? o^0.7f0 * 0.01137f0 / 0.4f0 : 0f0
+    return o > 0f0 ? fpow(o, 0.7f0) * 0.01137f0 / 0.4f0 : 0f0   # OACT1**0.7 ⇒ glibc powf
 end
 
 """
@@ -540,7 +542,7 @@ function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int
     (ssig > 0f0 && sxir > 0f0) || return -1f0
     hpa = sxir * 384f0 / ssig
     folmc = 100f0                                     # foliar moisture content (fminit.f:150 default)
-    init1 = ((460f0 + 25.9f0 * folmc) * 0.001333f0 * Float32(actcbh))^1.5f0
+    init1 = fpow((460f0 + 25.9f0 * folmc) * 0.001333f0 * Float32(actcbh), 1.5f0)   # fmcfir.f:100-101 (…)**(3.0/2.0)
     rinit1 = 60f0 * init1 / hpa
     wmult = fire_wind_reduction(s.fire.percov)
     # weighted-model surface spread (ft/min) at a 20-ft wind `oi` (canopy-reduced to midflame `oi·wmult`)
@@ -573,7 +575,7 @@ function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::
         sxir += r.xir * w; ssig += r.sigma * w
     end
     hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
-    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    init1 = fpow((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh), 1.5f0)   # FOLMC=100; (…)**(3.0/2.0) ⇒ powf
     rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
     spr(oi) = sum(rothermel_surface_fire(fmgfmv(s, fm, mois)..., mois;
                   wind = oi * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
@@ -612,7 +614,7 @@ function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmoi
         sxir += r.xir * w; ssig += r.sigma * w
     end
     hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
-    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    init1 = fpow((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh), 1.5f0)   # FOLMC=100; (…)**(3.0/2.0) ⇒ powf
     rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
     # SFRATE(FMOIS) = surface spread (SELECTED models) at the actual midflame wind
     sfrate_act = sum(rothermel_surface_fire(fmgfmv(s, fm, mois)..., mois;
@@ -677,7 +679,7 @@ function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vec
     msdi = 0f0
     @inbounds for (i, pr) in walk
         dcm = t.dbh[i] * 2.54f0
-        msdi += (pr * 2.47f0) * (dcm / 25.4f0)^1.6f0
+        msdi += (pr * 2.47f0) * fpow(dcm / 25.4f0, 1.6f0)   # REAL**REAL ⇒ glibc powf
     end
     mrd = msdi / 1111.97f0; mrd > 1f0 && (mrd = 1f0)
     lbhpp_kodfor = Int(s.plot.user_forest_code)
@@ -703,15 +705,15 @@ function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vec
             (i1 <= i2 && crbio > 0f0) || continue
             weibb = 7.1386f0 - 0.0608f0 * (h / 3.28f0)
             weibc = 3.3126f0 - 0.0214f0 * (h / 3.28f0) - 1.1622f0 * mrd
-            wtradj = 1f0 - exp(-((10f0 / weibb)^weibc))
+            wtradj = 1f0 - fexp(-fpow(10f0 / weibb, weibc))   # fmpocr.f:164 EXP/** ⇒ glibc expf/powf
             tscl = Float32(i2 - i1)
             secint = 10f0 / (tscl + 1f0)
             secbnd = 0f0
             for j in i2:-1:i1                            # from crown top down, fill each 1-ft section
                 secbnd += secint
-                wprop = j == i2 ? (1f0 - exp(-((secbnd / weibb)^weibc))) :
-                        (1f0 - exp(-((secbnd / weibb)^weibc))) -
-                        (1f0 - exp(-(((secbnd - secint) / weibb)^weibc)))
+                wprop = j == i2 ? (1f0 - fexp(-fpow(secbnd / weibb, weibc))) :
+                        (1f0 - fexp(-fpow(secbnd / weibb, weibc))) -
+                        (1f0 - fexp(-fpow((secbnd - secint) / weibb, weibc)))
                 crfill[j] += (crbio * wprop) / wtradj
             end
             continue
@@ -734,7 +736,10 @@ function canopy_bulk_density(s::StandState; vtrip::Bool = false, fmicr = nothing
     fs = s.fire
     (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
     crfill = canopy_crfill(s; vtrip = vtrip, fmicr = fmicr)   # crown fuel by 1-ft height layer (lbs/ac-ft)
-    tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
+    # fmpocr.f:236-239 `DO I=1,400: TCLOAD=TCLOAD+CRFILL(I)` in order — Julia's sum(::Vector) reassociates (pairwise/SIMD)
+    tcload = 0f0
+    @inbounds for j in 1:length(crfill); tcload += crfill[j]; end
+    tcload = tcload / 43560f0                            # lbs/ac → lbs/ft²
     # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
     j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)
     j2 = findlast(>(5f0), crfill)

@@ -218,7 +218,7 @@ function so_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     ifor = Int(p.forest_idx)
     elev = p.elevation; slope = p.slope; asp = p.aspect
-    sina = sin(asp); cosa = cos(asp)
+    sina = fsin(asp); cosa = fcos(asp)
     rmai = _so_rmai(s); p.mai_adj = rmai                          # so/maical.f RMAI (used by DGCON & dgf!)
     isisp = so_isisp(p)
     xsite_isisp = p.sp_site_index[isisp]                          # SITEAR(ISISP), used only in DGSIC·XSITE
@@ -234,13 +234,13 @@ function so_dgcons!(s::StandState)
         if (isp in SO_SL0_SP) && slope <= 0f0
             sasp = SO_SLODUM[isp]
         else
-            sasp = (SO_DGSASP[isp] * sin(asptem) + SO_DGCASP[isp] * cos(asptem) + SO_DGSLOP[isp]) * slope +
+            sasp = (SO_DGSASP[isp] * fsin(asptem) + SO_DGCASP[isp] * fcos(asptem) + SO_DGSLOP[isp]) * slope +
                    SO_DGSLSQ[isp] * slope * slope
         end
         dgcon = SO_DGFOR[isp, isfor] + SO_DGEL[isp] * temel + SO_DGEL2[isp] * temel * temel +
                 SO_DGMAI[isp] * rmai + SO_DGSIC[isp] * xsite_isisp +
-                SO_DGSITE[isp] * log(sitear) + sasp
-        isp == 8 && (dgcon += 0.86756f0 * log(sitear))            # ES extra ln(SITEAR)
+                SO_DGSITE[isp] * flog(sitear) + sasp
+        isp == 8 && (dgcon += 0.86756f0 * flog(sitear))            # ES extra ln(SITEAR)
         c.dg_const[isp] = dgcon
         c.atten[isp] = isp == 11 ? 1000f0 :
                        isp == 16 ? SO_IBSERV_16[isic] :
@@ -256,7 +256,7 @@ function dgf!(s::StandState, ::SouthCentralOregon)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     rmai = p.mai_adj; relden = p.relative_density
-    alccf = relden > 0f0 ? log(relden) : 0f0
+    alccf = relden > 0f0 ? flog(relden) : 0f0
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i])
@@ -279,18 +279,18 @@ function dgf!(s::StandState, ::SouthCentralOregon)
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
         elseif isp == 24                                          # AS: aspen DGFASP (UT), raw crown pct
             cr_raw = Float32(t.crown_pct[i])
             rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
-            dds = aspdg + log(cor2_of(c, isp)) + cor
+            dds = aspdg + flog(cor2_of(c, isp)) + cor
         elseif isp == 22                                          # RA: red alder decreasing-increment eqn
             const0 = 3.250531f0 - 0.003029f0 * ba
             diagr = d <= 18f0 ? const0 - 0.166496f0 * d + 0.004618f0 * d * d :
                                 const0 - (const0 / 10f0) * (d - 18f0)
             diagr < 0.1f0 && (diagr = 0.1f0)
-            dds = log(diagr * (2f0 * d * bark + diagr)) + log(cor2_of(c, isp)) + cor
+            dds = flog(diagr * (2f0 * d * bark + diagr)) + flog(cor2_of(c, isp)) + cor
         else                                                      # GENERAL Wykoff ln(DDS)
             dummy = isp == 14 ? -0.799079f0 : 0f0                 # SF(14) DUMMY from EC
             balx = (isp == 11 || isp == 16) ? bal / 100f0 : bal   # sp 11/16 scaled BAL
@@ -300,11 +300,11 @@ function dgf!(s::StandState, ::SouthCentralOregon)
                 dgpcf2 = pccf > 400f0 ? 0f0 : 0.000001f0
             end
             dgdsq = SO_DGDS[isp, SO_MAPDSQ[isp, Int(p.forest_idx)]]
-            dds = conspp + SO_DGLD[isp] * log(d) + SO_DGBAL[isp] * balx +
+            dds = conspp + SO_DGLD[isp] * flog(d) + SO_DGBAL[isp] * balx +
                   cr * (SO_DGCR[isp] + cr * SO_DGCRSQ[isp]) +
-                  dgdsq * d * d + SO_DGDBAL[isp] * balx / log(d + 1f0) +
-                  SO_DGPCCF[isp] * pccf + dglccf * alccf + dgpcf2 * pccf * pccf +
-                  SO_DGHAH[isp] * relht + SO_DGLBA[isp] * log(ba) + SO_DGBA[isp] * ba + dummy
+                  dgdsq * d * d + SO_DGDBAL[isp] * balx / flog(d + 1f0) +
+                  SO_DGPCCF[isp] * pccf + dglccf * alccf + dgpcf2 * (pccf * pccf) +
+                  SO_DGHAH[isp] * relht + SO_DGLBA[isp] * flog(ba) + SO_DGBA[isp] * ba + dummy
             isp == 8 && (dds += 0.49649f0 * relht)                # ES HOAVH bonus
         end
         dds < -9.21f0 && (dds = -9.21f0)

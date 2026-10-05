@@ -17,7 +17,7 @@ key_str(m::Mismatch) = "$(m.variant)/$(m.stand)/$(m.regime)/$(m.file)/$(m.col)/$
 # at TIERED_THREADS=3, so they run on request (TIERED_VARIANTS=WEST / ALL / CORE,TT,…), not in the default suite.
 const TIERED_GROUPS = Dict(
     "CORE" => ["BM", "EM", "IE", "SN"],
-    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK"])
+    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK", "BC"])
 
 """
 Variants to run (sorted, only those with a fixture directory). ENV TIERED_VARIANTS: unset/empty ⇒ CORE; otherwise a
@@ -100,17 +100,17 @@ function compare_case(v, cn, r, jl_sum::AbstractString, jl_db::AbstractString)
     isfile(gsp) || (mk("FIXTURE", "live.sum", "*", "present", "missing"); return ms)
     gtxt = read(gsp, String)
     if startswith(gtxt, "# LIVE_NO_OUTPUT")
-        isempty(sum_rows(jl_sum)) || mk("sum", "LIVE_NO_OUTPUT", "*", "no output", "jl output")
+        isempty(sum_rows(jl_sum; metric = metric_sum(v))) || mk("sum", "LIVE_NO_OUTPUT", "*", "no output", "jl output")
         return ms
     end
-    grows = sum_rows(gtxt); jrows = sum_rows(jl_sum)
-    ex = sum_extra_lines(jl_sum)
+    grows = sum_rows(gtxt; metric = metric_sum(v)); jrows = sum_rows(jl_sum; metric = metric_sum(v))
+    ex = sum_extra_lines(jl_sum; metric = metric_sum(v))
     isempty(ex) || mk("sum", "EXTRA_CONTENT", "*", "none", "$(length(ex)) non-summary lines: $(strip(first(ex)))")
     jy = Dict(strip(r[1:4]) => r for r in jrows); gy = Dict(strip(r[1:4]) => r for r in grows)
     for g in grows
         y = strip(g[1:4]); j = get(jy, y, nothing)
         j === nothing && (mk("sum", "ROW", y, "present", "missing"); continue)
-        for (nm, a, b) in SUM_FIELDS
+        for (nm, a, b) in sum_fields(v)
             gv = sum_field(g, a, b); jv = sum_field(j, a, b)
             gv == jv || mk("sum", nm, y, gv, jv)
         end
@@ -161,7 +161,7 @@ end
 function case_signs(v, cn, r, jl_sum)
     fx = fixture_dir(v); gtxt = read(joinpath(fx, "$(cn)_$(r).live.sum"), String)
     startswith(gtxt, "# LIVE_NO_OUTPUT") && return nothing
-    g = Dict(strip(x[1:4]) => x for x in sum_rows(gtxt)); j = Dict(strip(x[1:4]) => x for x in sum_rows(jl_sum))
+    g = Dict(strip(x[1:4]) => x for x in sum_rows(gtxt; metric = metric_sum(v))); j = Dict(strip(x[1:4]) => x for x in sum_rows(jl_sum; metric = metric_sum(v)))
     ys = sort([y for y in keys(g) if haskey(j, y)]); isempty(ys) && return nothing
     y = ys[end]; out = Dict{String,Int}()
     for (nm, a, b) in (("TPA", 9, 14), ("BA", 15, 18), ("TCuFt", 37, 42))

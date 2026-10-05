@@ -21,6 +21,7 @@ const BC_INtoCM         = 2.54f0
 const BC_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0970,
                           0.0636, 0.0898, 0.0898, 0.0898, 0.1556, 0.0898]
 const BC_FTtoM          = 0.3048f0
+const BC_MtoFT          = 3.28084f0       # METRIC.F77 MtoFT
 const BC_FT2pACRtoM2pHA = 0.2295643f0
 
 # --- V3 zone-constant record (MD_STR, canada/bc/dgf.f:85) ---

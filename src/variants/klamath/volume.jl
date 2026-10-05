@@ -426,7 +426,7 @@ function nc_behre_vol(sp::Int, d::Float32, h::Float32, bark::Float32; topd::Floa
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
     vol2 = 0f0; vol4 = 0f0
     v1 = if h <= 17.3f0
-        0.00272708f0 * dbhib * dbhib * h            # r6vol.f:105 short-tree cylinder (TTH ≤ FC_HT=17.3, ZONE 1)
+        0.00272708f0 * (dbhib * dbhib) * h            # r6vol.f:105 short-tree cylinder (TTH ≤ FC_HT=17.3, ZONE 1)
     else
         v = bm_r6vol3(d, dbtbh, fc, h, 1)
         mtopp = topd * bark                          # TOPD·BARK inside-bark top (Siskiyou TOPD=4.5)

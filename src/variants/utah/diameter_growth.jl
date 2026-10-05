@@ -43,11 +43,11 @@ function ut_cratet_siteconv!(s::StandState)
             p.sp_site_index[sp] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * (50f0^2) -
                 0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si - 0.0000455f0 * (50f0^2) * si
         elseif sp == 4 || sp == 5 || sp == 8 || sp == 9
-            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * si^0.83312f0) *
-                (1f0 - exp(-0.015701f0 * 50f0))^(22.71944f0 * si^(-0.63557f0))
+            p.sp_site_index[sp] = 4.5f0 + (2.75780f0 * fpow(si, 0.83312f0)) *
+                fpow(1f0 - fexp(-0.015701f0 * 50f0), 22.71944f0 * fpow(si, -0.63557f0))
         elseif sp == 10
-            p.sp_site_index[sp] = (3.635794f0 * si^0.916307f0) /
-                (1f0 + exp(6.09478f0 - 0.96483f0 * log(50f0) - 0.277025f0 * log(si)))
+            p.sp_site_index[sp] = (3.635794f0 * fpow(si, 0.916307f0)) /
+                (1f0 + fexp(6.09478f0 - 0.96483f0 * flog(50f0) - 0.277025f0 * flog(si)))
         end
     end
     return s
@@ -67,20 +67,20 @@ function ut_dgcons!(s::StandState)
         xsite = site_sp
         asptem = aspect - 0.7854f0
         if sp == 20
-            temel > 30f0 && (temel = 30f0); xsite = log(xsite); asptem = aspect
+            temel > 30f0 && (temel = 30f0); xsite = flog(xsite); asptem = aspect
         elseif sp == 21
-            xsite = log(xsite); asptem = aspect
+            xsite = flog(xsite); asptem = aspect
         end
         ispfor = UT_MAPLOC[ifor, sp]; (ispfor < 1 || ispfor > 5) && (ispfor = 1)
         ispdsq = UT_MAPDSQ[ifor, sp]; (ispdsq < 1 || ispdsq > 4) && (ispdsq = 1)
         ksic = UT_IDGSIM[isi, sp]; (ksic < 1 || ksic > 5) && (ksic = 1)
         dgcon = UT_DGSIC[ksic, sp] * xsite + UT_DGFOR[ispfor, sp] +
-                (UT_DGSASP[sp] * sin(asptem) + UT_DGCASP[sp] * cos(asptem) + UT_DGSLOP[sp]) * slope +
+                (UT_DGSASP[sp] * fsin(asptem) + UT_DGCASP[sp] * fcos(asptem) + UT_DGSLOP[sp]) * slope +
                 UT_DGSLSQ[sp] * slope * slope + UT_DGEL[sp] * temel + UT_DGEL2[sp] * temel * temel
         c.dg_dsq[sp] = UT_DGDS[ispdsq, sp]
         c.dg_ccf[sp] = UT_DGCCFA[sp]
         c.atten[sp] = (sp == 20 || sp == 21) ? UT_OBSERV[sp] : Float32(UT_IBSERV[isic, sp])
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         # UT bark (ut/bratio.f) for the DBH update: IMAP=2→BARK1 const (a=0,b=BARK1); IMAP=3→BARK1+BARK2/D
         # (a=BARK2,b=BARK1); IMAP=1 zero-coef→0.9002−0.3089/D. bark_ratio(a,b)=b+a/d.
@@ -133,7 +133,7 @@ function dgf!(s::StandState, ::Utah)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
-        ald = log(d)
+        ald = flog(d)
         cr  = Float32(t.crown_pct[i]) * 0.01f0
         pct = t.crown_ratio[i]                       # PCT = BA percentile (FVSjl convention)
         dgccf = c.dg_ccf[sp]
@@ -158,7 +158,7 @@ function dgf!(s::StandState, ::Utah)
             rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
             cor2 = (s.control.dg_cor2_on && s.control.dg_cor2[sp] > 0f0) ? s.control.dg_cor2[sp] : 1f0
-            dds = aspdg + log(cor2) + c.dg_cor[sp]
+            dds = aspdg + flog(cor2) + c.dg_cor[sp]
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp in (11,12,13,14,15,16,24)
@@ -171,7 +171,7 @@ function dgf!(s::StandState, ::Utah)
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 20 || sp == 21
@@ -181,7 +181,7 @@ function dgf!(s::StandState, ::Utah)
             pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
             dds = conspp + UT_DGLD[sp] * ald + UT_DGBAL[sp] * bal +
                   cr * (UT_DGCR[sp] + cr * UT_DGCRSQ[sp]) + c.dg_dsq[sp] * d * d +
-                  UT_DGDBAL[sp] * bal / log(d + 1f0) + UT_DGPCCF[sp] * pccf + UT_DGBA[sp] * ba
+                  UT_DGDBAL[sp] * bal / flog(d + 1f0) + UT_DGPCCF[sp] * pccf + UT_DGBA[sp] * ba
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         else
@@ -198,12 +198,12 @@ function dgf!(s::StandState, ::Utah)
                 bau === nothing && (bau = _cr_badist_bau(t))
                 icls = trunc(Int, d + 1f0); icls > 41 && (icls = 41)
                 bautba = bau[icls] / ba
-                (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * log(batem) + 0.00672f0 * si - 0.00073f0 * bautba) * 1.05f0
+                (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * flog(batem) + 0.00672f0 * si - 0.00073f0 * bautba) * 1.05f0
             end
             sp == 17 && (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + c.dg_cor[sp] + c.dg_const[sp]
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + c.dg_cor[sp] + c.dg_const[sp]
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         end

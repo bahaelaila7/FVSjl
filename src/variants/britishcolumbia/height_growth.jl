@@ -29,8 +29,9 @@ function height_growth!(s::StandState, ::BritishColumbia; scale::Float32 = 1.0f0
         dg = t.diam_growth[i]
         mlt = ctl.htg_cor2[sp] > 0f0 ? ctl.htg_cor2[sp] : 1f0    # LTH%MLT = HCOR2 (htgf.f:1810)
         v3  = bc_v3_htg(sp, ip[sp], hti, d, dg; mlt = mlt)
-        xht = active_multiplier(ctl, :htg, sp, cur_year)         # XHMULT (HTGMULT keyword; MISHGF=1 for BC)
-        t.ht_growth[i] = v3 * scale * xht
+        xht = active_multiplier(ctl, :htg, sp, cur_year)         # XHMULT (HTGMULT keyword)
+        y = scale * xht; y = y * mis_hg_mult(s, i)               # htgf.f:1612-1617 Y=SCALE*XHT; Y=Y*MISHGF(I,ISPC)
+        t.ht_growth[i] = v3 * y                                  # htgf.f:1630 HTG(I)=V3HTG(...)*Y
     end
     return s
 end
@@ -68,8 +69,9 @@ function bc_v2_height_growth!(s::StandState; scale::Float32 = 1.0f0)
         dg = t.diam_growth[i]
         con = htcon[sp] + h2cof*hti*hti + BC_HGLD[sp]*log(d) + BC_HTG_HGLH*log(hti)
         hexp = dg > 0f0 ? exp(con + hdgcof*log(dg)) : 0f0     # DG>0 (ln); DG≤0 ⇒ exp term 0 (ln→-Inf)
-        xht = active_multiplier(ctl, :htg, sp, cur_year)      # XHMULT (MISHGF=1 for BC)
-        t.ht_growth[i] = (hexp + BC_HTG_BIAS) * scale * xht    # Y = SCALE·XHT·MISHGF
+        xht = active_multiplier(ctl, :htg, sp, cur_year)      # XHMULT
+        y = scale * xht; y = y * mis_hg_mult(s, i)            # htgf.f:1612-1617 Y=SCALE*XHT; Y=Y*MISHGF(I,ISPC)
+        t.ht_growth[i] = (hexp + BC_HTG_BIAS) * y             # htgf.f:1622 HTG(I)=(EXP(...)+BIAS)*Y
     end
     return s
 end

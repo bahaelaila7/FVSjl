@@ -338,10 +338,9 @@ by `2·max(0.1, spcalib)` — a more forgiving curve so a naturally-low-viabilit
     (spcalib == -1f0 || spcalib > 0.5f0) && return algslp(xv, _CLM_VS, _CLM_SR)
     x = Float32(spcalib) < 0.1f0 ? 0.1f0 : Float32(spcalib)
     lo = _CLM_VS[1] * x * 2f0; hi = _CLM_VS[2] * x * 2f0     # rescaled viability knots (SR = 0..1)
-    v = Float32(xv)
-    v <= lo && return 0f0
-    v >= hi && return 1f0
-    return (v - lo) / (hi - lo)
+    # clmorts.f:97 ALGSLP(XV,VS*X*2.,SR,2): Y(1)+((Y(2)-Y(1))/(X(2)-X(1)))*(XX-X(1)) = (1/(HI-LO))·(XV-LO), not
+    # (XV-LO)/(HI-LO) (MEASURED FVSbm_g16 12827438010497 climate 2025 ViabMort 0.0319397449 live vs 0.0319396853)
+    return algslp(xv, Float32[lo, hi], _CLM_SR)
 end
 
 """

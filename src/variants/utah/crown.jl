@@ -76,7 +76,7 @@ const UT_MAI_ISPNUM = Int32[101,101,202,15,93,746,108,93,19,122,101,101,101,101,
         cr = ((cr - 1f0)*10f0 + 1f0)/100f0
     else
         abs(cr + fcr) >= 86f0 && (cr = 86f0)
-        cr = 1f0/(1f0 + exp(cr + fcr))
+        cr = 1f0/(1f0 + fexp(cr + fcr))
     end
     cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
     return cr
@@ -156,7 +156,7 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0
         end
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
@@ -201,7 +201,7 @@ end
     if dd >= brk
         return UT_RD1[sp] + dd * UT_RD2[sp] + dd * dd * UT_RD3[sp]
     elseif dd > 0.1f0
-        return (sp == 20 || sp == 21) ? dd * (UT_RD1[sp] + UT_RD2[sp] + UT_RD3[sp]) : UT_RDA[sp] * dd ^ UT_RDB[sp]
+        return (sp == 20 || sp == 21) ? dd * (UT_RD1[sp] + UT_RD2[sp] + UT_RD3[sp]) : UT_RDA[sp] * fpow(dd, UT_RDB[sp])
     else
         return (sp == 20 || sp == 21) ? dd * (UT_RD1[sp] + UT_RD2[sp] + UT_RD3[sp]) : 0.001f0
     end

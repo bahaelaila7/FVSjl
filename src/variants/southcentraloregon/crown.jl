@@ -45,7 +45,7 @@ const SO_DUB_LOGISTIC = Set{Int}([1,2,3,4,5,6,7,8,10,11,12,13,14,16,17,18,24,32]
     while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
     if sp in SO_DUB_LOGISTIC
         abs(cr + fcr) >= 86f0 && (cr = 86f0)
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     else
         cr = ((cr - 1f0) * 10f0 + 1f0) / 100f0
     end
@@ -95,7 +95,7 @@ function crown_ratio_update!(s::StandState, ::SouthCentralOregon; fint::Float32 
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
         x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        crnew = (A + B * fpow((-flog(1f0 - x)), 1f0 / C)) * 10f0
         if !(lstart || icr == 0)                              # crown CHANGE, ±1%/yr limit
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
@@ -173,7 +173,7 @@ const SO_ISPMAP = Int32[
     end
     if sp in SO_CCF_HARDWOOD                            # WC-hardwood set
         D < 1f0 && return D * (SO_CCF_RD1[sp] + SO_CCF_RD2[sp] + SO_CCF_RD3[sp])
-        return SO_CCF_RD1[sp] + SO_CCF_RD2[sp]*D + SO_CCF_RD3[sp]*D*D
+        return SO_CCF_RD1[sp] + SO_CCF_RD2[sp]*D + SO_CCF_RD3[sp]*fpow(D, 2f0)   # so/ccfcal.f:198 RD3*D**2.0 (powf)
     end
     D >= 1f0 && return SO_CCF_RD1[sp] + D*SO_CCF_RD2[sp] + D*D*SO_CCF_RD3[sp]
     D > 0.1f0 && return SO_CCF_RDA[sp] * fpow(D, SO_CCF_RDB[sp])

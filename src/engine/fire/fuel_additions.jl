@@ -65,6 +65,18 @@ end
 # fall TFALL(I,0)=MIN(2,LEAFLF(I)). The SN class rows above clamp these variants to row 6 (foliage 1 yr, branches 1 yr,
 # size 3-5 2/4 yr) — MEASURED FVSie_g16 11855985010690: LP foliage CWD2B(4,0,·) 118.08 in slots 1 AND 2 (TFALL(7,0)=
 # MIN(2,3)=2), jl 236.16 all in slot 1.
+# so/fmcba.f:1033-1099 (SO-FFE initialization at FMCBA): TFALL(I,0:2) = 3/10/15 on the California forests (KODFOR 500-599
+# or 701), 2/5/5 on the Oregon ones; TFALL(I,0)=1 for IC (6), WL (17), the hardwoods 21-31 and 33; TFALL(I,3)=20 for
+# IC/RC/PY (6,18,20), 10 for ES/PP (8,10), else 15; TFALL(4:5)=TFALL(3), TFALL(0)<=LEAFLF, TFALL(2)<=TFALL(3).
+@inline function _fm_tfall_so(coef, sp::Int, sz::Int, kodfor::Int)::Float32
+    ca = (500 <= kodfor < 600) || kodfor == 701
+    t0, t1, t2 = ca ? (3f0, 10f0, 15f0) : (2f0, 5f0, 5f0)
+    (sp == 6 || sp == 17 || 21 <= sp <= 31 || sp == 33) && (t0 = 1f0)
+    t3 = (sp == 6 || sp == 18 || sp == 20) ? 20f0 : (sp == 8 || sp == 10) ? 10f0 : 15f0
+    t0 = min(t0, Float32(coef_col(coef, :leaf_life)[sp]))
+    t2 > t3 && (t2 = t3)
+    return sz == 0 ? t0 : sz == 1 ? t1 : sz == 2 ? t2 : t3
+end
 _fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
 @inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
     t3 = coef_col(coef, :tfall_cls)[sp]
@@ -96,6 +108,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         # holds TFALL(I,3) (10/15/20), which the SN class lookup clamps to row 6 (open for IE/EM/CR/BM/… too).
         tft = _fm_tfall_table(s.variant)
         tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
+             s.variant isa SouthCentralOregon ? _fm_tfall_so(coef, Int(sp), sz, Int(s.plot.user_forest_code)) :
              _fm_tfall(cls, sz, sp)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife
@@ -161,11 +174,11 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
     @inbounds for i in 1:t.n
         for k in 1:5; ocrw[k, i] = 0f0; end                # reset this record's OLDCRW (recomputed below)
         t.tpa[i] > 0f0 || continue
-        oldht = t.ffe_oldht[i]
-        oldht > 0f0 || continue                            # prev-cycle state not set (1st cycle / regen)
+        # OLDHT/OLDCRL from the last FMMAIN's FMOLDC (ffe_fmoldc!): a record established after it carries its slot's
+        # value (0 for a fresh slot ⇒ OLDCRL ≤ 0.001 ⇒ no lift, fmsdit.f:110)
+        oldht = t.fm_oldht[i]; oldcrl = t.fm_oldcrl[i]
         sp = Int(t.species[i])
         oldcr = t.ffe_oldcr[i]
-        oldcrl = oldht * oldcr / 100f0
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
@@ -198,6 +211,28 @@ Sizes 1–5 only (foliage size-0 excluded). Returns the per-size addition to the
 @inline function crown_lift_at_death(t::TreeList, i::Integer, cyclen::Real)::NTuple{6,Float32}
     yrs = Float32(cyclen)
     @inbounds ntuple(sz -> sz == 1 ? 0f0 : yrs * t.ffe_oldcrw[sz - 1, i], 6)
+end
+
+"""
+    ffe_fmoldc!(s; fmicr=nothing) -> StandState
+
+FMOLDC (fmoldc.f, the last step of FMMAIN, fmmain.f:268) over FMMAIN's record list: OLDHT(I)=HT(I) and
+OLDCRL(I)=HT(I)*(FLOAT(FMICR(I))/100.0), FMICR = ICR at FMMAIN (after REGENT's DUBSCR; a SIMFIRE's fire-shortened crown
+when `fmicr` is given). Called at the FMMAIN point (post-TRIPLE, pre-UPDATE), so the records ESTAB books later in the
+cycle keep their slot's values, as in FVS. (OLDCRW = CROWNW is read from `ffe_crownw` by compute_crown_lift!.)
+"""
+function ffe_fmoldc!(s::StandState; fmicr = nothing)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees
+    useicr = fmicr !== nothing && length(fmicr) == t.n
+    @inbounds for i in 1:t.n
+        h = t.height[i]
+        icr = useicr ? Float32(fmicr[i]) : Float32(t.crown_pct[i])
+        t.fm_oldht[i] = h
+        t.fm_oldcrl[i] = h * (icr / 100f0)
+    end
+    return s
 end
 
 """

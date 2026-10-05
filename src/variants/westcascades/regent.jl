@@ -97,20 +97,20 @@ end
 @inline function wc_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
     p2 = WC_HTDBH_P2[ifor, sp]; p3 = WC_HTDBH_P3[ifor, sp]; p4 = WC_HTDBH_P4[ifor, sp]
     if d >= 3.0f0
-        return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        return 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(d, p4))
     else
-        return ((4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+        return ((4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
     end
 end
 
 "wc/htdbh.f MODE=1 (H→D): estimate DBH from height `h` (used by REGENT for redwood, sp 17)."
 @inline function wc_htdbh_dbh(ifor::Int, sp::Int, h::Float32)::Float32
     p2 = WC_HTDBH_P2[ifor, sp]; p3 = WC_HTDBH_P3[ifor, sp]; p4 = WC_HTDBH_P4[ifor, sp]
-    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+    hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
     if h >= hat3
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)   # htdbh.f:315 ALOG(..)*1./P4
     else
-        return (((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0)) + 0.3f0
+        return (((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4)) - 4.51f0)) + 0.3f0
     end
 end
 
@@ -118,7 +118,7 @@ end
 @inline function wc_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap1::Float32, sizcap3::Float32)::Float32
     if sp != 17
         temdbh = dbh > 150f0 ? 150f0 : dbh
-        dgmax = 7.92f0 * exp(-0.03f0 * temdbh)
+        dgmax = 7.92f0 * fexp(-0.03f0 * temdbh)
         ddg > dgmax && (ddg = dgmax)
         ddg < 0f0 && (ddg = 0f0)
     end
@@ -137,21 +137,21 @@ end
     if sp == 17                                             # redwood — Chapman-Richards site curve, DG5=0
         htmax = 2.242202f0 * si
         (htmax - h <= 1.0f0) && return (0.0f0, 0.0f0)
-        age1 = (1.0f0 / -0.010742f0) * log(1.0f0 - (h / 2.242202f0 / si)^(1.0f0 / 0.919076f0))
+        age1 = (1.0f0 / -0.010742f0) * flog(1.0f0 - fpow((h / 2.242202f0 / si), 1.0f0 / 0.919076f0))
         age2 = age1 + 5.0f0
-        h1 = 2.242202f0 * si * (1.0f0 - exp(-0.010742f0 * age1))^0.919076f0
-        h2 = 2.242202f0 * si * (1.0f0 - exp(-0.010742f0 * age2))^0.919076f0
+        h1 = 2.242202f0 * si * fpow((1.0f0 - fexp(-0.010742f0 * age1)), 0.919076f0)
+        h2 = 2.242202f0 * si * fpow((1.0f0 - fexp(-0.010742f0 * age2)), 0.919076f0)
         return (h2 - h1, 0.0f0)
     end
     relht = 0.0f0
     avht > 0.0f0 && (relht = h / avht)
     relht > 1.5f0 && (relht = 1.5f0)
     sp == 16 && (si = 5.21486f0 + 0.66486f0 * si)          # WC Douglas-fir: Curtis→King SI
-    ptbal2 = log(ptbal + 2.71f0); ptba2 = log(ptba + 2.71f0); relht2 = sqrt(relht)
-    boost = ptba < 100.0f0 ? 1.0f0 / (1.0f0 + exp(-3.1f0 + 0.18f0 * ptba)) : 0.0f0
+    ptbal2 = flog(ptbal + 2.71f0); ptba2 = flog(ptba + 2.71f0); relht2 = sqrt(relht)
+    boost = ptba < 100.0f0 ? 1.0f0 / (1.0f0 + fexp(-3.1f0 + 0.18f0 * ptba)) : 0.0f0
     hbh = h >= 4.5f0 ? 4.5f0 : h
     a = WC_SMH_ALPHA[sp]; beta = WC_SMH_BETA[sp]
-    dgs = WC_SMH_DMAX[sp] / (1.0f0 + exp(a[1] + a[2]*ptba + a[3]*ptba2 + a[4]*ptbal + a[5]*ptbal2 +
+    dgs = WC_SMH_DMAX[sp] / (1.0f0 + fexp(a[1] + a[2]*ptba + a[3]*ptba2 + a[4]*ptbal + a[5]*ptbal2 +
               a[6]*boost + a[7]*cr + a[8]*relht + a[9]*relht2 + a[10]*si))
     hg5 = dgs / beta
     local dg5::Float32
@@ -238,7 +238,7 @@ end
             xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
             dgsm = (dk2 - dkk) * bark * xrdgro; dgsm < 0.0f0 && (dgsm = 0.0f0)   # regent.f:405
             dds = dgsm * (2.0f0 * bark * d + dgsm) * scale2
-            dgsm = sqrt((d * bark)^2 + dds) - bark * d
+            dgsm = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
             dgk = dgsm * (1.0f0 - xdwt)                            # + DG(K)·XDWT added by the caller (slot's own DG)
             return (htg, -2.0f0, dgk, true)                         # -2 ⇒ caller adds XDWT·DG(K)
         end
@@ -258,7 +258,7 @@ end
             dgmx = WC_RG_DGMAX[sp] * scale
             dgk > dgmx && (dgk = dgmx)
             dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
+            dgk = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
         end
     end
     (dbhk + dgk) < WC_RG_DIAM[sp] && (dgk = WC_RG_DIAM[sp] - dbhk)   # regent.f:398-400 (DBH(K)+DG(K)<DIAM)
@@ -299,7 +299,7 @@ function _wcpn_small_tree_growth!(s::StandState, stash, v; fint::Float32 = 10.0f
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # regent.f:170 XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # regent.f:171 XRDGRO=XRDMLT(ISPC) (REGDMULT)
         rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # regent.f:657-659
-        con = rhcon * exp(c.htg_cor_small[sp])              # regent.f:172 CON = RHCON(ISPC)·EXP(HCOR(ISPC))
+        con = rhcon * fexp(c.htg_cor_small[sp])              # regent.f:172 CON = RHCON(ISPC)·EXP(HCOR(ISPC))
         # Growth-cycle WK4 is CLGMULT's (dgdriv.f:139; 1.0 without CLIMATE). HTIMLT reaches WK4 only through
         # estab.f:652 for the ESGENT pass (wc_esgent!) — it must NOT follow a planted record into later cycles.
         wk4 = cw === nothing ? 1f0 : cw[i]
@@ -404,7 +404,7 @@ function wc_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atavh::F
             ptba = (1 <= ip <= length(ptba_pre)) ? ptba_pre[ip] : 0f0
             si = p.sp_site_index[sp]
             rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
-            con = rhcon * exp(c.htg_cor_small[sp])
+            con = rhcon * fexp(c.htg_cor_small[sp])
             hg1, dg1 = _rg_smhgdg(v, sp, h, d, Float32(icr0) * 0.01f0, ptba, ptba, si, avht)
             hg2, dg2 = _rg_smhgdg(v, sp, h + hg1, d + dg1, Float32(icr0) * 0.01f0, ptba, ptba, si, avht)
             htg, dbhd, dgk, dgset = _wc_regent_slot(v, s, sp, h, d, hg1 + hg2, dg1 + dg2, 0f0, con, wk4,
@@ -436,3 +436,61 @@ end
 # regenerate!(::WestCascades) — WC has no cyc0 regeneration hook on the pure-growth path (ESTAB is
 # a separate keyword-gated driver). Provide a no-op so the abstract dispatch resolves.
 regenerate!(s::StandState, ::WestCascades; kwargs...) = s
+
+
+"""
+    wcpn_regent_hcor_init!(s, isct, ind1, saved_dbh, avh)
+
+wc|pn/regent.f label 40 (the two builds' calibration sections are identical) — the LSTART small-tree HEIGHT
+calibration that cratet.f:616 runs (REGENT(.FALSE.,1)) after the second DGDRIV. Per species (IND1 order, LHTCAL
+default .TRUE.): DBH<5 and backdated H=HT−HTG (IHTG<2) ≥0.01; EDH = (two 5-yr SMHGDG calls)·RHCON floored at 0.1;
+records with a measured HTG≥0.001 enter TERM=HTG·REGYR/FINTH. CORNEW = mean TERM / mean EDH when N≥NCALHT(5),
+≤0 ⇒ 1E−4, outside [0.0821, 12.1825] ⇒ 1; HCOR = ln(CORNEW) → htg_cor_init. SMHGDG MODE 1 reads ICR(I), PTBALT(I),
+PTBAA(ITRE(I)) of the cratet.f:171 DENSE and AVHT=(5/FINT)·AVH+((FINT−5)/FINT)·ATAVH with ATAVH=0 (grinit.f:232; only
+grincr.f:318 sets it). Neither WC nor PN had this port ⇒ CON=1 for every small tree (MEASURED FVSpn_g16
+720634155290487 cycle 1: WH CON = exp(HCOR) = 0.503 live, jl 1 ⇒ HtG 9.18 / 18.25).
+"""
+function wcpn_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                                saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    v = s.variant
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                  # regent.f:484 IF(IFINTH.EQ.0) GOTO 95
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = _WC_RG_REGYR / finth                             # regent.f:485 SCALE3 = REGYR/FINTH
+    fint = s.control.growth_fint > 0f0 ? s.control.growth_fint : 10f0
+    avht = (5f0 / fint) * avh + ((fint - 5f0) / fint) * 0f0   # smhgdg.f:250 MODE 1, ATAVH = 0 at LSTART
+    ptbaa = c.cratet_ptbaa; ptbal = c.cratet_live_ptbal
+    dens = s.density
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
+        si = p.sp_site_index[sp]
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            d = saved_dbh[i]; h = t.height[i]
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            cr = Float32(t.crown_pct[i]) * 0.01f0
+            ip = Int(t.plot_id[i])
+            pbal = i <= length(ptbal) ? ptbal[i] : dens.point_bal[i]
+            pba = (1 <= ip <= length(ptbaa)) ? ptbaa[ip] : ((1 <= ip <= length(dens.point_ba)) ? dens.point_ba[ip] : 0f0)
+            hg1, dg1 = _rg_smhgdg(v, sp, h, d, cr, pbal, pba, si, avht)
+            hg2, _ = _rg_smhgdg(v, sp, h + hg1, d + dg1, cr, pbal, pba, si, avht)
+            edh = (hg1 + hg2) * rhcon
+            edh < 0.1f0 && (edh = 0.1f0)
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                    # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && continue  # CORNEW=1 ⇒ HCOR=0
+        c.htg_cor_init[sp] = flog(cornew)
+    end
+    return s
+end

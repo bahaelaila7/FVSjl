@@ -18,14 +18,14 @@ Returns ASPDG = ln(DDS-equivalent). `cr` = raw crown pct (÷10 → ASPCR inside)
 @inline function ci_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)
     rel = rmsqd > 0f0 ? d / rmsqd : 0f0
     aspcr = cr / 10f0
-    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    pot = (0.4755f0 - 3.8336f-6 * fpow(d, 4.1488f0)) + (4.510f-2 * aspcr * fpow(d, 0.67266f0))
     pot <= 0f0 && (pot = 0.01f0)
-    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
-    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    fofr = 1.07528f0 * (1f0 - fexp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * fpow(rmsqd + 1f0, 0.73355f0)
     baact = ba >= 310f0 ? 305f0 : ba
-    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    valmod = 1f0 - fexp(-fofr * gofad * fpow((310f0 - baact) / 310f0, 0.5f0))
     predgr = pot * valmod * (0.48630f0 + 0.01258f0 * si)
-    return log(2f0 * d * bark * predgr + predgr * predgr)
+    return flog(2f0 * d * bark * predgr + predgr * predgr)
 end
 
 function ci_dgcons!(s::StandState)
@@ -46,14 +46,14 @@ function ci_dgcons!(s::StandState)
         temel = sp == 15 ? min(elev, 30f0) : elev
         dgcon = CI_DGHAB[maphab, sp] + CI_DGFOR[ispfor, sp] +
                 CI_DGEL[sp] * temel + CI_DGEL2[sp] * temel * temel +
-                (CI_DGSASP[sp] * sin(tmpasp) + CI_DGCASP[sp] * cos(tmpasp) + CI_DGSLOP[sp]) * slope +
+                (CI_DGSASP[sp] * fsin(tmpasp) + CI_DGCASP[sp] * fcos(tmpasp) + CI_DGSLOP[sp]) * slope +
                 CI_DGSLSQ[sp] * slope * slope
         if sp == 11 || sp == 12 || sp == 16
             dgcon += 0.001766f0 * xsite
         elseif sp == 13
             dgcon += 0.006460f0 * xsite
         elseif sp == 15
-            dgcon += 0.227307f0 * log(xsite)
+            dgcon += 0.227307f0 * flog(xsite)
         end
         # ATTEN (calibration observation count)
         if sp == 11 || sp == 12 || sp == 16
@@ -65,7 +65,7 @@ function ci_dgcons!(s::StandState)
         else
             c.atten[sp] = Float32(CI_OBSERV[sp])
         end
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         # linear-bark cache is not exact for CI's POWER model; DIAGR species use ci_bratio directly in dgf!.
         c.bark_a[sp] = 0f0; c.bark_b[sp] = 0.9f0
@@ -80,7 +80,7 @@ function dgf!(s::StandState, ::CentralIdaho)
     wk2 = view(s.scratch.wk, 2, :)
     relden = p.relative_density
     ba = p.basal_area; ba100 = ba / 100f0
-    logba = ba > 0f0 ? log(ba) : 0f0
+    logba = ba > 0f0 ? flog(ba) : 0f0
     rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration (aspen DGFASP)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
@@ -90,7 +90,7 @@ function dgf!(s::StandState, ::CentralIdaho)
         ptba = (1 <= pt_i <= length(dens.point_ba)) ? dens.point_ba[pt_i] : 0f0
         conspp = c.dg_const[sp] + c.dg_cor[sp] + 0.01f0 * CI_DGCCFA[sp] * relden
         si = p.sp_site_index[sp]
-        ald = log(d)
+        ald = flog(d)
         balBA = (sp == 11 || sp == 12 || sp == 16) ? ba100 : ba
         bal = (1f0 - t.crown_ratio[i] / 100f0) * balBA
         pbal = (1f0 - t.crown_ratio[i] / 100f0) * ptba
@@ -98,33 +98,33 @@ function dgf!(s::StandState, ::CentralIdaho)
             cr = Float32(t.crown_pct[i]); bark = ci_bratio(sd, sp, d)
             aspdg = ci_dgfasp(d, cr, bark, si, rmsqd, ba)
             cor2 = (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) ? ctl.dg_cor2[sp] : 1f0
-            dds = aspdg + log(cor2) + c.dg_cor[sp]
+            dds = aspdg + flog(cor2) + c.dg_cor[sp]
         elseif sp == 14
             bark = ci_bratio(sd, sp, d)
             dpp = d < 1f0 ? 1f0 : d; batem = ba < 1f0 ? 1f0 : ba
             df = 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
             (df - dpp) > 1f0 && (df = dpp + 1f0); df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
         elseif sp == 15
             cr = Float32(t.crown_pct[i]) * 0.01f0
             dds = conspp + CI_DGLD[sp] * ald + CI_DGBAL[sp] * bal +
                   cr * (CI_DGCR[sp] + cr * CI_DGCRSQ[sp]) + CI_DGDS[sp] * d * d +
-                  CI_DGBA[sp] * bal / log(d + 1f0)
+                  CI_DGBA[sp] * bal / flog(d + 1f0) - 0.000981f0 * ba     # ci/dgf.f:461-463 (…−0.000981*BA)
         elseif sp == 17 || sp == 19
             bark = ci_bratio(sd, sp, d)
             dpp = d < 1f0 ? 1f0 : d
             df = 0.24506f0 + 1.01291f0 * dpp - 0.00084659f0 * ba + 0.00631f0 * si
             df > 36f0 && (df = 36f0); df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr))
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr))
             dds < -9.21f0 && (dds = -9.21f0)
             dds = dds + c.dg_cor[sp] + c.dg_const[sp]
         else                                                 # DEFAULT: main conifers (1-10,16,18)
             cr = Float32(t.crown_pct[i]) * 0.01f0
             dds = conspp + CI_DGLD[sp] * ald + CI_DGLBA[sp] * logba +
-                  CI_DGDS[sp] * d * d + CI_DGDBAL[sp] * pbal / log(d + 1f0) +
-                  CI_DGBA[sp] * bal / log(d + 1f0) + CI_DGPCCF[sp] * pccf +
+                  CI_DGDS[sp] * d * d + CI_DGDBAL[sp] * pbal / flog(d + 1f0) +
+                  CI_DGBA[sp] * bal / flog(d + 1f0) + CI_DGPCCF[sp] * pccf +
                   cr * (CI_DGCR[sp] + cr * CI_DGCRSQ[sp]) + CI_DGBAL[sp] * bal
         end
         dds < -9.21f0 && (dds = -9.21f0)

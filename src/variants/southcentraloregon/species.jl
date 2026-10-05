@@ -36,7 +36,7 @@ so/bratio.f: three-path SELECT CASE, clamped to [0.80, 0.99].
         else
             et = Int(sd[:so_bark_eqtype][sp])
             b1 = sd[:so_bark1][sp]; b2 = sd[:so_bark2][sp]
-            br = et == 1 ? (b1 * D^b2) / D :
+            br = et == 1 ? (b1 * fpow(D, b2)) / D :
                  et == 2 ? (b1 + b2 * D) / D : sd[:so_brdat][sp]
         end
     else                                                   # constant BRDAT

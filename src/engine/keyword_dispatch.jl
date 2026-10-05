@@ -2449,7 +2449,12 @@ function _defulmod!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
 end
 
 function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
-    s.fire === nothing && (s.fire = FireState())
+    if s.fire === nothing
+        s.fire = FireState()
+        # so/fmvinit.f:240-241 PBSOFT = PBSMAL = -1 ("unset"): so/fmcba.f resolves them per forest at FMCBA
+        # (California 1.0/0.9, Oregon 0/0) unless SNAGPBN set them — see _so_snag_params!.
+        s.variant isa SouthCentralOregon && (s.fire.params.pb_soft = -1f0; s.fire.params.pb_smal = -1f0)
+    end
     fs = s.fire
     fs.active = true
     # FMVINIT: LS + NE snags LOSE HEIGHT over time (SN/CS keep HTX=0 — no loss). LS = per-snag-class HTX
@@ -2479,6 +2484,13 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # ie/kt/ci/tt/ut fmvinit.f HTX(I,1:4) (west_ffe.jl tables): these snags lose height every year too.
             @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
+            end
+        elseif s.variant isa Klamath
+            # nc/fmvinit.f:278-283: HTX(I,1)=HTX(I,3)=1.0, HTX(I,2)=HTX(I,4)=0.0 for every species (HTR1 0.03406,
+            # HTR2 0.01, HTXSFT 10): snags lose height at HTR1 until 50% of HTD, then stop (FMSNGHT CASE DEFAULT).
+            # MEASURED FVSnc_g16 23660512010900 simfire FVS_SnagDet 2011: the 2006 fire snags 44.11→37.09 ft live; jl held them.
+            @inbounds for sp in 1:nspecies(s.variant)
+                fs.params.snag_htx[Int32(sp)] = (1f0, 0f0, 1f0, 0f0)
             end
         elseif r6_ffe_code(s.variant) !== :none && !(s.variant isa SouthCentralOregon)
             # bm/ec/pn/op/wc fmvinit.f: HTX(I,1:4) = 1.0 for every species ⇒ FMSNGHT takes the FMR6HTLS random

@@ -58,7 +58,7 @@ function snapshot_case(v, cn, r)
     txt, db, crashed, err = run_case(v, cn, r; snapshot_hook = hook)
     out = Pair{String,String}[]
     crashed && return [("crash" => _h(err))]
-    push!(out, "sum" => _h(join(sum_rows(txt), '\n')))
+    push!(out, "sum" => _h(join(sum_rows(txt; metric = metric_sum(v)), '\n')))
     if !isempty(db)
         for t in db_tables(db)
             hdr, rows = db_table_rows(db, t)

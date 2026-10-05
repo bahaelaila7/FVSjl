@@ -55,7 +55,7 @@ function cr_gemdg(imodty::Int, is::Int, bautba::Float32, spba::Float32, si::Floa
              0.14044f0*bgttba + 0.15738f0*l2(dpp)
     elseif is == 4                              # grand fir (CI variant eqn)
         dds = -0.057982f0 + 0.977362f0 + 0.005045f0*60.0f0 - 0.000093f0*60.0f0*60.0f0 +
-              0.009335f0*sin(aspect)*slope - 0.004469f0*cos(aspect)*slope - 0.033374f0*slope -
+              0.009335f0*fsin(aspect)*slope - 0.004469f0*fcos(aspect)*slope - 0.033374f0*slope -
               0.418343f0*slope*slope + 1.286963f0*flog(dpp) - 0.217923f0*flog(bat) +
               1.175105f0*cr + 0.219013f0*cr*cr - 0.0004408f0*dpp*dpp -
               0.000578f0*pbal/flog(dpp+1.0f0) - 0.000512f0*pccfi
@@ -65,26 +65,26 @@ function cr_gemdg(imodty::Int, is::Int, bautba::Float32, spba::Float32, si::Floa
              0.09197f0*bgttba - 0.0011355f0*dpp*dpp
     elseif is == 6                              # mountain hemlock (NI variant eqn)
         dds = -1.52111f0 + 0.08518f0*60.0f0 - 0.000943f0*60.0f0*60.0f0 +
-              0.13363f0*sin(aspect)*slope + 0.17935f0*cos(aspect)*slope + 0.07628f0*slope +
+              0.13363f0*fsin(aspect)*slope + 0.17935f0*fcos(aspect)*slope + 0.07628f0*slope +
               0.89778f0*flog(dpp) - 0.10744f0*0.01f0*relden + 1.28403f0*cr - 0.000484f0*dpp*dpp -
               0.66110f0*bal100/flog(dpp+1.0f0)
         idds = 1
     elseif is == 7                              # western redcedar (NI variant eqn)
         dds = 1.61452f0 - 0.00175f0*60.0f0 - 0.000067f0*60.0f0*60.0f0 +
-              0.05534f0*sin(aspect)*slope - 0.06625f0*cos(aspect)*slope + 0.11931f0*slope +
+              0.05534f0*fsin(aspect)*slope - 0.06625f0*fcos(aspect)*slope + 0.11931f0*slope +
               0.58705f0*flog(dpp) - 0.15356f0*0.01f0*relden + 0.74596f0*bal100 + 1.29360f0*cr -
               2.28375f0*bal100/flog(dpp+1.0f0)
         idds = 1
     elseif is == 8                              # western larch (NI variant eqn)
         dds = 0.51291f0 + 0.20004f0 + 0.03730f0*60.0f0 - 0.000433f0*60.0f0*60.0f0 +
-              0.03430f0*sin(aspect)*slope - 0.21337f0*cos(aspect)*slope + 0.33523f0*slope -
+              0.03430f0*fsin(aspect)*slope - 0.21337f0*fcos(aspect)*slope + 0.33523f0*slope -
               0.70216f0*slope*slope - 0.05438f0*0.01f0*relden + 0.54140f0*flog(dpp) +
               0.43637f0*bal100 + 1.03478f0*cr + 0.07509f0*cr*cr - 0.000310f0*dpp*dpp -
               2.03256f0*bal100/flog(dpp+1.0f0)
         idds = 1
     elseif is == 10                             # limber pine (UT variant eqn)
-        con1 = sin(aspect-0.7854f0)*slope*(-0.01752f0)
-        con2 = cos(aspect-0.7854f0)*slope*(-0.609774f0)
+        con1 = fsin(aspect-0.7854f0)*slope*(-0.01752f0)
+        con2 = fcos(aspect-0.7854f0)*slope*(-0.609774f0)
         dds = 1.911884f0 + 0.001766f0*si + con1 + con2 - 2.05706f0*slope +
               2.113263f0*slope*slope - 0.199592f0*0.01f0*relden + 0.213947f0*flog(dpp) -
               0.358634f0*bal100 + 1.523464f0*cr - 0.0006538f0*dpp*dpp
@@ -146,8 +146,8 @@ function cr_gemdg(imodty::Int, is::Int, bautba::Float32, spba::Float32, si::Floa
         end
     elseif is == 14                             # whitebark pine (EM variant eqn)
         xslope = slope / 10.0f0
-        dds = 0.01545f0 + 1.5675f0 - 0.00565f0*80.0f0 - 0.01606f0*sin(aspect)*xslope +
-              0.00270f0*cos(aspect)*xslope - 0.20011f0*xslope + 0.80110f0*flog(dpp) +
+        dds = 0.01545f0 + 1.5675f0 - 0.00565f0*80.0f0 - 0.01606f0*fsin(aspect)*xslope +
+              0.00270f0*fcos(aspect)*xslope - 0.20011f0*xslope + 0.80110f0*flog(dpp) +
               0.00064f0*bal + 1.02878f0*cr - 0.45448f0*cr*cr - 0.00328f0*bal/flog(dpp+1.0f0) -
               0.25717f0*flog(relden)
         idds = 1
@@ -358,7 +358,7 @@ function cr_dgcons!(s::StandState)
         c.dg_const[sp] = 0f0
         c.atten[sp] = get(_CR_ATTEN, sp, 1000f0)
         c.bark_a[sp] = 0f0; c.bark_b[sp] = 0f0
-        ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (c.dg_const[sp] += log(ctl.dg_cor2[sp]))
+        ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0 && (c.dg_const[sp] += flog(ctl.dg_cor2[sp]))
     end
     return s
 end

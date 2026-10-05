@@ -42,7 +42,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = ci_bratio(s.coef.species, sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr   # ci/morts.f:258-259 P*(D*D+CIOBDS)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
@@ -51,14 +51,14 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
     aved = dsum / wprob
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 6) && (ifor = 1)
     mifor = CI_MORT_MAPFOR[ifor]                              # ci/morts.f:721 MIFOR=MAPFOR(IFOR)
     poten1 = CI_MORT_POT[CI_MORT_IPDG[itype, mifor]]
     poten2 = CI_MORT_POT[CI_MORT_IPDG2[itype, mifor]]
-    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
     # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (the DG measurement period: GROWTH card / FIA DG_MEASURE, else
@@ -85,7 +85,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
               0.554421f0 / dd + CI_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rlim = (11 <= sp <= 17 || sp == 19) ? 70f0 : 88.5f0          # ci/morts.f:331-338 CASE(11:17,19) vs DEFAULT
         rip > rlim && (rip = rlim); rip < -rlim && (rip = -rlim)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))
         rip = rip * (ip == 1 ? rein1 : rein2)
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
@@ -94,7 +94,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         # ci/morts.f species multiplier: 60% of NI rate for WB/PY/AS/MC/LM/CW/OH, 20% for WJ (juniper)
         smult = (sp == 11 || sp == 12 || sp == 13 || sp == 15 || sp == 16 || sp == 17 || sp == 19) ? 0.6f0 :
                 (sp == 14 ? 0.2f0 : 1.0f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * smult
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
