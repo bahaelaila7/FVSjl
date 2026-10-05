@@ -46,6 +46,13 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test sd[:htdbh_p3][35] == 3.93933286f0 && sd[:htdbh_p4][35] == -0.25998833f0
         @test sd[:crown_bcr2][1] == 0.0095531519f0 && sd[:crown_bcr4][8] == -0.00032406501f0   # cs/crown.f BCR2/BCR4 DATA
     end
+    @testset "CS 1229648290290487 none — cs/dgf.f bark conversion on DBH(I) in calibration; vols.f:146 NORMHT/100." begin
+        ms = _case("CS", "1229648290290487", "none")
+        # calibration DGF(WK3): DIAGRO/BARK/DDS read the CURRENT DBH(I) ⇒ RESLOG/COR/OLDRN exact (were 1-30 ULP) and the
+        # broken-top PO's volume height H=NORMHT/100.0 (was ·0.01 ⇒ Ht2TDCF 2031 1 ULP)
+        @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])
+        @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: RC 2051 Ht2TDBF 1 ULP (r9clark board height)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
