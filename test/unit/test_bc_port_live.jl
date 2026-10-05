@@ -222,4 +222,13 @@ end
     end
 end
 
+# metric/strp/esuckr.f + vstrp/essprt.f for BC: blkdat ISPSPE = 11,12,13,15 (EP/AT/AC/OH), ESASID aspen = 12, and
+# NSPREC/ESSPRT/SPRTHT at their CASE DEFAULT (2 records, PREM×1, 0.5+0.5·IAG); the sprout DBH inverts BC's becset
+# HT1/HT2. jl had no BC sprouters, so fire-killed aspen (fmkill.f:80 ESTUMP) never suckered. MEASURED FVSbc_dbfix
+# YSM029-246 simfire 2038 TPH 548 live / 19 jl.
+@testset "BC stump/root sprouting (metric/strp/esuckr.f, vstrp/essprt.f, bc blkdat ISPSPE)" begin
+    c = _case("YSM029-246", "simfire")
+    @test !any(m -> m.file in ("sum", "FVS_Summary_Metric"), c.ms)
+end
+
 end # module
