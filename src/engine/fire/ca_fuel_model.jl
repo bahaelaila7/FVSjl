@@ -123,7 +123,8 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # FM10/FM11 sharing + FM12/FM13 natural fuels (ca/fmcfmd.f:362-404, identical to NC/WS)
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

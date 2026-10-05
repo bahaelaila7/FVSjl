@@ -897,8 +897,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
-        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMTRET)
-        apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET)
+        apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET, fmmain.f:158)
+        fmtret_slchng!(s)                                  # FMTRET's SMALL/LARGE + SLCHNG (fmtret.f:372-400)
+        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — FMFMOV, after FMTRET (fmmain.f:162)
         # FVS runs the cut-phase FFE activities (FMSALV/FMTRET, in cuts.f) BEFORE FMMAIN's FMBURN, so the
         # salvaged snags' released CWD2B crown debris (and any fuel moved) is part of the down-wood the fire
         # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between

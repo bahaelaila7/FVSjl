@@ -264,7 +264,8 @@ function ec_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     end
 
     # post-activity model 11 (AFWT/LATFUEL) — deferred (no activity ⇒ AFWT=0); models 10/12/13 natural fuels.
-    eqwt[10] = 1f0
+    afwt = _ffe_afwt!(s, eqwt)                             # ec/fmcfmd.f:807-818 post-activity window
+    eqwt[10] = 1f0 - afwt
     eqwt[12] = 1f0
     eqwt[13] = 1f0
 

@@ -1250,6 +1250,11 @@ mutable struct FireState
     user_sch::Float32                  # FLAMEADJ SCH = FPRMS(4) (fmin.f:403-406, fmburn.f:340-344; −1 when field 5 blank)
     flameadj_on::Bool                  # a FLAMEADJ was read ⇒ IFTYPE=1, CFTMP='USER_DEF' (fmburn.f:348-349)
     salv_year::Int32                   # the year FMSALV last ran (it runs once per CUTS, cuts.f:386, ahead of the thin)
+    o_large::Float32                   # OLARGE/OSMALL (fminit.f:79-80 = 0): FMTRET's SMALL/LARGE of the previous FMMAIN
+    o_small::Float32                   #   (fmtret.f:372-373), the base of SLCHNG
+    slchng::Float32                    # SLCHNG (fmtret.f:395-400): % change of SMALL+LARGE since the previous FMTRET
+    latfuel::Bool                      # LATFUEL (fminit.f:82): the ≤5-yr post-activity fuel-model window is open (fmcfmd.f)
+    fmtret_year::Int32                 # the year FMTRET last computed SLCHNG (once per FMMAIN)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1260,7 +1265,8 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), -1f0, -1f0, false, Int32(-1))
+                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), -1f0, -1f0, false, Int32(-1),
+                        0f0, 0f0, 0f0, false, Int32(-1))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

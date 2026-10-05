@@ -149,10 +149,11 @@ function ws_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     end
 
-    # FM10/FM11 sharing (ws/fmcfmd.f:383-404) — the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL) is not yet
-    # wired (as in NC); with no recent activity AFWT=0 ⇒ FM10=1. FM11 present via the CWHR table bypasses this.
+    # FM10/FM11 sharing (ws/fmcfmd.f:383-404): the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL); FM11 present via
+    # the CWHR table bypasses it.
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

@@ -278,12 +278,10 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     end
 
-    # FM10 / FM11 sharing (nc/fmcfmd.f:339-357). The 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL)
-    # needs HARVYR + the small+large fuel-jump tracking, not yet in jl's FFE state — so FM11 stays 0
-    # and FM10 = 1 (the AFWT=0 branch), which is exact once a burn is ≥5 yr after the last entry (nct01's
-    # 2003 fire is 10 yr after the 1993 THINDBH ⇒ AFWT=0). TODO: wire HARVYR/SLCHNG for the <5-yr window.
+    # FM10 / FM11 sharing (nc/fmcfmd.f:339-357): the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL).
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

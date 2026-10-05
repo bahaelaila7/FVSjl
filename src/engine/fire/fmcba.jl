@@ -448,6 +448,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             fs.params.dkr = ((500 <= _kf < 600) || _kf == 701) ? so_california_dkr() : so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
+        fmtret_slchng!(s)          # the first FMTRET follows FMCBA's initial dead-fuel load (fmmain.f:139-158)
     end
     return s
 end

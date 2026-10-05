@@ -221,6 +221,49 @@ function _small_large_fuel(fs)
 end
 
 """
+    fmtret_slchng!(s)
+
+The end of FMTRET (fmtret.f:372-400, once per FMMAIN, after the pile burns and before FMFMOV's FUELMOVE): OLARGE/OSMALL =
+the previous SMALL/LARGE, the new SMALL/LARGE (`_small_large_fuel`), and SLCHNG = 100·(LARGE+SMALL−X)/X with
+X = OLARGE+OSMALL (0 when X ≤ 1E-6) — the ≥SLCRIT (10%) fuel jump that opens fmcfmd.f's post-activity window. The very
+first FMTRET follows the initial dead-fuel load (FMCBA); a cycle whose FMCBA has not loaded it yet is taken at the load
+(`fmcba!` calls this once `fuels_init` is set).
+"""
+function fmtret_slchng!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active || !fs.fuels_init) && return s
+    yr = Int32(current_cycle_year(s))
+    fs.fmtret_year == yr && return s
+    fs.fmtret_year = yr
+    sm, lg = _small_large_fuel(fs)
+    x = fs.o_large + fs.o_small
+    fs.slchng = x > 1f-6 ? 100f0 * (lg + sm - x) / x : 0f0
+    fs.o_large = lg; fs.o_small = sm
+    return s
+end
+
+"""
+    _ffe_afwt!(s, eqwt; m14=false) -> AFWT
+
+fmcfmd.f's post-activity block (every western build, e.g. so/fmcfmd.f:633-640, ws/fmcfmd.f:391-397): AFWT =
+MAX(0, 1 − (IYR−HARVYR)/5); when SLCHNG ≥ SLCRIT (10) or LATFUEL: LATFUEL = .TRUE., EQWT(11) (and EQWT(14) where the build
+has it) = AFWT, and LATFUEL closes once AFWT ≤ 0; a closed window returns AFWT = 0. The caller sets EQWT(10) (and, by
+build, EQWT(12)) = 1 − AFWT.
+"""
+function _ffe_afwt!(s::StandState, eqwt::AbstractVector{Float32}; m14::Bool = false)::Float32
+    fs = s.fire
+    afwt = max(0f0, 1f0 - Float32(Int(current_cycle_year(s)) - Int(fs.harvyr)) / 5f0)
+    if fs.slchng >= 10f0 || fs.latfuel
+        fs.latfuel = true
+        eqwt[11] = afwt
+        m14 && (eqwt[14] = afwt)
+        afwt <= 0f0 && (fs.latfuel = false)
+    end
+    fs.latfuel || (afwt = 0f0)
+    return afwt
+end
+
+"""
     select_fuel_models(s, mois) -> Vector{Tuple{Int,Float32}}
 
 The SN weighted standard fuel models (FMCFMD + FMDYN) for the current stand: candidate
@@ -326,7 +369,9 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # AK (ak/fmcfmd.f): model 8 + the natural fuels {10,12,13} (EQWT(10)=1−AFWT; the ≤5-yr post-activity model 11
     # AFWT/SLCHNG/LATFUEL is the shared deferred path — no activity ⇒ AFWT=0), resolved by FMDYN over ICLSS=13.
     if s.variant isa SoutheastAlaska
-        eqwt[8] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        eqwt[8] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                                 # ak/fmcfmd.f:136-142
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0; eqwt[13] = 1f0
         return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
     end
 
@@ -1008,8 +1053,9 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # agrees), and BD snag CURRENT-broken-height (FMSVOL to HTIH/HTIS vs jl total fallvol — model-inert on
     # validated stands). SFCT/WSCT residuals near the model-8-vs-10 boundary track the F3 down-wood-fuel
     # magnitude (jl cwd pools), not these rules.
-    # Always-added natural-fuel candidates (fmcfmd.f:1045-1046; AFWT=0 with no recent harvest).
-    eqwt[10] = 1f0
+    # Post-activity window (cr/fmcfmd.f:1033-1039) and the always-added natural-fuel candidates (:1045-1046).
+    afwt = _ffe_afwt!(s, eqwt)
+    eqwt[10] = 1f0 - afwt
     eqwt[12] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
@@ -1039,8 +1085,9 @@ function ie_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     else                                                         # all other habitats: model 8
         eqwt[8] = 1f0
     end
-    # Always-added natural-fuel candidates (ie/fmcfmd.f:95-98; AFWT=0, no recent harvest ⇒ EQWT 10/12=1-0).
-    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+    # Post-activity window (ie/fmcfmd.f:170-177, EQWT(11)/(14)) and the natural-fuel candidates 10/12 = 1−AFWT, 13.
+    afwt = _ffe_afwt!(s, eqwt; m14 = true)
+    eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0 - afwt; eqwt[13] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
@@ -1059,7 +1106,8 @@ function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     wt2 = _fm_algslp2(percov, 30f0, 50f0, 0f0, 1f0)   # ALGSLP(PERCOV,[30,50],[0,1]) = (1/20)·(PERCOV−30) (algslp.f), not /20
     eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)
     eqwt[m2] += wt2                                              # WT1(2) → M2 (high cover)
-    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0             # natural fuels ASSIGNED (overwrite M1/M2 if 10/12/13)
+    afwt = _ffe_afwt!(s, eqwt; m14 = true)                       # em/fmcfmd.f post-activity window (EQWT(11)/(14))
+    eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0 - afwt; eqwt[13] = 1f0  # natural fuels ASSIGNED (overwrite M1/M2 if 10/12/13)
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
@@ -1129,7 +1177,8 @@ function ci_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     else                                                  # ICT 7:11
         eqwt[8] = 1f0
     end
-    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0        # natural fuels (AFWT=0 natural path)
+    afwt = _ffe_afwt!(s, eqwt; m14 = true)                 # ci/fmcfmd.f:334-341 post-activity window (EQWT(11)/(14))
+    eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0 - afwt; eqwt[13] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
@@ -1358,8 +1407,9 @@ function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         wt2[4] > 0f0 && (eqwt[9] += wt1b * wt2[4])
     end
 
-    # Natural-fuel candidates always assigned (bm/fmcfmd.f:318-320; AFWT=0 => 10/12=1, 13=1).
-    eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+    # Post-activity window (EQWT(11)/(14)) and the natural-fuel candidates (bm/fmcfmd.f:318-320): 10/12 = 1−AFWT, 13 = 1.
+    afwt = _ffe_afwt!(s, eqwt; m14 = true)
+    eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0 - afwt; eqwt[13] = 1f0
     return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
 end
 
