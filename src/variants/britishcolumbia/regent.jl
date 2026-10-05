@@ -120,6 +120,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     # so the 3 copies get 3 DIFFERENT random heights AND the RNG stream advances 3×/tree like live FVS. Without
     # it BC drew 1 ZZRAN/tree (27 vs live's 81 on all_BC_essf) ⇒ copies identical + every downstream draw desynced.
     nrec = stash !== nothing ? 3 : 1
+    scale_rg = htg_period(s.variant) / fint                 # regent.f:1142 SCALE=YR/FINT
     order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
     @inbounds for i in order
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -160,10 +161,14 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                     dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
                     dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])   # 1600 DIAM floor on DK
                     dk += hk * 0.001f0                             # 1601
-                    # DGK=(DK−D1)·XRDGRO, then DG=BARK·DGK — the inside-bark DDS round-trip (regent.f:1622-1625)
-                    # reduces to ×BARK for SCALE=YR/FINT=1 (NOT identity: DG=sqrt((D·B)²+DGK·B·(2·B·D+DGK·B))−B·D = B·DGK).
-                    dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
-                    dg *= bc_bratio(sp)
+                    # regent.f:1615-1625: DGK=(DK−D1)·XRDGRO ≥0; BARK=BRATIO; DG=DGK·BARK; DDS=DG·(2·BARK·D+DG)·SCALE;
+                    # DG=SQRT((D·BARK)**2.0+DDS)−BARK·D with SCALE=YR/FINT (regent.f:1142): the small-tree DG on the YR=10
+                    # basis that GRADD rescales (gradd.f:79-90), like the other _gradd_rescale variants.
+                    dgk = (dk - d1) * xrdgro; dgk < 0f0 && (dgk = 0f0)
+                    bark = bc_bratio(sp)
+                    dg = dgk * bark
+                    dds = dg * (2f0 * bark * d + dg) * scale_rg
+                    dg = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d
                 end
                 dbhk < 0f0 && (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
             end

@@ -252,4 +252,21 @@ end
     @test big == 0
 end
 
+# BC under TIMEINT 5 (tiered BC stands, live FVSbc DB relink): canada/bc's DGDRIV/HTGF/REGENT/MORTS read DG on the YR=10
+# basis (htgf.f:1572 SCALE=FINT/YR, regent.f:1142 SCALE=YR/FINT with DDS=DG*(2*BARK*D+DG)*SCALE :1622-1625, morts.f:663
+# G=(DG/BARK)*(FINT/10)) and gradd.f:79-90 rescales DG to FINT after GRINCR. Before: 1 of 6 rows exact on each key.
+@testset "BC TIMEINT 5: DG on the YR=10 basis, GRADD rescale, REGENT SCALE (gradd.f:79-90, canada/bc regent.f:1142)" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "timeint5")
+    for (cn, nfull) in (("YSM029-267", 6), ("YSM029-271", 3), ("Fir.20", 2))
+        dir = mktempdir()
+        cp(joinpath(@__DIR__, "..", "fixtures", "tiered", "bc", "stands.db"), joinpath(dir, "stands.db"))
+        cp(joinpath(fx, "bc_$(cn)_t5.key"), joinpath(dir, "t.key"))
+        txt = cd(() -> FVSjl.run_keyfile("t.key"; variant = FVSjl.BritishColumbia()), dir)
+        jl = [split(l) for l in split(txt, '\n') if occursin(r"^\d{4} ", l)]
+        lv = [split(l) for l in readlines(joinpath(fx, "bc_$(cn)_t5_live.rows"))]
+        @test length(jl) == length(lv)
+        @test count(i -> jl[i] == lv[i], eachindex(lv)) >= nfull
+    end
+end
+
 end # module

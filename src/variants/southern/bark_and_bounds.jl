@@ -127,7 +127,7 @@ _gradd_rescale(v::AbstractVariant) = v isa Ontario || v isa BlueMountains || v i
                                     v isa EastCascades || v isa PacificNorthwest || v isa WestCascades || v isa Teton ||
                                     v isa Utah || v isa InlandEmpire || v isa Kootenai || v isa CentralRockies ||
                                     v isa WestSierra || v isa CentralCalifornia || v isa SouthCentralOregon ||
-                                    v isa SoutheastAlaska
+                                    v isa SoutheastAlaska || v isa BritishColumbia
 
 """
     gradd_dg_scale!(s, fint)
