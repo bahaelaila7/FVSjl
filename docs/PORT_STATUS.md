@@ -1,11 +1,12 @@
 # FVSjl — port & validation status
 
-_Last updated 2026-09-21. `master` tracks the validated state (active work on the
-`bm-regime-close` branch off master). Validation doctrine: **[DOCTRINE.md](DOCTRINE.md)**.
-Gates: the **tiered integration suite** (`test/integration/test_tiered.jl`, see
-[test/harness/tiered/README.md](../test/harness/tiered/README.md)) and
-`test/integration/test_multicycle.jl` = **350 pass / 0 broken** (TPA and cuft are now compared
-at print precision, like BA/SDI/QMD, so a scenario that prints what live prints passes)._
+> **Current numbers live in [CERTIFICATION_STATUS.md](CERTIFICATION_STATUS.md) and the plan in [ROADMAP.md](ROADMAP.md)
+> (updated 2026-10-05, master `f0272193`).** As of that date all 24 variants are in the tiered suite: SN, IE, EM, BM
+> and TT are at 0 tiered cells; the other western variants are 99.8–99.9998% exact; CS/LS/NE/ON/OC/OP were added on
+> 2026-10-05 and are being worked down. This file keeps the longer narrative (FIA full-population sweeps,
+> extensions, PPE) and is not updated per merge.
+
+_Narrative last revised 2026-09-21. Validation doctrine: **[DOCTRINE.md](DOCTRINE.md)**._
 
 ## How this is gated (2026-09-20)
 
@@ -53,15 +54,9 @@ behind one — so corners are periodically re-audited against the live oracle.)
 Each has growth + volume, and most have FFE/ECON/mistletoe/Climate/establishment,
 validated bit-exact-or-cornered vs the live oracle per subsystem.
 
-**Per-variant certification (the honest state, 2026-09-21).** "Ported" is not "certified":
-
-| Variant | State |
-|---|---|
-| **BM** | At the oracle floor: **398/400** stratified FIA stands bit-exact with no management (the other two differ by 1 in a single printed cell), **zero one-directional bias in all 10 regimes**. ~20 faithful fixes in the 2026-09-19/20 campaign. |
-| **IE** | **RE-OPENED.** The 2026-09-19 "closed, no caveat" claim was retracted — 7 items were real bugs (see `IE_VARIANT_PORT_AUDIT.md` → RETRACTION). All fixed; re-certification requires the tiered suite to pass on the master tip. |
-| **SN** | Tiered baseline 92.0%; residuals tracked as OPEN, not yet dug. |
-| **EM** | Tiered baseline 72.7% — one-directional volume bias in every regime. Its "COMPLETE-HONEST" claim is false; EM campaign owns it. |
-| others | Ported and subsystem-validated, but not yet swept through the tiered suite. |
+**Per-variant certification:** see [CERTIFICATION_STATUS.md](CERTIFICATION_STATUS.md). The 2026-09-21 table that
+stood here (BM at the oracle floor, IE re-opened, SN 92%, EM 73%, the rest not yet tiered) is superseded: on
+2026-10-05 SN, IE, EM, BM and TT reached 0 tiered cells.
 
 ## FIA behaviour-compat validation
 
