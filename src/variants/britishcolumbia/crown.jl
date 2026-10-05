@@ -103,7 +103,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             pb = t.old_crown_pct[i]
             (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
-            balb = (1f0 - pb/100f0) * oba
+            balb = (1f0 - pb/100f0) * p.old_ba               # crown.f:472 BAL uses OLDBA itself, not the RDM1<100 OBA fallback
             # V3 backdated CR reuses XCRCON (crown.f:486) — DCRCON is the V2-only branch; density term not re-backdated.
             expdcr = bc_crnmd(xcrcon, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], db, hb, balb)
         end

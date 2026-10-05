@@ -165,4 +165,13 @@ end
     end
 end
 
+# canada/bc/crown.f:471-472 V3 backdated BAL = (1-OLDPCT/100)*OLDBA uses OLDBA itself; the RDM1<100 fallback OBA=BA
+# (crown.f:344-348) only feeds the V2 DCRCON/X1. jl backdated with OBA. MEASURED FVSbc_instr YSM029-271 cycle-1 CROWN dump
+# (RELDM1<100): backdated BAL 41ED1F47 live / 3x larger jl ⇒ EXPDCR off on 66/66 records ⇒ 2028 PctCr 1 low on 29.
+@testset "BC backdated crown BAL uses OLDBA (canada/bc/crown.f:472)" begin
+    c = _case("YSM029-271", "none")
+    @test !any(m -> m.year == "2028" && m.col == "PctCr", c.ms)
+    @test length(c.ms) < 200                      # 13,304 cells before
+end
+
 end # module
