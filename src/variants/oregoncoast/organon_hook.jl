@@ -146,7 +146,10 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     # Weibull crown-change model must run for the IORG=0 trees; the valid-ORGANON (IORG=1) crowns are
     # already set above from CR2. op_iorg is the shared ORGANON per-tree flag (also used by Olympic).
     c = s.calib
-    length(c.op_iorg) != t.n && resize!(c.op_iorg, t.n)
+    # IORG is a SLOT-indexed COMMON array (oc/dgdriv.f:231-256 sets IORG(1..ITRN) each call and never clears the
+    # rest): slots beyond this call's ITRN keep their last value, which CROWN reads for trees ESTAB adds after the
+    # call (oc/crown.f:281 IF(LORGANON .AND. IORG(I).EQ.1) with CR2(I)=0 ⇒ ICR=1). Grow-only stash mirrors that.
+    length(c.op_iorg) < t.n && resize!(c.op_iorg, t.n)
     @inbounds for i in 1:t.n; c.op_iorg[i] = buf.iorg[i]; end
     return g
 end
