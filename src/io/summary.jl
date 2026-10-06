@@ -440,7 +440,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
-        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active
+        # FMPOCR(ICALL=2) is an FMMAIN call: every cycle START, never the terminal projection row (live FVS_CanProfile has no row for it)
+        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active && !last
             seam || compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end

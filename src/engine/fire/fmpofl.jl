@@ -55,7 +55,7 @@ function _pofl_fmcfir(s::StandState, models, mois::AbstractMatrix{Float32}, f, s
     cbd <= 0f0 && return (; cftype = "SURFACE", crburn = 0f0, oinit = -1f0, oact = -1f0, rfinal = f.sfrate)
     init1 = 0f0
     if actcbh != -1
-        init1 = (460f0 + 25.9f0 * _POFL_FOLMC) * 0.001333f0                          # fmcfir.f:94
+        init1 = (460f0 + 25.9f0 * s.fire.user.folmc) * 0.001333f0                    # fmcfir.f:94 (FOLMC: CANCALC field 5)
         init1 = fpow(init1 * Float32(actcbh), 3f0 / 2f0)
     end
     # FM10 at FWIND = SWIND·0.4 (fmcfir.f:122-143: FMFINT(…,2,HPA2,1) ⇒ FMGFMV(IYR,10), no interpolation)

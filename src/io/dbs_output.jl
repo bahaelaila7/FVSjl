@@ -982,12 +982,14 @@ function write_dbs_canprofile!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_CANPROFILE_CREATE)
         ins = "INSERT INTO FVS_CanProfile VALUES (" * join(fill("?", 7), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        conv = 0.45359237 / (4046.856422 * 0.3048)
+        # dbsfmcanpr.f:127-131: CRFILLKG = CRFILL(I)*0.45359237/(4046.856422*0.3048) and HTM = I*0.3048 are REAL*4 expressions (REAL
+        # literals, REAL CRFILL, INTEGER I) widened to the DOUBLE PRECISION destinations — not a double-precision computation.
+        kgden = 4046.856422f0 * 0.3048f0
         for (yr, crfill) in rows
             for i in eachindex(crfill)
                 crfill[i] > 0f0 || continue
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                    i * 0.3048, Float64(crfill[i]) * conv, Float64(i), Float64(crfill[i])))
+                    Float64(Float32(i) * 0.3048f0), Float64(crfill[i] * 0.45359237f0 / kgden), Float64(i), Float64(crfill[i])))
             end
         end
     finally
