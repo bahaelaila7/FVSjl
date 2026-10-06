@@ -1761,6 +1761,10 @@ function kw_thinqfa!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     tarqfa = pr[7] ? Float32(v[7]) : 0f0
     iset   = something(tryparse(Int, strip(read_raw_line!(kr))), 0)   # 2nd record: units switch
     qfatar = iset <= 0 ? 0f0 : (iset <= 1 ? 1f0 : 2f0)
+    # metric/base initre.f THINQFA (ON/BC): the target's unit follows the 2nd record — BA ×M2pHAtoFT2pACR, TPA /HAtoACR, SDI /ACRtoHA
+    if _metric_variant(s.variant) && pr[7]
+        tarqfa = iset <= 0 ? tarqfa * _ON_M2pHA : (iset <= 1 ? tarqfa / _ON_HAtoACR : tarqfa / 0.4046945f0)
+    end
     push!(s.control.schedule,
           ScheduledActivity(Int32(yr), Int32(17), (valmin, valmax, spec, qfac, diacw, tarqfa), qfatar))
     return
