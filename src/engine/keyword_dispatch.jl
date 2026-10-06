@@ -1723,7 +1723,8 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         t.height[i] = toph
                         continue
                     end
-                    brk = s.variant isa Kootenai ? KT_BKRAT[sp] : bark_ratio(bark_a, bark_b, sp, t.dbh[i])   # kt/bratio.f BKRAT
+                    brk = s.variant isa Kootenai ? KT_BKRAT[sp] :
+                          s.variant isa Ontario ? on_bratio(sp, t.dbh[i], h) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])   # kt/bratio.f BKRAT; canada/on/bratio.f BRATIO(IS,D,H)
                     d = t.dbh[i] * brk
                     if !(h < 25f0 || d < 6f0)              # tall enough to maybe break permanently
                         af = t.cuft_vol[i] / (0.00545415f0 * d * d * h)
