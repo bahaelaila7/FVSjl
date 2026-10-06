@@ -706,6 +706,8 @@ end
 # limits with CMtoIN, THINSDI/THINPT leave the SDI residual unconverted.
 const _ON_CMtoIN = 0.3937f0; const _ON_HAtoACR = 2.471f0; const _ON_MtoFT = 3.28084f0; const _ON_CMtoFT = 0.0328084f0
 const _ON_M2pHA = 4.3560773f0; const _ON_M3pHA = 14.291564f0; const _ON_KGtoLB = 2.2046226f0
+_on_tha(x) = x > 0f0 ? (x * 1.102311f0) / _ON_HAtoACR : x     # TMtoTI/HAtoACR (tonnes/ha -> tons/ac)
+_on_tha0(x) = x >= 0f0 ? (x * 1.102311f0) / _ON_HAtoACR : x
 _on_cm(x) = x * _ON_CMtoIN; _on_ha(x) = x / _ON_HAtoACR; _on_m(x) = x * _ON_MtoFT; _on_m2(x) = x * _ON_M2pHA
 const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "DESIGN"   => [1 => (x -> x < 0f0 ? x / _ON_HAtoACR : x * _ON_M2pHA), 2 => _on_ha, 3 => _on_cm],
@@ -749,6 +751,21 @@ const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "DATASCRN" => [1 => _on_cm, 2 => _on_cm],
     "TREESZCP" => [2 => _on_cm, 5 => _on_m],
     "MORTMSB"  => [1 => _on_cm, 4 => _on_cm, 5 => _on_cm],
+    # canada/fire (metric fmin.f) FFE keywords. TMtoTI/HAtoACR evaluated left to right in REAL*4 (fmin.f:1120, 1608-1641, 2530),
+    # applied only to the loads a card actually carries (>0 / >=0 per the option's own test).
+    "FUELINIT" => [i => _on_tha for i in 1:12],
+    "FUELSOFT" => [i => _on_tha for i in 1:9],
+    "FUELMOVE" => [4 => _on_tha0, 6 => _on_tha0, 7 => _on_tha0],
+    "MORTCLAS" => [i => _on_cm for i in 1:7],                                   # fmin.f:1476 LOWDBH = ARRAY*CMtoIN
+    "SNAGCLAS" => [i => _on_cm for i in 1:6],                                   # fmin.f:713  SNPRCL = ARRAY*CMtoIN
+    "SNAGINIT" => [2 => (x -> x > 0f0 ? x * _ON_CMtoIN : x), 3 => (x -> x > 0f0 ? x * _ON_MtoFT : x),
+                   4 => (x -> x > 0f0 ? x * _ON_MtoFT : x), 6 => (x -> x > 0f0 ? x / _ON_HAtoACR : x)],   # fmin.f:1165-1168
+    "SNAGPBN"  => [4 => _on_cm, 5 => _on_m],                                    # fmin.f:1255-1256
+    "POTFWIND" => [1 => (x -> x * 0.6214f0), 2 => (x -> x * 0.6214f0)],         # fmin.f:1673-1674 KMtoMI
+    "POTFTEMP" => [1 => (x -> x * 1.8f0 + 32f0), 2 => (x -> x * 1.8f0 + 32f0)], # fmin.f:1686-1687 CtoF1/CtoF2
+    "FIRECALC" => [4 => (x -> max(0f0, x) / 0.3048f0), 5 => (x -> max(0f0, x) / 0.3048f0), 6 => (x -> max(0f0, x) / 0.3048f0),
+                   7 => (x -> max(0f0, x) * 2.2046226f0 / 35.314455f0), 8 => (x -> max(0f0, x) * 2.2046226f0 / 35.314455f0),
+                   9 => (x -> max(0f0, x) * 0.9478171f0 / 2.2046226f0)],        # fmin.f:2373-2378
 )
 function _on_metric_decode!(rec::KeywordRecord)
     conv = get(_ON_KW_METRIC, strip(rec.name), nothing)
@@ -2653,6 +2670,7 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
+        s.variant isa Ontario && _on_metric_decode!(r)     # canada metric fmin.f: tonnes/ha, cm, m, km/h, degC fields -> imperial in place
         isempty(k) && continue
         if k == "END"
             break
