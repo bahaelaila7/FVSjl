@@ -186,20 +186,21 @@ RW(17) uses the redwood log-site form. `ifor` is the FVS forest index (1..6).
 @inline function op_dgcon(ispc::Int, ifor::Int, elev::Float32, slope::Float32,
                           aspect::Float32, sitear::Float32)
     if ispc == 17                                            # REDWOOD
-        return -3.502444f0 + 0.415435f0*log(sitear)
+        return -3.502444f0 + 0.415435f0*flog(sitear)
     end
     jspc = OP_DG_MAPSPC[ispc]
     (ifor < 1 || ifor > 6) && (ifor = 1)
     ispfor = OP_DG_MAPLOC[jspc, ifor]
-    sasp = (OP_DGSASP[jspc]*sin(aspect) + OP_DGCASP[jspc]*cos(aspect) + OP_DGSLOP[jspc])*slope +
+    # op/dgf.f DGCONS: REAL*4 SIN/COS/ALOG/** are glibc sinf/cosf/logf/powf (doctrine §4)
+    sasp = (OP_DGSASP[jspc]*fsin(aspect) + OP_DGCASP[jspc]*fcos(aspect) + OP_DGSLOP[jspc])*slope +
            OP_DGSLSQ[jspc]*slope*slope
     xsite = sitear
     jspc == 10 && (xsite = xsite*3.281f0)
-    jspc == 19 && (xsite = -37.60812f0*log(1f0 - (xsite/114.24569f0)^0.4444f0))
+    jspc == 19 && (xsite = -37.60812f0*flog(1f0 - fpow(xsite/114.24569f0, 0.4444f0)))
     temel = elev
     (jspc == 14 && temel > 30f0) && (temel = 30f0)
     return OP_DGFOR[jspc, ispfor] + OP_DGEL[jspc]*temel + OP_DGEL2[jspc]*temel*temel +
-           OP_DGSITE[jspc]*log(xsite) + sasp
+           OP_DGSITE[jspc]*flog(xsite) + sasp
 end
 
 """
@@ -213,12 +214,17 @@ RA(JSPC=13) and RW(ISPC=17) use their own forms (op_dgf_dds_ra / handled in dgf!
 @inline function op_dgf_dds(ispc::Int, conspp::Float32, dgdsq::Float32, d::Float32,
                             cr::Float32, bal::Float32, pccf::Float32, relht::Float32, ba::Float32)
     jspc = OP_DG_MAPSPC[ispc]
-    dds = conspp + OP_DGLD[jspc]*log(d) + cr*(OP_DGCR[jspc] + cr*OP_DGCRSQ[jspc]) +
-          dgdsq*d*d + OP_DGDBAL[jspc]*bal/log(d + 1f0)
-    dds = dds + OP_DGPCCF[jspc]*pccf + OP_DGHAH[jspc]*relht + OP_DGLBA[jspc]*log(ba) +
+    dds = conspp + OP_DGLD[jspc]*flog(d) + cr*(OP_DGCR[jspc] + cr*OP_DGCRSQ[jspc]) +
+          dgdsq*d*d + OP_DGDBAL[jspc]*bal/flog(d + 1f0)
+    dds = dds + OP_DGPCCF[jspc]*pccf + OP_DGHAH[jspc]*relht + OP_DGLBA[jspc]*flog(ba) +
           OP_DGBAL[jspc]*bal + OP_DGBA[jspc]*ba
-    tdds = exp(dds)
-    dds = log(tdds/2f0)
+    return op_dgf_finish(dds)
+end
+
+"op/dgf.f:487-491 (label 5): the 10→5-yr rescale TDDS=EXP(DDS); DDS=ALOG(TDDS/2.0), floored at −9.21 (expf/logf)."
+@inline function op_dgf_finish(dds::Float32)
+    tdds = fexp(dds)
+    dds = flog(tdds/2f0)
     dds < -9.21f0 && (dds = -9.21f0)
     return dds
 end
@@ -272,15 +278,29 @@ function dgf!(s::StandState, ::Olympic)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         ispc = Int(t.species[i])
-        # op/dgdriv.f IORG gate — ORGANON-grown trees get their DDS from the NWO engine, skip here.
-        (ispc in OP_ORGANON_VALID && t.height[i] > 4.5f0 && d >= 0.1f0) && continue
+        # op/dgf.f evaluates EVERY record (op/dgdriv.f:144 CALL DGF(DBH) before the ORGANON sequence; the LSTART
+        # calibration's CALL DGF(WK3) too). diameter_growth!(::Olympic) then overwrites WK2 for the valid ORGANON
+        # records ORGANON actually grew (IORG=1, :432-441). Skipping them here left WK2 stale: every WH GST had
+        # EDDS=EXP(0)=1 in the calibration ⇒ CSNXX=0 ⇒ COR NaN (FIA 374608587489998), and a no-big-6 stand's
+        # ORGANON-species records grew from a stale WK2.
+        cor = c.dg_cor[ispc]
+        if OP_DG_MAPSPC[ispc] == 13
+            # op/dgf.f:398-410 RED ALDER (JSPC 13): DIAGR = CONST−0.166496·D+0.004618·D² (CONST=3.250531−0.003029·BA),
+            # linear to 0 from D=18 to 28, ≥0.1; DDS=ALOG(DIAGR·(2·D·BARK+DIAGR))+ALOG(COR2)+COR with BARK=BRATIO(22,D)
+            # — DGCON is not used — then the shared label-5 halving. COR2=1 (no READCORD) ⇒ ALOG(COR2)=0.
+            bark = op_bratio(22, d)
+            cnst = 3.250531f0 - 0.003029f0*ba
+            diagr = d <= 18f0 ? cnst - 0.166496f0*d + 0.004618f0*d*d : cnst - (cnst/10f0)*(d - 18f0)
+            diagr < 0.1f0 && (diagr = 0.1f0)
+            wk2[i] = op_dgf_finish(flog(diagr*(2f0*d*bark + diagr)) + flog(1f0) + cor)
+            continue
+        end
         pt_i = Int(t.plot_id[i])
         pccf = (1 <= pt_i <= length(dens.point_ccf)) ? dens.point_ccf[pt_i] : 0f0
         cr = Float32(t.crown_pct[i]) * 0.01f0
         pctfrac = 1f0 - t.crown_ratio[i] / 100f0              # 1 − PCT/100
         bal = pctfrac * ba
         relht = avh > 0f0 ? min(t.height[i]/avh, 1.5f0) : 0f0
-        cor = c.dg_cor[ispc]
         conspp = ispc == 17 ? c.dg_const[ispc] : c.dg_const[ispc] + cor
         dgdsq = op_dg_dgdsq(ispc, ifor)
         wk2[i] = op_dgf_dds(ispc, conspp, dgdsq, d, cr, bal, pccf, relht, ba)

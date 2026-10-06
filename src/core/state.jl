@@ -695,6 +695,16 @@ mutable struct Calibration
     op_cr2::Vector{Float32}
     op_mortexp::Vector{Float32}
     op_org_ran::Bool                 # true ⇒ ORGANON EXECUTE ran this cycle (SMORMT>0 ⇒ MORTEXP-for-all in mortality!)
+    organon_stor::Vector{Float32}    # /ORGANON/ STOR(1:6) carried across cycles (execute2.f:147-152 load, :442-447 store):
+                                     # NO, RD0, A1, A2, A1MAX, PA1MAX — zeroed at {oc,op}/grinit.f:422-427
+    organon_thin::Vector{Float32}    # ORGANON thinning state carried across cycles (/ORGANON/ YST(1:5)=[1:5], BART(1:5)=[6:10], BABT=[11],
+                                     # grincr.f:283 OLDBA (pre-CUTS stand BA)=[12], last cycle managed by dgdriv.f:304-327=[13], cycle OLDBA latched=[14])
+    organon_msdi::Vector{Float32}    # RVARS(3:5) = the ORGANON max-SDI inputs MSDI_1/2/3, loaded ONCE by {oc,op}/sitset.f
+                                     # (`IF(RVARS(k).EQ.0.)`) from SDIDEF BEFORE cratet's SDICHK can raise SDIDEF; empty ⇒ unset
+    oc_ht0::Vector{Int32}            # OC: each record's START-of-cycle HT bits / ICR for the FFE pass (FMMAIN reads PRE-growth dims):
+    oc_cr0::Vector{Int32}            #     [ht0 as Float32 bits via reinterpret, crown_pct at cycle start]
+    oc_dbh0::Vector{Float32}         # OC: each record's START-of-cycle DBH (organon_apply_growth! grows DBH inline in the
+                                     # DG driver; GRADD's MISTOE/MISMRT reads the pre-UPDATE DBH)
     # FVS_CalibStats (dgdriv.f, DBSCALIB): the LARGE-tree DG-calibration sample stats, captured during the DGSCOR
     # calibration for the CALBSTDB DBS report. cal_ntree = NUMCAL (N calibration trees), cal_stdrat = STDRAT =
     # SQRT(SVAR/SIGMAR²), cal_wci = WC (the Bayes weight-to-input). ScaleFactor=exp(dg_cor), ReadCorMult=exp(dg_cor/WC).
@@ -760,6 +770,11 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # dg_dsq, dg_ccf (EM), sm_const (BM)
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
+    zeros(Float32, 6),                                               # organon_stor (ORGANON STOR)
+    zeros(Float32, 14),                                              # organon_thin (YST/BART/BABT/OLDBA/last cycle)
+    Float32[],                                                       # organon_msdi (RVARS 3-5)
+    Int32[], Int32[],                                                # oc_ht0 (HT bits), oc_cr0 (ICR) at cycle start
+    Float32[],                                                       # oc_dbh0 (OC start-of-cycle DBH)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
     zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
     Float32[], Float32[],                                            # dub_wk2, dub_wk3 (BM DO 220 dub stash)
@@ -841,6 +856,10 @@ mutable struct Scratch
     # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
     ind1_buf::Vector{Int32}
     sdi_baxsp::Vector{Float32}
+    # ON VOLS (canada/on/vols.f:127-133): each record's start-of-cycle DBH, written by the UPDATE loop and read by the
+    # compute_volumes_on! that immediately follows it — a top-killed record's VOLS diameter is D + DG/BRATIO(D, NORMHT),
+    # not the DBH UPDATE grew with BRATIO(D, HT). 0 = no update this call (LSTART, or any other VOLS call).
+    vol_dstart::Vector{Float32}
     # NE /TWIGCOM/ EBAU(50): the BAL-by-DBH-class array BADIST fills inside DGF (ne/dgf.f:109, its only caller) and
     # that BALMOD reads until the next DGF — so the end-of-cycle REGENT(LESTB) sees THIS cycle's DGF basis.
     ne_ebau::Vector{Float32}
@@ -849,7 +868,7 @@ Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros
                     zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
                     zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,50))
+                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,mt), zeros(Float32,50))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.

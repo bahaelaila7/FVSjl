@@ -20,7 +20,12 @@ _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho ||
                    v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
                    v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska ||
                    v isa SouthCentralOregon || v isa Klamath || v isa BlueMountains ||
-                   v isa WestSierra || v isa CentralCalifornia || v isa BritishColumbia
+                   v isa WestSierra || v isa CentralCalifornia || v isa BritishColumbia ||
+                   v isa Ontario   # fire/base/fmsvol.f:146-153: VARACD 'ON' is not in the CS/LS/NE/SN MCF branch
+
+# fmvinit.f LVWEST ("western variant: merch volume is the commercially useful one", fmcrbout.f:127 LMERCH=LVWEST): the
+# western layer sets it, fire/ls/fmvinit.f:33 (linked by ON) clears it ⇒ ON's Aboveground_Merch_Live stem is MAX(X,TCF).
+_ffe_lvwest(v) = !(v isa Ontario)
 
 """
 FMSVOL's tiny-tree cone floor X = 0.005454154·H (VOL2HT = MAX(X,TCF), fmsvol.f:146-151) — absent in BC: canada/fire/bc/
@@ -64,6 +69,13 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     if v isa BritishColumbia && d > 0f0 && h > 0f0 && 1 <= sp <= length(s.species.vol_eq)
         vn, vm = bc_fmsvol(s, sp, d, h, -1f0)
         return (vn, vm, bc_bratio(sp), true)
+    end
+    if v isa Ontario
+        # fire/base/fmsvol.f METHC=8 (canada/on/grinit.f:149) ⇒ OCFVOL (canada/on/varvol.f:300-366): D<DBHMIN ⇒ the
+        # 0.0001 sentinel, else ZAKVOL/HONER (volont.f); VMAX=VN, CTKFLG = VN>0. BARK = BRATIO(JS,D,H) (fmsvol.f:105).
+        h <= 0f0 && return (0f0, 0f0, 1f0, false)
+        vn, vm = on_ocfvol(s, sp, d, h)
+        return (vn, vm, on_bratio(sp, d, h), vn > 0f0)
     end
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0, 1f0, false)
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
@@ -270,7 +282,7 @@ function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
     # un-broken one (HTRUNC then truncates HTDEAD to 0.01 ft, and TCF·VOLTK/VOLT rounds).
     if (htcur < htd || always) && tcf > 0f0 && trim
         # CFTOPK reads the species' STMP/TOPD (WC/PN BLM forests TOPD 5); the other layer variants keep 1 / 4.5.
-        stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest) ?
+        stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Ontario) ?
                      (s.control.sp_stump_ht[sp], s.control.sp_top_diam[sp]) : (1f0, 4.5f0)
         tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, bark, unsafe_trunc(Int, htcur * 100f0), stmp, topd)
     end

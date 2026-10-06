@@ -29,6 +29,7 @@ end
 
 "op/sitset.f:325-327 RVARS(3/4/5) = SDIDEF(16=DF), SDIDEF(3=GF), SDIDEF(19=WH) (MSDI_1/2/3)."
 @inline function _op_organon_msdi(s::StandState)
+    length(s.calib.organon_msdi) == 3 && return s.calib.organon_msdi[1], s.calib.organon_msdi[2], s.calib.organon_msdi[3]
     sd = s.plot.sp_sdi_def
     m1 = length(sd) >= 16 ? sd[16] : 0f0
     m2 = length(sd) >= 3  ? sd[3]  : 0f0
@@ -40,7 +41,7 @@ end
 @inline function op_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap::AbstractMatrix)::Float32
     if sp != 17
         temdbh = dbh > 150f0 ? 150f0 : dbh
-        dgmax = 7.92f0 * exp(-0.03f0 * temdbh)
+        dgmax = 7.92f0 * fexp(-0.03f0 * temdbh)          # op/dgbnd.f EXP = expf
         ddg > dgmax && (ddg = dgmax)
         ddg < 0f0 && (ddg = 0f0)
     end
@@ -92,7 +93,7 @@ function op_organon_prepare!(s::StandState)
     bhage = stage - 6                                       # BREAST HEIGHT AGE (cratet.f:249)
     si_1, si_2 = _op_organon_site(s)                        # RAW SITEAR(16)/(19); PREPARE's own DF↔WH conv handles ≤0
     npts = max(1, Int(round(pival)))
-    res = op_prepare_nwo(species, dbh1, ht1or, cr1, expan1, n, npts, stage, bhage, si_1, si_2)
+    res = op_prepare_nwo(species, dbh1, ht1or, cr1, expan1, n, npts, stage, bhage, si_1, si_2; radgro = radgro)
     # --- write ORGANON-dubbed HT/CR back into the valid-ORGANON records that were MISSING them
     #     (op/cratet.f:338-354: only IORG=1 trees reloaded) ---
     @inbounds for i in 1:n
@@ -104,15 +105,22 @@ function op_organon_prepare!(s::StandState)
     return nothing
 end
 
-# op/dgdriv.f:494-513: `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the attenuation, so a species with no records this
-# cycle keeps its previous COR (the shared driver's skip, 08184f5c; the same line in every variant's dgdriv.f).
-function _op_cor_attenuate!(s::StandState, cormlt::Float32)
+# {oc,op}/dgdriv.f:494-513 (identical in both ORGANON variants): `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the
+# attenuation, so a species with no records this cycle keeps its previous COR/HCOR. For LDGCAL species (all, by default)
+# COR=WCI+CORMLT·WCI and HCOR=WCI+CORMLT·DIFH (DIFH=HCOR_init−WCI, set at ICYC=1), CORMLT=EXP(-0.02773·SFINT) (expf).
+# SFINT=IY(ICYC+1)−IY(1) is the END-of-period clock; DGF already baked COR into WK2 before this runs, so the DG of
+# cycle N reads the COR attenuated at the end of cycle N−1 (`elapsed`), while the HCOR REGENT reads later in the same
+# cycle is the one just attenuated (`elapsed+sfint`) — the shared western driver's two clocks.
+function _organon_cor_attenuate!(s::StandState, elapsed::Float32, sfint::Float32)
     c = s.calib
+    cormlt = fexp(-0.02773f0 * elapsed)
+    cormlt_h = fexp(-0.02773f0 * (elapsed + sfint))
     species_sort!(s)
     isct = s.control.sp_count_tab
     @inbounds for sp in 1:MAXSP
         (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+        c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
     end
     return s
 end
@@ -132,8 +140,7 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     # COR attenuation toward the calibration goal (dgdriv.f:508-513); dgf! reads c.dg_cor. Elapsed-time
     # clock from the IY schedule (cormlt=1 at the first projection cycle). Inert (COR=0) when no calibration.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
-    cormlt = exp(-0.02773f0 * elapsed)
-    _op_cor_attenuate!(s, cormlt)
+    _organon_cor_attenuate!(s, elapsed, sfint)
     op_dgcons!(s)                                           # ENTRY DGCONS — per-species site DGCON
     dgf!(s, s.variant)                                      # WK2 = op-native ln(DDS) for IORG=0 trees
     wk2 = view(s.scratch.wk, 2, :)
@@ -142,11 +149,15 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     m1, m2, m3 = _op_organon_msdi(s)
     cyclg = Int(s.control.cycle)                            # CYCLG = ICYC-1 = jl cycle (0-based)
     isp_fvs = Int[Int(t.species[i]) for i in 1:n]
-    calib1 = Float32[s.calib.organon_acalib[1, g] for g in 1:11]
-    calib2 = Float32[s.calib.organon_acalib[2, g] for g in 1:11]
+    th = organon_thin_update!(s.calib.organon_thin, s.plot.basal_area, cyclg)   # op/dgdriv.f:304-327 (== oc)
+    cal = organon_calib_schedule(s.calib.organon_acalib, cyclg)   # execute2.f:231-252 cycle-decayed CALIB
+    calib1 = Float32[cal[1, g] for g in 1:11]
+    calib2 = Float32[cal[2, g] for g in 1:11]
+    calib3 = Float32[cal[3, g] for g in 1:11]
     g = buf.runs ? op_execute_nwo(buf, isp_fvs; si_1 = si1r - 4.5f0, si_2 = si2r - 4.5f0,
                         msdi_1 = m1, msdi_2 = m2, msdi_3 = m3, calib1 = calib1, calib2 = calib2,
-                        cyclg = cyclg) : nothing
+                        calib3 = calib3, cyclg = cyclg, stor = s.calib.organon_stor,
+                        babt = th[11], bart = th[6:10], yt = th[1:5]) : nothing
     # Fold the ORGANON DGRO→DDS into WK2 for the IORG=1 trees (op/dgdriv.f:432-441).
     if g !== nothing
         @inbounds for i in 1:n
@@ -177,8 +188,12 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
         t.diam_growth[i] = op_dgbnd(sp, d, dg, sizcap)
     end
     # Stash the ORGANON per-tree outputs for the cooperating hooks (op has no tripling ⇒ index-stable).
-    if length(c.op_iorg) != n
-        resize!(c.op_iorg, n); resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
+    # IORG is a SLOT-indexed COMMON array (op/dgdriv.f:231-256 sets 1..ITRN only): slots beyond this call's ITRN keep their
+    # last value, which CROWN reads for trees ESTAB adds afterwards (op/crown.f:279 with CR2(I)=0, execute2.f:210) ⇒
+    # ICR=1. Grow-only stash; HGRO/CR2/MORTEXP are zeroed beyond NTREES by every EXECUTE, so they track n exactly.
+    length(c.op_iorg) < n && resize!(c.op_iorg, n)
+    if length(c.op_hgro) != n
+        resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
     end
     @inbounds for i in 1:n
         c.op_iorg[i] = (g !== nothing) ? buf.iorg[i] : Int32(0)

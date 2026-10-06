@@ -1473,15 +1473,13 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
     met = _metric_variant(s.variant)
-    # ON inventory list: BAPctile = the CRATET DENSE's PCT (on_cratet_dead_snapshot!), not a later recompute's.
-    pct_swap = cycle == 0 && s.variant isa Ontario && length(s.calib.cratet_pct) == t.n
-    pct_keep = pct_swap ? t.crown_ratio[1:t.n] : Float32[]
-    pct_swap && copyto!(t.crown_ratio, 1, s.calib.cratet_pct, 1, t.n)
+    # ON inventory list BAPctile: canada/on/cratet.f:160 DENSE (LBKDEN=IDG<2) computes a BACKDATED PCT (dense.f:244), but
+    # cratet.f:582 runs DENSE again with LBKDEN=.FALSE. and dense.f:276-277 PCTILE overwrites PCT at the CURRENT diameters,
+    # so the list reports the current-DBH PCT (t.crown_ratio) — no swap to the backdated snapshot.
     @inbounds for i in _ind1_order(s)
         r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g); cycle0 = cycle == 0)
         push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
-    pct_swap && copyto!(t.crown_ratio, 1, pct_keep, 1, t.n)
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
     # trees (HISTORY 6-9) at the bottom of the FVS_TreeList — TPA=0, the mortality expansion in MortPA
     # (P=(PROB/GROSPC)/(FINT/FINTM); FINT/FINTM=1 at cycle 0 ⇒ MortPA = tpa/g), DG=HtG=0, with volume and

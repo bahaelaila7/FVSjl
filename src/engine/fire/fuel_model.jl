@@ -305,7 +305,7 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     end
 
     # LS uses a full cover-type × PERCOV × season selection (ls/fmcfmd.f), NOT the SN forest-type path.
-    if s.variant isa LakeStates
+    if _ls_ffe(s.variant)               # ON links canada/fire/on/fmcfmd.f = ls/fmcfmd.f + the plantation species 69-72
         return ls_select_fuel_models(s, mois, sm, lg)
     end
 
@@ -480,9 +480,16 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # crown area (ft²/ac) helper for a record: forest-grown crown width (CWCALC iwho=0)
     carea(i) = begin
-        sp2 = s.species.code2[Int(t.species[i])]
-        cw = crown_width(coef, sp2, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
-                         s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        cw = if s.variant isa Ontario
+            # canada/fire/on/fmcfmd.f:337/373/423 CWIDTH=CRWDTH(I): the width CWIDTH last stored (load / gradd.f:254),
+            # i.e. the record's dims at the ffe_old* snapshot (as FMCBA reads it).
+            o = t.ffe_oldht[i] > 0f0
+            tree_crwdth(s, Int(t.species[i]), o ? t.ffe_olddbh[i] : t.dbh[i], o ? t.ffe_oldht[i] : t.height[i],
+                        o ? Int32(round(t.ffe_oldcr[i])) : t.crown_pct[i])
+        else
+            crown_width(coef, s.species.code2[Int(t.species[i])], t.dbh[i], t.height[i], Float32(t.crown_pct[i]), 0,
+                        s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        end
         3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
     end
 
@@ -513,15 +520,15 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         x = t.tpa[i] * d * d * 0.0054542f0
-        if sp == 1
+        if sp == 1 || sp == 69                  # canada/fire/on/fmcfmd.f:224 CASE (1,69) jack pine (+ plantation)
             ctba[JPCT] += x; stndba += x
         elseif sp in (12,18,19,25,26,27,28)
             ctba[NHCT] += x; stndba += x
-        elseif sp in (3,4,5)
+        elseif sp in (3,4,5,70)                 # on/fmcfmd.f:230 CASE (3,4,5,70)
             ctba[RPCT] += x; stndba += x
         elseif sp in (24,40,41,43)
             ctba[MWCT] += x; ctba[ABCT] += x; stndba += x
-        elseif sp in (6,7,8,9)
+        elseif sp in (6,7,8,9,71,72)            # on/fmcfmd.f:237 CASE (6,7,8,9,71,72)
             (d >= 5f0 ? ctba[MWCT] += x : ctba[ABCT] += x); stndba += x
         elseif sp in (30,31,32,33,35,36)
             ctba[OACT] += x; stndba += x
@@ -599,8 +606,8 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             sba += x
             (3 <= sp <= 5) && (pinecra += carea(i))
             if sp in (3,4); rpba += x
-            elseif sp == 5; wpba += x
-            elseif sp >= 15; hardba += x
+            elseif sp == 5 || sp == 70; wpba += x       # on/fmcfmd.f:380 CASE (5,70)
+            elseif 15 <= sp <= 68; hardba += x          # CASE (15:68) — the ON plantation 69-72 are not hardwoods
             end
         end
         pinecov = (1f0 - exp(-pinecra/43560f0)) * 100f0
@@ -628,7 +635,7 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             sp = Int(t.species[i]); d = t.dbh[i]; x = t.tpa[i]*d*d*0.0054542f0
             (d >= 5f0) && (overcra += carea(i))
             if sp in (24,43); birba += x; sba += x
-            elseif 1 <= sp <= 14; sba += x; (d >= 5f0) && (concra += carea(i))
+            elseif 1 <= sp <= 14 || 69 <= sp <= 72; sba += x; (d >= 5f0) && (concra += carea(i))   # on/fmcfmd.f:431
             elseif sp in (40,41); sba += x
             end
         end

@@ -36,7 +36,7 @@ blmvol.f BLMVOL total-cubic driver for OC. Small trees (total ht ≤ 17.8 or SMD
 closed form `0.00272708·DBHIB²·TTH`; larger trees use `BLMTCUB` (Behre-taper Smalian). TTH = HT+1.5.
 """
 function oc_tree_cuft(sp::Int, dbh::Float32, ht::Float32)
-    dbh <= 0f0 && return 0f0
+    dbh < 1f0 && return 0f0     # volinit.f:168 DBHOB<1 (.AND. DRCOB<1) ⇒ ERRFLAG 3, no volume
     # fvsvol MTOPP = TOPD(=4.5, sitset.f:244 IFOR 6-10)·BARK
     return blm_vol(OC_VOLEQ[sp], 4.5f0 * oc_bratio(sp, dbh), ht, dbh, oc_formcl(sp))[1]
 end
@@ -51,7 +51,7 @@ gates are applied by the caller. Small trees / merch length < 8 ft ⇒ (0,0).
 """
 function oc_tree_mvol(sp::Int, dbh::Float32, ht::Float32; ht_out = nothing)
     ht_out === nothing || (ht_out[] = 0f0)
-    dbh <= 0f0 && return (0f0, 0f0)
+    dbh < 1f0 && return (0f0, 0f0)   # volinit.f:168 DBHOB<1 ⇒ no volume
     _, v2, v4 = blm_vol(OC_VOLEQ[sp], 4.5f0 * oc_bratio(sp, dbh), ht, dbh, oc_formcl(sp); bfpflg = true,
                         ht_out = ht_out)   # HT1PRD (blmvol.f:427), the same for the cubic and board calls
     return (v4, v2)
@@ -78,6 +78,10 @@ function compute_volumes_oc!(s::StandState)
         sp = Int(t.species[i])
         if 1 <= sp <= 50
             d = t.dbh[i]; h = t.height[i]
+            if d < 1f0          # volinit.f:168 DBHOB<1 (.AND. DRCOB<1) ⇒ ERRFLAG 3: NVEL returns no volume (BLM and R6 alike)
+                t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0
+                continue
+            end
             # Broken/dead-top trees (ITRUNC>0, H≥4.5): build the profile from the dubbed NORMAL
             # height, then truncate back to the break with CFTOPK/BFTOPK (vols.f:164-165, cftopk.f).
             tkill = h >= 4.5f0 && t.trunc[i] > 0

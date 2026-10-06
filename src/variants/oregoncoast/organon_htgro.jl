@@ -326,16 +326,32 @@ CON_RASI(SITE_1)`; if the tallest red alder (FIA 351) gives a non-positive growt
 is re-derived from RASITE(MAXRAH, 55). `si_1` = SITE_1 − 4.5, so SITE_1 = si_1 + 4.5.
 """
 function oc_ra_site(buf::OrganonBuffer, si_1::Float32)
+    return organon_ra_state(buf, si_1)[1]
+end
+
+"""
+    organon_ra_state(buf, si_1) -> (RASI, RAAGE)
+
+organon/execute2.f:297-320 (VERSION≤3): MAXRAH = the tallest red alder (FIA 351), RASI = CON_RASI(SITE_1); with a red
+alder present RAAGE = RAGEA(MAXRAH, RASI) — non-positive ⇒ RAAGE=55 and RASI = RASITE(MAXRAH, 55) — capped at 55; else 0.
+RAAGE ≥ 55 switches on MORTAL_RUN's RAMORT.
+"""
+function organon_ra_state(buf::OrganonBuffer, si_1::Float32)
     rasi = oc_con_rasi(si_1 + 4.5f0)
     maxrah = 0.0f0
     @inbounds for i in 1:buf.ntrees
         buf.species[i] == 351 && buf.ht1or[i] > maxrah && (maxrah = buf.ht1or[i])
     end
+    raage = 0.0f0
     if maxrah > 0.0f0
         raage = oc_ragea(maxrah, rasi)
-        raage <= 0.0f0 && (rasi = oc_rasite(maxrah, 55.0f0))
+        if raage <= 0.0f0
+            raage = 55.0f0
+            rasi = oc_rasite(maxrah, raage)
+        end
+        raage > 55.0f0 && (raage = 55.0f0)
     end
-    return rasi
+    return rasi, raage
 end
 
 """
@@ -378,7 +394,8 @@ so it is normally inert — but faithful for a stand that does calibrate a minor
 """
 function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32};
         si_1::Float32, si_2::Float32, cyclg::Int=0,
-        calib1::Union{Nothing,Vector{Float32}}=nothing)
+        calib1::Union{Nothing,Vector{Float32}}=nothing,
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     n = buf.ntrees
     cch = oc_crnclo(spgrp, buf.dbh1, buf.ht1or, buf.cr1, buf.expan1, n)
     rasi = oc_ra_site(buf, si_1)
@@ -388,7 +405,7 @@ function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector
         g = Int(spgrp[i])
         if g <= 5                                  # big-6 → HTGRO1 (HS_HG potential + HG_SWO)
             hgro[i] = oc_htgro1(buf.species[i], g, buf.dbh1[i], buf.ht1or[i], buf.cr1[i], dgro[i],
-                                cch, si_1, si_2; cyclg=cyclg)
+                                cch, si_1, si_2; cyclg=cyclg, babt=babt, bart=bart, yt=yt)
         else                                       # minor species → HTGRO2 (HD-ratio / red-alder H40)
             c1 = calib1 === nothing ? 1.0f0 : calib1[g]
             hgro[i] = oc_htgro2(buf.species[i], g, buf.dbh1[i], dgro[i], buf.ht1or[i], c1, rasi)

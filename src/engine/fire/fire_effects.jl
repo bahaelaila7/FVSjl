@@ -296,7 +296,7 @@ where a future LS/NE/ON port would re-introduce those branches.
 """
 @inline function fire_mortality_adjust(pmort::Float32, sp::Integer, dbh::Float32, burnseas::Integer,
                                        variant::AbstractVariant = Southern())::Float32
-    if variant isa LakeStates
+    if _ls_ffe(variant)    # fmeff.f:278 IF (VARACD .EQ. 'LS' .OR. VARACD .EQ. 'ON')
         # LS/ON dormant-season reductions (ls/fmeff.f:278-300). BURNSEAS≤2 = before greenup.
         (burnseas <= 2 && sp <= 14) && (pmort /= 2f0)            # conifers ×½ before greenup
         sp == 8 && (pmort = max(0.7f0, pmort))                   # balsam fir floor 70%

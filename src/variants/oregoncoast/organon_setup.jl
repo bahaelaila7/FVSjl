@@ -366,12 +366,6 @@ function organon_prepare_swo(species::Vector{Int32}, dbh0::Vector{Float32}, ht0:
 
     tmpcal = ones(Float32, 3, 18)                  # oc/cratet.f:129-134 (ORGANON's ACALIB output)
 
-    if rad
-        error("OC ORGANON PREPARE: RAD=.TRUE. (radial-increment) DGCALIB branch is chunk C3 " *
-              "(reuses DG_SWO/bark/BAL). No radial cores in FVS/FIA inventory ⇒ RAD=.FALSE. and " *
-              "TMPCAL(3,*)=1.0. See docs/OC_ORGANON_PORT_PLAN.md.")
-    end
-
     # --- HDCALIB (organon/start2.f) — height-diameter calibration ratio → tmpcal(1,*) ---------
     entht  = zeros(Int, 18); entdbh = zeros(Int, 18)
     yxs = zeros(Float32, 18); xss = zeros(Float32, 18); yss = zeros(Float32, 18)
@@ -479,7 +473,13 @@ function organon_prepare_swo(species::Vector{Int32}, dbh0::Vector{Float32}, ht0:
         end
     end
 
-    # RAD=.FALSE. ⇒ tmpcal(3,*)=1.0 (organon/prepare.f:137-140) — already initialized.
+    # --- DGCALIB (organon/diamcal.f; prepare.f:133-141) — DG calibration from RADGRO → tmpcal(3,*). RAD=.FALSE. ⇒ 1.0.
+    if rad
+        sba2, bal2, ball2 = organon_ssum_bal(1, spgrp, dbh, ht, expan, ntrees, npts)   # CRCALIB's SSUM(2) BAL/BALL
+        c3 = organon_dgcalib(1, nspn, npts, ntrees, species, spgrp, dbh, ht, cr, expan, radgro,
+                             sba2, bal2, ball2, og, si_1, si_2, view(tmpcal, 1, :))
+        @inbounds for g in 1:18; tmpcal[3, g] = c3[g]; end
+    end
 
     # --- oc/cratet.f:393-401 TMPCAL → ACALIB load --------------------------------------------
     acalib = acalib0 === nothing ? ones(Float32, 3, 18) : copy(acalib0)
@@ -559,6 +559,7 @@ function oc_organon_prepare!(s::StandState)
         expan1[i] = t.tpa[i] * pival                              # EXPAN1 = PROB·PI (cratet.f:236)
     end
     radgro = zeros(Float32, n)
+    @inbounds for i in 1:n; radgro[i] = t.diam_growth[i] / 2f0; end   # RADGRO(I)=DG(I)/2.0 (oc/cratet.f:237)
     stage  = Int(s.plot.stand_age)                     # STAGE = IAGE + IY(ICYC)-IY(1); ICYC=1 ⇒ = IAGE (cratet.f:259)
     bhage  = stage - 6                                  # BREAST HEIGHT AGE (cratet.f:260)
     si_1 = s.plot.sp_site_index[7]                      # DF site (SI_1); PREPARE's own conversion handles ≤0

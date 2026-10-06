@@ -59,17 +59,20 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
     isort = crown_isort(s; lstart = lstart)   # shared (crown_init.jl)
     # IORG stashed by the growth hook (op_iorg is the shared ORGANON per-tree flag). A tree beyond the
     # stashed length (fresh regen added after the hook) is FVS-native ⇒ treated as IORG=0.
-    org_ran = length(c.op_iorg) >= n
+    org_ran = length(c.op_iorg) >= 1   # slot-indexed IORG (stale beyond the last DGDRIV ITRN, see organon_hook.jl)
     # oc/crown.f DO 70 ISPC … I=IND1(I3): species-major (the RANN d≤0 draw follows this order).
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 50) && continue
         (lstart && t.crown_pct[i] > 0) && continue        # oc/crown.f:228 keep the inventory crown
-        iorg = org_ran && c.op_iorg[i] == 1
+        iorg = org_ran && i <= length(c.op_iorg) && c.op_iorg[i] == 1
         # Cycling: the IORG=1 crown is written straight from CR2 in the growth hook, so the record is done.
         # At LSTART the hook has not run: oc/crown.f:281 still takes the ORGANON CR2 for a MISSING crown.
-        (iorg && !lstart) && continue
-        d = t.dbh[i]; h = t.height[i]; icr = Int(t.crown_pct[i])
+        icr = Int(t.crown_pct[i])
+        # trees the growth hook processed (slots 1..length(op_mortexp)) already carry CR2 in crown_pct; trees ESTAB added
+        # after it fall through with the STALE slot IORG and CR2=0 (oc/crown.f:281-288, execute2.f:210).
+        (iorg && !lstart && i <= length(c.op_mortexp)) && continue
+        d = t.dbh[i]; h = t.height[i]
         pt = Int(t.plot_id[i]); prd = _prd(pt); qmdplt = _qmdplt(pt)
         # oc/crown.f:277 — d<1" at LSTART routes to statement 58 (ca/dubscr.f, which FVSoc links verbatim:
         # bin/FVSoc_CmakeDir/FVSoc_sourceList.txt:71 `../../ca/dubscr.f`), NOT the Weibull path.
@@ -88,13 +91,14 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
         local crnew::Float32
         local chg::Float32 = 0f0
         if iorg                                           # ORGANON crown (oc/crown.f:281-288) — LSTART only
-            crnew = round(c.op_cr2[i] * 100f0, RoundNearestTiesAway)   # ANINT(CR2*100)
+            cr2 = (lstart || i <= length(c.op_mortexp)) && i <= length(c.op_cr2) ? c.op_cr2[i] : 0f0   # execute2.f:210 CR2(I)=0 beyond NTREES
+            crnew = round(cr2 * 100f0, RoundNearestTiesAway)   # ANINT(CR2*100)
             chg = crnew - Float32(icr)
         elseif sp == 23 || sp == 50                       # RW/GS logistic (oc/crown.f CASE(23,50))
             hdr = d > 0f0 ? h * 12f0 / d : 1f0
             xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd -
                  0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(xl))
+            x = 1f0 / (1f0 + fexp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 10f0 * 10f0                       # CASE(23,50): CRNEW = X*10, then ×10
         else
@@ -105,7 +109,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0)
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-flog(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0   # oc/crown.f (-1.0*ALOG(1-X))**(1.0/C): powf
         end
         if !iorg && !(lstart || icr == 0)                 # ±1%/yr limit (crown.f:346-349), CRNMLT=1
             chg = crnew - Float32(icr)

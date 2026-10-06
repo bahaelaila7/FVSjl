@@ -408,14 +408,40 @@ leaves ABIRTH unset → Mowraski uses age 0 ⇒ full cull), matching cratet.f `I
     return aget
 end
 
+# canada/on/varvol.f:321-357 OCFVOL past the DBHMIN gate: ZAKVOL GTV (total, U=H) + ZAKVOL GMV to the ZAKHT merch
+# height, or HONER; negative ⇒ 0 (:361-366).
+@inline function _on_ocfvol_kernel(sp::Int, d::Float32, h::Float32, bark::Float32, topd::Float32, stmp::Float32)
+    if ON_IS_ZAK[sp]
+        vn = on_zakvol(sp, d, h, h, bark, true, stmp)          # GTV: total, zero stump, U=H
+        zht = on_zakht(sp, d, h, bark, topd)
+        vm = zht > 0f0 ? on_zakvol(sp, d, h, zht, bark, false, stmp) : 0f0
+    else
+        vn, vm = on_honer(sp, d, h, topd, stmp)                # HON: total + merch
+    end
+    return max(vn, 0f0), max(vm, 0f0)
+end
+
+"""
+    on_ocfvol(s, sp, d, h) -> (VN, VM)
+
+canada/on/varvol.f ENTRY OCFVOL as FFE's FMSVOL/FMSVL2 calls it (fire/base/fmsvol.f, METHC=8): D < DBHMIN ⇒ the 0.0001
+sentinel pair, else the ZAKVOL/HONER kernel with BARK = BRATIO(JS,D,H).
+"""
+function on_ocfvol(s::StandState, sp::Int, d::Float32, h::Float32)
+    s.control.merch_init || init_merch_standards!(s)
+    c = s.control
+    d < c.sp_dbh_min[sp] && return (0.0001f0, 0.0001f0)
+    return _on_ocfvol_kernel(sp, d, h, on_bratio(sp, d, h), c.sp_top_diam[sp], c.sp_stump_ht[sp])
+end
+
 # ── driver: per-tree VN/VM/BFV → tree.cuft_vol/merch_cuft_vol/bdft_vol. ───────
 """
     compute_volumes_on!(s) -> s
 
 ON (Ontario) per-tree volume — canada/on vols.f + varvol.f (METHC=METHB=8 default) + volont.f.
 Fills `cuft_vol` (GTV total merch cubic), `merch_cuft_vol`/`saw_cuft_vol` (GMV merch sawlog
-cubic), and `bdft_vol` (NMV = Mowraski-culled GMV, the metric .sum board column). Broken-top
-top-kill (CFTOPK/BFTOPK) is not exercised by ont01 and is left unported (scoped follow-on).
+cubic), and `bdft_vol` (NMV = Mowraski-culled GMV, the metric .sum board column). Top-killed records
+take CFTOPK on the NORMHT tree (vols.f:127-160); the board NMV keeps the untruncated GMV (OBFVOL VMAX=0).
 """
 function compute_volumes_on!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
@@ -433,28 +459,32 @@ function compute_volumes_on!(s::StandState)
             continue
         end
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # canada/on/vols.f:127-128 TKILL = H≥4.5 ∧ ITRUNC>0 ⇒ H = NORMHT/100 for BARK, OCFVOL and CFTOPK.
+        tkill = h >= 4.5f0 && t.trunc[i] > 0
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)
+        # vols.f:133 `IF(.NOT.LSTART) D=D+DG(I)/BARK` with that NORMHT BARK: for a top-killed record ≠ the DBH UPDATE grew.
+        (tkill && i <= t.n && s.scratch.vol_dstart[i] > 0f0) &&
+            (d = s.scratch.vol_dstart[i] + t.diam_growth[i] / t.vol_bark[i])
         # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
         # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.
-        # The update loop stashes exactly that value in vol_bark; 0 ⇒ the LSTART (fvs.f:211) call, D unchanged.
+        # The update loop stashes exactly that value in vol_bark (NORMHT for a top-killed record); 0 ⇒ the LSTART
+        # (fvs.f:211) call, D unchanged.
         bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : on_bratio(sp, d, h)
-        # OCFVOL: below the pulpwood-minimum DBH the cubic call returns the 0.0001 sentinel.
-        if d < dbhmin[sp]
-            t.cuft_vol[i] = 0.0001f0; t.merch_cuft_vol[i] = 0.0001f0
-            t.saw_cuft_vol[i] = 0.0001f0; t.bdft_vol[i] = 0f0
-            continue
+        # OCFVOL (varvol.f:321-366): below the pulpwood-minimum DBH VN=VM=0.0001; VMAX=VN, CTKFLG=VN>0.
+        vn, vm = d < dbhmin[sp] ? (0.0001f0, 0.0001f0) : _on_ocfvol_kernel(sp, d, h, bark, topd[sp], stmp[sp])
+        vm0 = vm
+        # vols.f:159-160 `IF(CTKFLG .AND. TKILL .AND. VMAX .GT. 0.) CALL CFTOPK(ISPC,D,H,VN,VM,SCF,VMAX,LCONE,BARK,
+        # ITRUNC(I))` (ie/cftopk.f; the private oracle passes the ON-absent SCF as 0 — vols_cftopk_args.patch).
+        if tkill && vn > 0f0
+            vn, vm, _ = cftopk((stmp = stmp, topd = topd), sp, d, h, vn, vm, 0f0, vn, bark, Int(t.trunc[i]))
         end
-        if ON_IS_ZAK[sp]
-            vn = on_zakvol(sp, d, h, h, bark, true, stmp[sp])          # GTV: total, zero stump, U=H
-            zht = on_zakht(sp, d, h, bark, topd[sp])
-            vm = zht > 0f0 ? on_zakvol(sp, d, h, zht, bark, false, stmp[sp]) : 0f0
-        else
-            vn, vm = on_honer(sp, d, h, topd[sp], stmp[sp])            # HON: total + merch
-        end
-        vn < 0f0 && (vn = 0f0)
-        vm < 0f0 && (vm = 0f0)
         t.cuft_vol[i] = vn
         t.merch_cuft_vol[i] = vm
         t.saw_cuft_vol[i] = vm
+        if d < dbhmin[sp]
+            t.bdft_vol[i] = 0f0
+            continue
+        end
         # Board section (NMV): only when D >= BFMIND and D > BFTOPD (vols.f board gate).
         if d >= bfmind[sp] && d > bftopd[sp]
             # volont.f:405 reads ABIRTH(IT) as it stands: dubbed ONCE for every inventory record by CRATET's FINDAG
@@ -462,7 +492,8 @@ function compute_volumes_on!(s::StandState)
             # (gradd.f:205) — never re-dubbed here from the grown height (a record with FINDAG age 0 keeps 0).
             # varvol.f OBFVOL: `IF (IMC(IT) .GT. 3 ...) GOTO 200` — an inventory-dead record (IMC 7/9) keeps the OVM=0.0001
             # sentinel as the MOWRASKI input (its cubic OCFVOL volume is computed normally).
-            nmv = on_mowraski(sp, i > t.n ? 0.0001f0 : max(vm, 0f0), t.birth_age[i])
+            # OBFVOL recomputes OVM from the untruncated (D, NORMHT) tree and sets VMAX=0 ⇒ vols.f:246 never calls BFTOPK.
+            nmv = on_mowraski(sp, i > t.n ? 0.0001f0 : max(vm0, 0f0), t.birth_age[i])
             t.bdft_vol[i] = nmv > 0f0 ? nmv : 0f0
         else
             t.bdft_vol[i] = 0f0
