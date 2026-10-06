@@ -240,18 +240,10 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             bcrown += bcr * _FM_P2T
         end
     end
-    if mortcode == 0 && fire_carries
-        # MKODE=0 (no FFE mortality): FMEFF still runs its RANN draws (rolled back) and books the scorched crown
-        # material as burned (fmeff.f:450-453, weight 1.0; the crown-fire term needs MKODE≠0), but kills nothing.
-        _rs0 = rannget(s.rng)
-        @inbounds for i in 1:t.n
-            (rann!(s.rng) * 100f0 > psburn) && continue
-            t.tpa[i] > 0f0 || continue
-            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, false)
-        end
-        rannput!(s.rng, _rs0)
-    end
-    if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
+    # FMEFF with MKODE=0 (SIMFIRE mortality code 0): PMORT stays 0 and the crown-fire part is skipped, but the scorch of the crowns, the
+    # CROWNW/OLDCRW reduction, FMICR shortening and the dead-crown FMSCRO of the scorched part still run (fmeff.f:176,353,445-452,485-492).
+    mk = mortcode != 0
+    if fire_carries                                       # FLAG(1) gate: skip FMEFF if the fire doesn't carry
         # FMEFF brackets its per-tree RANN draws with RANNGET(SAVESO) (fmeff.f:143) … RANNPUT(SAVESO)
         # (fmeff.f:569): the fire's draws are ROLLED BACK, so the fire consumes ZERO NET main-stream RNG.
         # jl must restore too — else the ~ITRN fire draws ADVANCE the stream and desync the POST-fire DGSCOR
@@ -271,7 +263,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
             (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
             t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
-            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
+            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, mk)     # crown burned (BCROWN), on pre-kill FMPROB/FMICR
             # FMEFF new fire-model crown length (fmeff.f:170, :401-419, :513): for the non-crown-fire part
             # (CRBURN<1) of a record whose crown base sits below the scorch height, the scorched length CRBNL
             # is lost: FMICR = IFIX(100·(CRL−CRBNL)/HT). CRL = HT·(FMICR/100) in FVS's own association.
@@ -285,9 +277,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             end
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
-            pmort = _fmeff_pmort(s, i, flame, csv, burnseas, Int(year))
+            pmort = mk ? _fmeff_pmort(s, i, flame, csv, burnseas, Int(year)) : 0f0
             curkil = pmort * t.tpa[i]
-            crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
+            (mk && crfrac > 0f0) && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:543 MKODE≠0 .AND. LPSBURN)
             fmprob0 = t.tpa[i]                                        # FMPROB(I) before the kill (fmeff.f:487)
             fs.firkil[i] += curkil                                 # FIRKIL(I) = FIRKIL(I) + CURKIL(I) (fmeff.f:546)
             t.tpa[i] -= curkil
@@ -321,12 +313,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # bins them into (species, 2" DBH, height-class) records whose bole is FMSVOL on the class-mean DBHS/HTDEAD
             # (fmsadd.f, shared by every variant — see fmsadd_bin! below). MEASURED FVSie_g16 4769882010690 SIMFIRE 2014:
             # 67 records live vs 617 per-tree jl records ⇒ Standing_Dead bole 52.424 vs 52.977 (class-mean volume).
-            push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))
+            curkil > 0f0 && push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))   # FMSSEE: SNUM ≤ 0 ⇒ RETURN
             # Crown debris of the burned record into CWD2B2 via FMSCRO, in FMEFF's order (_fmeff_crowns!, fmeff.f:352-527).
             # MEASURED FVSie_g16 4769882010690 SIMFIRE 2014 CWD2B2 by size 0..3: 1899/3399/7488/2582 live vs the old
             # single killed-tree booking 3248/3748/7427/2553 (crown-fire foliage kept, survivors' crowns missing).
             xc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
-            _fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen)
+            _fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen; mk = mk)
             # Fire-killed coarse ROOTS → the dead-root pool (BIOROOT, fmsadd.f:320 BIOROOT+=RBIO·SNGNEW·XDCAY).
             # Freshly killed ⇒ XDCAY=(1−CRDCAY)^0=1, same age-0 basis as ordinary mortality (mortality.jl). The
             # snag-FALL path transfers only the BOLE (not roots), so this is the sole root booking (no double-count).
@@ -679,12 +671,12 @@ end
 # shared); the earlier single-crown booking (foliage on the crown-fire share, OLDCRW(1) always halved, no survivors) was
 # measured off live both in AK (akffe 2003 CWD2B foliage +86 lb, 0-¼" −276 lb) and IE (4769882010690 2014).
 function _fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Float32, pmort::Float32,
-                        crburn::Float32, sch::Float32, cyclen)
+                        crburn::Float32, sch::Float32, cyclen; mk::Bool = true)
     t = s.trees
     yrs = Float32(cyclen); dk = clamp(ffe_dkr_cls(s, sp), 1, 4)
     oc(sz) = (v = t.ffe_oldcrw[sz, i]; v < 0.0000625f0 ? 0f0 : v)
     och = (v = 0.5f0 * t.ffe_oldcrw[1, i]; v < 0.0000625f0 ? 0f0 : v)      # OLDCRW(1) halved
-    if crburn > 0f0
+    if crburn > 0f0 && mk                                      # fmeff.f:353 CRBURN ≤ 0 or MKODE=0 ⇒ skip the crown-fire part
         xcf = (0f0, 0.5f0 * xc[2] + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
                xc[6] + yrs * oc(5))
         fmscro!(s, sp, d, xcf, fp * crburn, dk)
@@ -701,7 +693,8 @@ function _fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Floa
         xk = (c0, c1 + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4), xc[6] + yrs * oc(5))
         fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
         xs = (0f0, propcr * (c1 + crw1bn) - crw1bn, propcr * xc[3], propcr * xc[4], propcr * xc[5], propcr * xc[6])
-        fmscro!(s, sp, d, xs, ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp, dk)
+        # fmeff.f:485-492: DTHISC = ((1-CRBURN)-(1-CRBURN)*PMORT)*FMPROB, or the whole FMPROB when MKODE=0
+        fmscro!(s, sp, d, xs, mk ? ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp : fp, dk)
         # fmeff.f:494-506: the record's CROWNW becomes TCROWN·(1−PROPCR) and GROW=−1 (kept through the next FMSDIT)
         @inbounds for k in 1:6; t.ffe_crownw[k, i] = xc[k] * (1f0 - propcr); end
         t.ffe_oldcrw[1, i] *= 0.5f0                                    # OLDCRW(I,1) = TOLDCR(1)·0.5 (fmeff.f:498-503)

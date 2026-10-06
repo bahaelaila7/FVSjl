@@ -1085,10 +1085,16 @@ function _fmsalv!(s::StandState)::Bool
             if sn.height[i] > 0f0                                                              # CWD1(I, DIH, DIS)
                 _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
                                sn.htcur_soft[i], sn.htcur[i], 1.0f0, 0.10f0;
-                               tvoli = west ? max(0.005454154f0 * sn.height[i],
-                                                  _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i])) : ihardv + isoftv - (sn.den_soft[i] + cutdis > 0f0 && sn.den_hard[i] + cutdih > 0f0 ? ihardv : 0f0))
+                               # CWD1: TVOLI = FMSVL2(SP,DBHS,HTDEAD,-1,…,'D',LMERCH=.FALSE.) — the death-time stem volume, no top kill
+                               tvoli = max(0.005454154f0 * sn.height[i], _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i])))
             end
             fs.tonrms = fs.tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
+            # fmsalv.f:270-285: the salvage joins the harvested-wood C accounting — X = (CUTDIS·ISOFTV2 + CUTDIH·IHARDV2)·V2T·(1−PROPLV) with
+            # ISOFTV2/IHARDV2 = FMSVL2('D', LMERCH) at HTDEAD cut at HTIS/HTIH; the eastern LMERCH=FALSE form (MAX(0.005454154·H, MCF)) is the
+            # same volume as ISOFTV/IHARDV. FATE(J,K,ICYC): K = softwood/hardwood by BIOGRP, J = pulp/saw by DBHS vs CDBRK(K).
+            _snag_east_vol(s.variant) &&
+                accrue_harvest_carbon!(s, Int(sn.sp[i]), sn.dbh[i],
+                                       (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv), yr)
             fired = true
         end
     end

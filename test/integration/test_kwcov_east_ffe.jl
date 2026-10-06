@@ -21,9 +21,8 @@ const _KWFFE_OPEN = Dict{String,String}(
     "cs_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 78 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_SnagDet",
     "cs_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 344 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "cs_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 331 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum",
-    "cs_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 25 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Hrv_Carbon",
+    "cs_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 2 cells in FVS_Carbon,FVS_Down_Wood_Cov",
     "cs_salvage_sp" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Down_Wood_Cov",
-    "cs_simfire_nomort" => "OPEN (measured 2026-10-06, stock-flag live oracle): 173 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "ls_canfprof" => "OPEN (measured 2026-10-06, stock-flag live oracle): 257 cells in FVS_CanProfile",
     "ls_carbcut" => "OPEN (measured 2026-10-06, stock-flag live oracle): 62 cells in FVS_Carbon,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ls_firecalc" => "OPEN (measured 2026-10-06, stock-flag live oracle): 278 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
@@ -34,8 +33,8 @@ const _KWFFE_OPEN = Dict{String,String}(
     "ls_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 48 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ls_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 206 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ls_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 209 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
-    "ls_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 24 cells in FVS_Carbon,FVS_Hrv_Carbon",
-    "ls_simfire_nomort" => "OPEN (measured 2026-10-06, stock-flag live oracle): 60 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
+    "ls_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Carbon",
+    "ls_simfire_nomort" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Down_Wood_Cov",
     "ne_canfprof" => "OPEN (measured 2026-10-06, stock-flag live oracle): 160 cells in FVS_CanProfile",
     "ne_carbcut" => "OPEN (measured 2026-10-06, stock-flag live oracle): 45 cells in FVS_Carbon,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ne_firecalc" => "OPEN (measured 2026-10-06, stock-flag live oracle): 437 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
@@ -46,7 +45,7 @@ const _KWFFE_OPEN = Dict{String,String}(
     "ne_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 381 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "ne_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 204 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ne_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 205 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
-    "ne_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 24 cells in FVS_Carbon,FVS_Hrv_Carbon",
+    "ne_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Carbon",
 )
 
 @testset "eastern FFE keyword-isolation vs live" begin

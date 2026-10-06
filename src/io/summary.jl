@@ -539,8 +539,6 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             end
             # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
-            hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
-                push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
             # FFE annual fuel loop BEFORE growth (report→fuel→grow). FVS interleaves the annual fuel steps
             # with FMBURN, so a fire fires on the cycle-start + fire-year's single annual step — NOT the
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
@@ -616,6 +614,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = ffe_pass, pofl_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
+            # FMCHRVOUT (fmmain.f:206, right after FMCRBOUT): the harvested-products report of THIS cycle's FMMAIN — after CUTS and FMSALV, which
+            # both run inside grow_cycle! (a salvage books its FATE there), so the row is taken once grow_cycle! has returned.
+            hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
+                push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
             r.accretion = _acc_mort(gr.accretion)
             r.mortality = _acc_mort(gr.mortality)
             # Climate-FVS report (clauestb.f/DBSCLSUM): collected POST-growth, labeled with the cycle-START year,

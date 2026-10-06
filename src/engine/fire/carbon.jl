@@ -263,8 +263,7 @@ const _TONAC_TO_MTHA = 0.90718474f0 / 0.40468564f0
 # FAPROP — harvested-wood-products fate fractions [habitat 1:2, year-since-harvest 1:101, fate 1:3
 # (in-use/landfill/energy), product 1:2 (pulp/saw), group 1:2 (sw/hw)] (fmcblk.f, Smith et al.). Loaded
 # once from data/southern/fire_hwp_fate.csv. Const lookup table (not mutable state).
-const _FAPROP = let
-    path = joinpath(@__DIR__, "..", "..", "..", "data", "southern", "fire_hwp_fate.csv")
+function _load_faprop(path::AbstractString)
     a = zeros(Float32, 2, 101, 3, 2, 2)
     fate_i = Dict("in_use" => 1, "landfill" => 2, "energy" => 3)
     prod_i = Dict("pulpwood" => 1, "sawtimber" => 2)
@@ -277,6 +276,15 @@ const _FAPROP = let
     end
     a
 end
+_faprop_path(dir) = joinpath(@__DIR__, "..", "..", "..", "data", dir, "fire_hwp_fate.csv")
+const _FAPROP = _load_faprop(_faprop_path("southern"))                    # SN (and, until each is checked, every other variant)
+# fmcblk.f carries its own FAPROP DATA per variant: CS == LS (== ON, fire/ls), NE differs from both and from SN's 24 sets
+# (generated from the buildDir fmcblk.f DATA statements; the habitat-1 sets are the ones ICHABT=1 reads).
+const _FAPROP_CS = _load_faprop(_faprop_path("centralstates"))
+const _FAPROP_NE = _load_faprop(_faprop_path("northeast"))
+_faprop(::AbstractVariant) = _FAPROP
+_faprop(::Union{CentralStates,LakeStates,Ontario}) = _FAPROP_CS
+_faprop(::Northeast) = _FAPROP_NE
 
 """
     accrue_harvest_carbon!(s, sp, dbh, removed_tpa, merch_biomass, year)
@@ -311,24 +319,36 @@ function harvested_carbon_report(s::StandState, year::Integer, habitat::Integer)
     (fs === nothing || !fs.active) && return (; products = 0f0, landfill = 0f0, energy = 0f0,
                                               emissions = 0f0, stored = 0f0, removed = 0f0)
     h = clamp(Int(habitat), 1, 2)
-    v = zeros(Float64, 4)                                    # in-use, landfill, energy, emissions
-    for ((cyr, prod, grp), bio) in fs.hwp_fate
+    # fmchrvout.f:55-110 in its own REAL*4 order: DO JCYC (cut cycles, oldest first) / IPL (pulp, saw) / IHW (softwood, hardwood),
+    # V(IFATE) += FATE·FAPROP, V(4) += FATE·(1−ΣFAPROP); then V(5)=V(1)+V(2), V(6)=V(3)+V(4)+V(5), ×0.5, and the CARBCALC unit factors
+    # (ICMETRC 1 ⇒ ×TItoTM/ACRtoHA, 2 ⇒ ×TItoTM — the default 0 is tons/acre).
+    fap = _faprop(s.variant)
+    v1 = 0f0; v2 = 0f0; v3 = 0f0; v4 = 0f0
+    cyrs = sort!(unique!([k[1] for k in keys(fs.hwp_fate)]))
+    for cyr in cyrs
         kyr = year - cyr + 1; kyr < 1 && continue
         kyr > 101 && (kyr = 101)
-        xtmp = 0.0
-        for fate in 1:3
-            f = _FAPROP[h, kyr, fate, prod, grp]
-            xtmp += f
-            v[fate] += bio * f
+        for prod in 1:2, grp in 1:2
+            bio = get(fs.hwp_fate, (cyr, prod, grp), 0f0)
+            bio == 0f0 && continue
+            xtmp = 0f0
+            for fate in 1:3
+                f = fap[h, kyr, fate, prod, grp]
+                xtmp += f
+                fate == 1 ? (v1 += bio * f) : fate == 2 ? (v2 += bio * f) : (v3 += bio * f)
+            end
+            v4 += bio * (1f0 - xtmp)                        # emissions = the un-accounted residual
         end
-        v[4] += bio * (1.0 - xtmp)                           # emissions = the un-accounted residual
     end
-    k = 0.5f0 * _TONAC_TO_MTHA                               # biomass → carbon → metric t/ha
-    products = Float32(v[1]) * k; landfill = Float32(v[2]) * k
-    energy = Float32(v[3]) * k; emissions = Float32(v[4]) * k
-    stored = products + landfill                             # V(5) = in-use + landfill
-    removed = energy + emissions + stored                   # V(6) = energy + emissions + stored
-    return (; products, landfill, energy, emissions, stored, removed)
+    v5 = v1 + v2; v6 = v3 + v4 + v5
+    v1 *= 0.5f0; v2 *= 0.5f0; v3 *= 0.5f0; v4 *= 0.5f0; v5 *= 0.5f0; v6 *= 0.5f0
+    if s.control.carbon_units == 1
+        cv(x) = x * _TITOTM / _ACRTOHA
+        v1 = cv(v1); v2 = cv(v2); v3 = cv(v3); v4 = cv(v4); v5 = cv(v5); v6 = cv(v6)
+    elseif s.control.carbon_units == 2
+        v1 *= _TITOTM; v2 *= _TITOTM; v3 *= _TITOTM; v4 *= _TITOTM; v5 *= _TITOTM; v6 *= _TITOTM
+    end
+    return (; products = v1, landfill = v2, energy = v3, emissions = v4, stored = v5, removed = v6)
 end
 
 # FMMAIN (gradd.f:118) runs after grincr.f:543's TRIPLE, so in a tripling cycle FMDOUT/FMCRBOUT loop over the tripled list:
