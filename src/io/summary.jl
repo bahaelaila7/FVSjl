@@ -441,7 +441,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
         # FMPOCR(ICALL=2) is an FMMAIN call: every cycle START, never the terminal projection row (live FVS_CanProfile has no row for it)
-        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active && !last
+        # A SIMFIRE cycle reports the POST-fire profile (FMPOCR follows FMBURN in FMMAIN, fire-killed FMPROB and the scorch-shortened FMICR):
+        # deferred to the post-fire hook below, like the carbon / PotFire reports.
+        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             seam || compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
@@ -582,9 +584,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # vs 0.175: the fire-thinned hardwood/pine read as pine/hardwood). EM's fire-year FLIVE is likewise the pre-fire
             # load (live 196378260020004 2022 Shrub_Herb 0.263; a post-fire FMCBA gave 0.392).
             pf_fire = potfire_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
-            chook = (fire_cycle || pf_fire) ? (st -> begin
+            cp_fire = canprof_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
+            chook = (fire_cycle || pf_fire || cp_fire) ? (st -> begin
                         compute_density!(st)
                         fire_cycle && _carb_push(st)
+                        cp_fire && push!(canprof_collect, (Int(r.year), canopy_crfill(st; fmicr = st.fire.fmicr)))
                         if pf_fire                                   # FMPOFL after FMBURN (fmmain.f:177-194)
                             pfr = fmpofl_report(st, Int(r.year); cyclen = per, fire_basis = true)
                             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
