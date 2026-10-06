@@ -2414,8 +2414,10 @@ end
 
 # Lazily materialise the per-stand DKR override as a copy of the default decay-rate matrix, so a
 # FUELMULT/FUELDCAY keyword modifies a private copy and fmcwd! reads it (an empty matrix ⇒ default).
-function _ensure_dkr!(p::FFEParams)
-    size(p.dkr, 1) == 11 || (p.dkr = copy(_FM_DKR))
+function _ensure_dkr!(s::StandState, p::FFEParams)
+    # the VARIANT's own fmvinit.f DKR table (CS/LS/NE/CR/… differ from the SN `_FM_DKR`): copying SN's table made FUELMULT/FUELDCAY
+    # scale/replace the wrong base rates for every non-SN variant (ls/ne fueldcay + fuelmult 390/312 cells)
+    size(p.dkr, 1) == 11 || (p.dkr = copy(_fm_dkr_default(s.variant)))
     return p.dkr
 end
 
@@ -2423,7 +2425,7 @@ end
 # class multiplier (fields 1-4 = decay classes 1-4), capped at 1.0. A blank field leaves that class as-is.
 function _fuelmult!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
-    dkr = _ensure_dkr!(fs.params); v = rec.values
+    dkr = _ensure_dkr!(s, fs.params); v = rec.values
     @inbounds for idec in 1:4
         rec.present[idec] || continue
         m = Float32(v[idec])
@@ -2438,7 +2440,7 @@ end
 function _fueldcay!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
     rec.present[1] || return                         # no decay class specified ⇒ keyword ignored
-    dkr = _ensure_dkr!(fs.params); v = rec.values
+    dkr = _ensure_dkr!(s, fs.params); v = rec.values
     id = Int(trunc(v[1])); idec = clamp(id, 1, 4)
     rec.present[2] && (dkr[10, idec] = Float32(v[2]))
     rec.present[3] && (dkr[11, idec] = Float32(v[3]))
