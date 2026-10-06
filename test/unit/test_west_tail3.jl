@@ -1,8 +1,17 @@
 # test_west_tail3.jl — west-tail round 3, each fix checked against LIVE FVS{v}_g16 goldens in test/fixtures/west_tail3
 # (keys run on the tiered fixtures' stands.db; goldens dumped from the oracle's out.db, CaseID dropped). Float32 bits.
+module WestTail3Test
 using FVSjl, Test, SQLite, DBInterface
+include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
 
 const _W3_FX = joinpath(@__DIR__, "..", "fixtures", "west_tail3")
+
+# a tiered fixture case (goldens = the live oracle's, test/fixtures/tiered/<v>) compared whole
+function _w3_case(v, cn, r)
+    d = mktempdir()
+    txt, db, crashed, err = run_case(v, cn, r; dir = d)
+    return (crashed = crashed, ms = crashed ? Mismatch[] : compare_case(v, cn, r, txt, db))
+end
 const _W3_VAR = Dict("ci" => FVSjl.CentralIdaho(), "nc" => FVSjl.Klamath(), "bm" => FVSjl.BlueMountains(),
                      "ws" => FVSjl.WestSierra(), "wc" => FVSjl.WestCascades(), "ec" => FVSjl.EastCascades())
 
@@ -53,6 +62,16 @@ end
     end
 end
 
+# AK ESTAB (ak/estab.f:699/816) reads BAAA/PTPAA of the gradd.f:192 DENSE, which walked IND1 in the post-TRIPLE REASS interleave
+# (grincr.f:553); esnutr.f:138's SPESRT after ESUCKR's sprouts resets IND1 to ascending record order, which jl used for its
+# recompute: BAAA 111.172935 vs live 111.172951 (FVSak_g16 10709344010497 simfire 2016, instrumented dense.f/estab.f relink)
+# => ESTOCK PN/PROB1 ULPs => every regen record's PROB and the later QMD/ATQMD 8 cells (2016-2046).
+@testset "AK ESTAB BAAA/PTPAA summed in the gradd.f:192 DENSE's IND1 order" begin
+    c = _w3_case("AK", "10709344010497", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 # crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
 # the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
 # n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.
@@ -81,3 +100,5 @@ const _W3_ALLVAR = merge(_W3_VAR, Dict("bc" => FVSjl.BritishColumbia(), "ak" => 
         @test all(a[1:3] == b[1:3] && a[4] ≈ b[4] && a[5] == b[5] for (a, b) in zip(gold, jl))
     end
 end
+
+end # module WestTail3Test
