@@ -209,4 +209,12 @@ end
     @test FVSjl.op_uses_fmcrowe(26) && FVSjl.op_uses_fmcrowe(39) && !FVSjl.op_uses_fmcrowe(16) && !FVSjl.op_uses_fmcrowe(11)
 end
 
+# Stand Carbon Report merch pool (fmcrbout.f:124-130 LMERCH=LVWEST=.TRUE.; fire/base/fmsvol.f:146-153): OC/OP are not CS/LS/NE/SN, so
+# VOL2HT=MCF with NO cone floor MAX(X,MCF) — the 0.0055·H floor added 0.2 cuft to every unmerchantable tree (OP 24164991010900 2002
+# Aboveground_Merch_Live 1.984 vs 1.4758 live; per-record VT dump FVSop_tiered: tree 8 D6.2 VT 0.0, jl 0.218).
+@testset "OC/OP Aboveground_Merch_Live has no cone floor (fmcrbout.f:127, fmsvol.f:146-153)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Aboveground_Merch_Live", year = 2002) == 0
+end
+
 end # module
