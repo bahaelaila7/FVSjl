@@ -26,4 +26,19 @@ _wt2_in(ms, files) = [m for m in ms if m.file in files]
         @test isempty(_wt2_in(c.ms, files))
     end
 end
+
+# CI habitat-moisture decay multiplier: ci/fmcba.f:407-445 scales every DKR(I,J) by DCYMLT (MAPDRY(ICINDX): 0 -> 0.66,
+# 1 -> 1, 2 -> 1.33) at the first FFE year. Before: 5385337010690 / 5388215010690 litter 0.508 -> 0.254 vs live 0.3404 after
+# year 1 (DKR(10) 0.33), Forest_Floor/Forest_Down_Dead_Wood/fuel model weights off (CI 179 tiered cells).
+@testset "CI DCYMLT decay-rate habitat multiplier (ci/fmcba.f:407-445)" begin
+    for (cn, r) in (("5385337010690", "salvage"), ("5385337010690", "simfire"),
+                    ("5388215010690", "salvage"), ("5388215010690", "simfire"))
+        c = _wt2_case("CI", cn, r)
+        @test !c.crashed
+        @test isempty(_wt2_in(c.ms, ["FVS_Carbon", "FVS_PotFire", "FVS_BurnReport"]))
+    end
+    @test FVSjl.ci_adjusted_dkr(5)[10, 1] == 0.5f0 * 0.66f0     # MAPDRY(5) = 0 dry
+    @test FVSjl.ci_adjusted_dkr(15)[10, 1] == 0.5f0             # MAPDRY(15) = 1 mesic
+    @test FVSjl.ci_adjusted_dkr(57)[11, 4] == 0.002f0 * 1.33f0  # MAPDRY(57) = 2 moist
+end
 end

@@ -405,6 +405,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
             fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
         end
+        # CI habitat-moisture DCYMLT on every DKR(I,J) (ci/fmcba.f:407-445; MAPDRY(ICINDX)), once, unless FUELDCAY set it.
+        if s.variant isa CentralIdaho && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input))
+        end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa Klamath && size(fs.params.dkr, 1) != 11
