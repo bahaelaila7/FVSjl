@@ -1213,12 +1213,18 @@ mutable struct FFEUser
     ftreat::Int32
     hartyp::Int32
     dpmod::Float32
+    pburned::Vector{Float32}   # BURNED(3,1:11) tons/ac consumed by PILEBURN (FMCONS BTYPE=1) since the last carbon/fuel report
+    o_large::Float32       # OLARGE/OSMALL (fminit.f:79-80 = 0): FMFMOV's LARGE/SMALL of the previous FMMAIN, the base of SLCHNG
+    o_small::Float32
+    slchng::Float32        # SLCHNG (fmtret.f:395-400 end of FMFMOV): % change of SMALL+LARGE since the previous FMMAIN
+    latfuel::Bool          # LATFUEL (fminit.f:82): the <=5-yr post-activity fuel-model window is open (fmcfmd.f)
+    fmtret_year::Int32     # the year the SLCHNG block last ran (once per FMMAIN)
     crdcay::Float32        # CRDCAY dead coarse-root decay rate (fminit.f:918 0.0425; CARBCALC field 3)
     cdbrk::NTuple{2,Float32}   # CDBRK pulp/saw DBH break, softwood/hardwood (fminit.f:919-920 9/11; CARBCALC fields 4/5)
 end
 FFEUser() = FFEUser(FFEAct[], true, Float32[0, 5, 10, 20, 30, 40, 50], Int32(0), Int32(0), Int32(0), 6f0, Int32(0), 30f0, 100f0,
                     Int32(0), Int32(2), (2000f0, 1800f0, 1500f0), (0.10f0, 0.75f0), 8000f0, false, zeros(Int32, 4),
-                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, 0.0425f0, (9f0, 11f0))
+                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, zeros(Float32, 11), 0f0, 0f0, 0f0, false, Int32(-1), 0.0425f0, (9f0, 11f0))
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)

@@ -151,3 +151,35 @@ function ffe_cycle_acts!(s::StandState)
     _fmusrfm_update!(s)
     return
 end
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# Post-activity fuel models for the eastern builds that carry the AFWT block (NE, LS; CS/SN have none).
+# FMFMOV (fmtret.f:372-400, label 506 — after the FUELMOVE moves, every FMMAIN): OLARGE/OSMALL = the previous SMALL/LARGE, the new
+# SMALL/LARGE over BOTH pile pools, SLCHNG = 100·(LARGE+SMALL−X)/X (X = OLARGE+OSMALL, 0 when X ≤ 1E-6). fmcfmd.f then opens the <=5-yr
+# post-harvest window (FM11) when SLCHNG ≥ SLCRIT (10, fmvinit.f:1252) or LATFUEL is set. (west-tail implements the same state for the
+# western builds as fs.slchng/_ffe_afwt!; keep ONE implementation when the two branches meet.)
+function fmfmov_slchng!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active || !fs.fuels_init) && return s
+    u = fs.user; yr = Int32(current_cycle_year(s))
+    u.fmtret_year == yr && return s
+    u.fmtret_year = yr
+    sm, lg = _small_large_fuel(fs)
+    x = u.o_large + u.o_small
+    u.slchng = x > 1f-6 ? 100f0 * (lg + sm - x) / x : 0f0
+    u.o_large = lg; u.o_small = sm
+    return s
+end
+
+"fmcfmd.f AFWT/LATFUEL block (NE: ne/fmcfmd.f:136-142; LS shares it for the JP/MW/OA cover types): returns AFWT, sets EQWT(11)."
+function _east_afwt!(s::StandState, eqwt::AbstractVector{Float32})::Float32
+    u = s.fire.user
+    afwt = max(0f0, 1f0 - Float32(Int(current_cycle_year(s)) - Int(s.fire.harvyr)) / 5f0)
+    if u.slchng >= 10f0 || u.latfuel
+        u.latfuel = true
+        eqwt[11] = afwt
+        afwt <= 0f0 && (u.latfuel = false)
+    end
+    u.latfuel || (afwt = 0f0)
+    return afwt
+end

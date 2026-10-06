@@ -393,6 +393,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     br.year == Int(r.year) && (rel = br.released; tcon = get(br, :totcon, 0f0)::Float32)
                 end
             end
+            # PILEBURN (fmtret.f → FMCONS BTYPE=1) adds to the same BURNED(3,·) the fire's consumption goes to; FMDOUT/FMCRBOUT read the sums
+            # (BIOCON(1) = litter+duff, BIOCON(2) = TOTCON − BIOCON(1), V(11) = BIOCON(1)·.37 + BIOCON(2)·.50) and BURNED(3,·) is zeroed after.
+            if st.fire !== nothing
+                pb = st.fire.user.pburned
+                if any(!iszero, pb)
+                    b1 = pb[10] + pb[11]; tp = 0f0
+                    for j in 1:11; tp = tp + pb[j]; end
+                    rel = rel + (b1 * 0.37f0 + (tp - b1) * 0.50f0); tcon = tcon + tp
+                    fill!(pb, 0f0)
+                end
+            end
             uf = st.control.carbon_units == 1 ? 0.90718f0 / 0.4046945f0 :     # METRIC.F77 TItoTM / ACRtoHA
                  st.control.carbon_units == 2 ? 0.90718f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)

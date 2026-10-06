@@ -275,7 +275,10 @@ function _select_fuel_models_core(s::StandState, mois::AbstractMatrix{Float32}; 
     # model 9 + the natural-fuel candidates 10/12/13, resolved by the (SMALL,LARGE) point. (Model 11 = the
     # 5-yr post-activity fuel-jump candidate, AFWT/SLCHNG — deferred; net01 takes the natural-fuel path.)
     if s.variant isa Northeast
-        eqwt[9] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        # ne/fmcfmd.f:120-146: model 9 + the post-activity FM11 window (AFWT) sharing with 10, and the natural-fuel candidates 12/13
+        eqwt[9] = 1f0
+        afwt = _east_afwt!(s, eqwt)
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0; eqwt[13] = 1f0
         return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
     end
 
@@ -669,13 +672,36 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # ---- post-selection natural-fuel candidates (fmcfmd.f:541-620) ----
     # Activity fuel (model 11) deferred: LATFUEL=false ⇒ AFWT=0 for all natural stands.
+    u = fs.user; cyr = Int(current_cycle_year(s)); hy = Int(fs.harvyr)
     if ict in (JPCT, MWCT, OACT)
-        eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        afwt = _east_afwt!(s, eqwt)                       # ls/fmcfmd.f:541-565
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0; eqwt[13] = 1f0
         ict == OACT && (eqwt[12] = 0f0; eqwt[13] = 0f0)   # oak never gets 12 or 13
     elseif ict == NHCT
-        eqwt[10] = 0f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
+        # northern hardwoods never get FM 10/12/13, and FM11 only with activity fuel (fmcfmd.f:567-580)
+        afwt = max(0f0, 1f0 - Float32(cyr - hy) / 5f0)
+        if u.slchng >= 10f0 || u.latfuel
+            u.latfuel = true
+            afwt <= 0f0 && (u.latfuel = false)
+        end
+        eqwt[11] = u.latfuel ? 1f0 : 0f0
+        eqwt[10] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
     elseif ict == RPCT
-        eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        # red/white pine: FM12 (red slash, <=2 yr) then FM11 (older slash, <=5 yr), else the natural fuels (fmcfmd.f:582-612)
+        afwt = max(0f0, 1f0 - Float32(cyr - hy) / 5f0)
+        if u.slchng >= 10f0 || u.latfuel
+            u.latfuel = true
+            if (cyr - hy) <= 2
+                eqwt[12] = 1f0; eqwt[11] = 0f0; eqwt[10] = 0f0; eqwt[13] = 0f0
+            elseif (cyr - hy) > 2 && (cyr - hy) <= 5
+                eqwt[11] = 1f0; eqwt[12] = 0f0; eqwt[10] = 0f0; eqwt[13] = 0f0
+            else
+                eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+            end
+            afwt <= 0f0 && (u.latfuel = false)
+        else
+            eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        end
     elseif ict == ABCT
         eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
     end

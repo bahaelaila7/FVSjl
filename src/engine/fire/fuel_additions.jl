@@ -420,19 +420,43 @@ function apply_pileburn!(s::StandState)::Bool
     (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     fired = false
-    for a in s.control.schedule
-        a.icflag == Int32(2523) || continue
-        act_due(s, a.year) || continue          # OPFIND: the activities of the CURRENT cycle (ffe_acts.jl)
+    # fmtret.f:60-76: OPFIND/OPGET loop over this cycle's PILEBURN activities, each OVERWRITING AFFECT/ATREAT/FULCON/TRMORT — only the
+    # last card of the cycle is applied, once.
+    last = nothing
+    for a in sort!(filter(a -> a.icflag == Int32(2523) && act_due(s, a.year), s.control.schedule); by = a -> act_year(s, a.year))
+        last = a
+    end
+    for a in (last === nothing ? () : (last,))
         affect = a.params[2] / 100f0; atreat = a.params[3] / 100f0
         fulcon = a.params[4] / 100f0; trmort = clamp(a.params[5] / 100f0, 0f0, 1f0)
-        # consume the staged (piled) fraction of each fuel size class (FMCONS net, FMOIS=3 medium)
-        mois = fuel_moisture(3, s.variant); fr = fire_consumption_fractions(mois); cwd = fs.cwd
-        @inbounds for sz in 1:11
-            stage = sz <= 9 ? affect * fulcon : affect * atreat
-            cf = stage * fr[sz]
-            cf > 0f0 || continue
-            for k in 1:2, l in 1:4; cwd[sz, k, l] *= (1f0 - cf); end
+        # fmtret.f:85-107: move AFFECT·FULCON of sizes 1-9 (AFFECT·ATREAT of litter/duff) into the PILED pool CWD(2,…); FMCONS(BTYPE=1) burns
+        # PRBURN(2,·) = 1.0 (<1"), 0.9 (1-50"), 1.0 (litter, duff); the remainder goes back to the unpiled pool (fmtret.f:117-128), all in
+        # that REAL*4 order. BURNED(3,·) accumulates for the carbon/consumption totals.
+        cwd = fs.cwd; u = fs.user
+        prb(j) = j <= 2 ? 1f0 : (j <= 9 ? 0.9f0 : 1f0)
+        piled = zeros(Float32, 11, 2, 4)
+        @inbounds for k in 1:2, l in 1:4
+            for sz in 1:9
+                pile = cwd[sz, k, l] * affect * fulcon
+                cwd[sz, k, l] = cwd[sz, k, l] - pile; piled[sz, k, l] = pile
+            end
+            for sz in 10:11
+                pile = cwd[sz, k, l] * affect * atreat
+                cwd[sz, k, l] = cwd[sz, k, l] - pile; piled[sz, k, l] = pile
+            end
         end
+        @inbounds for j in 1:11
+            burnz = 0f0
+            for k in 1:2, l in 1:4; burnz = burnz + piled[j, k, l]; end
+            if burnz > 0f0
+                u.pburned[j] = u.pburned[j] + burnz * prb(j)
+                for k in 1:2, l in 1:4; piled[j, k, l] = piled[j, k, l] * (1f0 - prb(j)); end
+            end
+        end
+        @inbounds for k in 1:2, l in 1:4, sz in 1:11
+            cwd[sz, k, l] = cwd[sz, k, l] + piled[sz, k, l]
+        end
+        fs.exposr_last = (affect * atreat) * 100f0             # EXPOSR = PLAREA*100 (fmcons.f:249)
         # optional uniform tree mortality → snags + crown debris (mirrors the fmburn! fire kill→snag path)
         if trmort > 0f0
             t = s.trees; coef = s.coef

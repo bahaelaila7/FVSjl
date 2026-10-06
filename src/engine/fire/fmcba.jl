@@ -454,6 +454,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             fs.params.dkr = ((500 <= _kf < 600) || _kf == 701) ? so_california_dkr() : so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
+        fmfmov_slchng!(s)   # first FMMAIN: FMFMOV runs right after FMCBA's load (X=0 ⇒ SLCHNG=0; OLARGE/OSMALL seeded)
     end
     return s
 end
