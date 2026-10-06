@@ -201,7 +201,7 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
         xvold = fs.fmcrow_on ? (0f0, t.ffe_oldcrw[1, i], t.ffe_oldcrw[2, i], t.ffe_oldcrw[3, i], t.ffe_oldcrw[4, i],
                                 t.ffe_oldcrw[5, i]) :
                 crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
-        dkcl = clamp(Int(dkrcls[sp]), 1, 4)
+        dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
         for sz in 1:5
             ocw = xvold[sz + 1]
             # fmsdit.f:110-118: OLDCRW<0.0000625 ⇒ 0, else X·OLDCRW; no lift (OLDCRL ≤ .001 or the base did not rise) ⇒ 0
@@ -361,7 +361,7 @@ function fmcadd_litterfall!(s::StandState)
         sp = Int(t.species[i])
         ll = leaflf[sp]; ll <= 0f0 && continue
         xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
-        dkcl = clamp(Int(dkrcls[sp]), 1, 4)
+        dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
         fs.cwd[10, 2, dkcl] += xv[1] * t.tpa[i] / ll * _FM_P2T
     end
     return s
@@ -393,7 +393,7 @@ function fmcadd_woody!(s::StandState)
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i])
         xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
-        dkcl = clamp(Int(dkrcls[sp]), 1, 4)
+        dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
         for sz in 1:5
             fs.cwd[sz, 2, dkcl] += _FM_LIMBRK * xv[sz + 1] * t.tpa[i] * _FM_P2T
         end

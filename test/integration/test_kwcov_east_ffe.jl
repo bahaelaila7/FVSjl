@@ -22,7 +22,6 @@ const _KWFFE_OPEN = Dict{String,String}(
     "cs_fuelfoto" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 581 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "cs_fuelmodl" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 31 cells in FVS_PotFire_East",
     "cs_fuelmove_imp" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 329 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary",
-    "cs_fuelpool" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 327 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary",
     "cs_fueltret" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 34 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon",
     "cs_fueltret2" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 78 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_SnagDet",
     "cs_mortclas" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 42 cells in FVS_Mortality",
