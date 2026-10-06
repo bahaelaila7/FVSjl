@@ -946,8 +946,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
-        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMTRET)
-        apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET)
+        apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET, fmmain.f:158)
+        fmtret_slchng!(s)                                  # FMTRET's SMALL/LARGE + SLCHNG (fmtret.f:372-400)
+        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — FMFMOV, after FMTRET (fmmain.f:162)
         # FVS runs the cut-phase FFE activities (FMSALV/FMTRET, in cuts.f) BEFORE FMMAIN's FMBURN, so the
         # salvaged snags' released CWD2B crown debris (and any fuel moved) is part of the down-wood the fire
         # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between
@@ -1589,6 +1590,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 s.variant isa BritishColumbia                        # BC: bc_esgent! (strp/esgent.f → canada/bc/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
+    # AK ESTAB reads BAAA/PTPAA/PRDA of the gradd.f:192 DENSE — they do not hold ESUCKR's sprouts (FVSak_g16 10709344010497
+    # simfire: DENSE ITRN 396 / PTPAA 200.54 vs 432 / 210.06 at ESTAB entry; ESTOCK XTPA 200.54).
+    s.variant isa SoutheastAlaska && (_ak_es_state(s).dense_n = s.trees.n)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the

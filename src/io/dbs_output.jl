@@ -186,8 +186,8 @@ CREATE TABLE IF NOT EXISTS FVS_Carbon(
 
 Write the FFE Stand Carbon Report to the `FVS_Carbon` DBS table (dbsfmcrpt.f, DBSFMCRPT). `rows` is the
 `(year, report)` collection from the main simulation (`stand_carbon_report` named tuples) — the same
-metric-tons/ha pools as the `.out` carbon report. Total-Removed / Released-from-Fire are 0 (no harvest
-/ fire carbon accounting on the carbon-report path yet).
+metric-tons/ha pools as the `.out` carbon report; Total_Removed_Carbon is the report's `removed` (FMCRBOUT V(10)) and
+Carbon_Released_From_Fire the row's 6th element.
 """
 function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, rows::AbstractVector; metric::Bool = false)
@@ -205,7 +205,8 @@ function write_dbs_carbon!(dbpath::AbstractString, caseid::AbstractString,
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
                 Float64(r.aboveground), Float64(r.merch), Float64(r.belowground),
                 Float64(r.belowground_dead), Float64(r.standing_dead), Float64(r.down_wood),
-                Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total), 0.0, rel))
+                Float64(r.forest_floor), Float64(r.shrub_herb), Float64(r.total),
+                Float64(hasproperty(r, :removed) ? r.removed : 0f0), rel))
         end
     finally
         SQLite.close(db)

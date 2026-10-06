@@ -67,6 +67,13 @@ end
 nc_cwhr(s::StandState, cws::Vector{Float32}) =
     _ca_cwhr(s, cws, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
 
+# FMCFMD's CWHR call reads the common-block CRWDTH(I) (ca/fmcfmd.f:230, nc/ws likewise) — the very values FMCBA used
+# (fs.cwrec, filled in fmcba!). Falls back to the caller's recomputation when the list changed since FMCBA.
+@inline function _fm_cwrec(s::StandState)
+    fs = s.fire
+    (fs !== nothing && length(fs.cwrec) == s.trees.n) ? fs.cwrec : nothing
+end
+
 function _ca_cwhr(s::StandState, cws::Vector{Float32}, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
     t = s.trees
     ht  = zeros(Float32, 6)   # [1]=HT(0) total, [2..6]=HT(1..5) by DBH class
@@ -205,8 +212,8 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 13)              # NC ICLSS = 13 fuel models (nc/fmcfmd.f)
     # per-tree crown widths (CRWDTH) — same load-time BAREA clamp as fmcba (cwcalc.f:859)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i];
                                 barea = ba)   # CRWDTH (nc/cwcalc.f: R5CRWD on the R5 forests, NCMAP+BF on the rest)
@@ -278,12 +285,10 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     end
 
-    # FM10 / FM11 sharing (nc/fmcfmd.f:339-357). The 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL)
-    # needs HARVYR + the small+large fuel-jump tracking, not yet in jl's FFE state — so FM11 stays 0
-    # and FM10 = 1 (the AFWT=0 branch), which is exact once a burn is ≥5 yr after the last entry (nct01's
-    # 2003 fire is 10 yr after the 1993 THINDBH ⇒ AFWT=0). TODO: wire HARVYR/SLCHNG for the <5-yr window.
+    # FM10 / FM11 sharing (nc/fmcfmd.f:339-357): the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL).
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

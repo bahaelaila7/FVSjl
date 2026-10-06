@@ -27,6 +27,7 @@ function cr_mistoe!(s::StandState; fint::Float32)
     s.variant isa CentralRockies || return s
     t = s.trees
     t.n == 0 && return s
+    s.control.dm_flag = false                     # mistoe.f:193 DMFLAG=.FALSE. (after the ITRN=0 skip-out)
     species_sort!(s)                              # ensure ISCT/IND1 (species-sorted, FVS mistoe.f ISCT order)
     isct = s.control.sp_count_tab
     ind1 = s.scratch.idx1
@@ -46,6 +47,7 @@ function cr_mistoe!(s::StandState; fint::Float32)
         tottpa <= 0f0 && continue
         smr /= tottpa
         smr == 0f0 && continue                        # mistletoe-free species ⇒ NO draws (mistoe.f:263)
+        s.control.dm_flag = true                      # mistoe.f:267 at least one species has mistletoe
         # MISTMULT YPLMLT/YNGMLT (mistoe.f:219-227) — 1.0 by default (no keyword ⇒ byte-identical)
         yplmlt = active_multiplier(s.control, :dm_inc, ispc, cur_year)
         yngmlt = active_multiplier(s.control, :dm_dec, ispc, cur_year)
@@ -80,6 +82,8 @@ function cr_mistoe!(s::StandState; fint::Float32)
                 if idmr != 6 && pplus > xnum
                     if dtall * 0.7f0 > t.height[i]
                         x2 = rann!(rng)                                  # overstory intensification magnitude
+                        xnum = x2                     # mistoe.f:415 the 2nd CALL RANN(XNUM) OVERWRITES XNUM, so the
+                                                      # PMINUS.GT.XNUM test (mistoe.f:462) reads this draw, not the first
                         m = Int(t.dmr[i])
                         inc = if m == 1
                             x2 < 0.61f0 ? 1 : (x2 < 0.83f0 ? 2 : 3)

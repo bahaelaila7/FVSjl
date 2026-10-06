@@ -213,6 +213,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         (_nc_fm || _wc_fm || _pn_fm || _ec_fm) && (cw = clamp(cw, 0.5f0, 99.9f0))
         cwrec[i] = cw
     end
+    fs.cwrec = cwrec     # FMCFMD's CWHR reads this same CRWDTH(I) (ca/fmcfmd.f:230)
     # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
     # after TRIPLE, so in a tripling cycle the walk is the tripled list (originals ×.60, then each record's ×.25/×.15 copies,
     # same DBH/CRWDTH) — jl's list is still untripled here (MEASURED FVSsn private FMCBA trace, 200267456010854 2002: sp74
@@ -224,6 +225,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         totcra += 3.1415927f0 * cwrec[i] * cwrec[i] / 4f0 * pr
     end
 
+    fs.fmtba = copy(tba)     # FMTBA (FMCOM) persists until the next FMCBA — FMCFMD's LPPDOM reads it (cr/tt/ut fmcfmd.f:805-820)
     # cover type = the species with the most basal area; total BA for the decay split
     bamost = 0f0; covtyp = Int32(0); totba = 0f0
     @inbounds for ksp in 1:nsp
@@ -410,6 +412,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
             fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
         end
+        # CI habitat-moisture DCYMLT on every DKR(I,J) (ci/fmcba.f:407-445; MAPDRY(ICINDX)), once, unless FUELDCAY set it.
+        if s.variant isa CentralIdaho && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input))
+        end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa Klamath && size(fs.params.dkr, 1) != 11
@@ -454,6 +460,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             fs.params.dkr = ((500 <= _kf < 600) || _kf == 701) ? so_california_dkr() : so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
+        fmtret_slchng!(s)          # the first FMTRET follows FMCBA's initial dead-fuel load (fmmain.f:139-158)
     end
     return s
 end
