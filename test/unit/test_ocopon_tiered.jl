@@ -291,4 +291,18 @@ end
     @test isempty(c.ms)
 end
 
+# ORGANON integer-power precedence: Fortran `B2*DBH**2` is B2*(DBH*DBH) (the power binds first), jl wrote (b2*dbh)*dbh — a 1-ULP
+# difference. MCW_NWO/MCW_SWO (crngrow.f:508,567) -> LCW -> CCH crown-closure table -> TCCH (HG_NWO) -> HTGRO1 height growth (OP
+# 30194263010497 2013 HtG 7.8015337 live vs 7.8015332, K=29: TCCH 21.724193573 live vs 21.724195; CCH(9,11,12,13,14,18,32,36,40) each 1 ULP off,
+# first at one DF D12.8/H71 record's LCW 23.464387894 vs 23.46438980). Also PM_NWO (mortality.f:533-733 `B2*DBH**2`) and the SWO crown
+# HCB `B6*OG**2` (start2.f:534-537). OC 645142535126144 none HtG 2038: 3 cells -> 0.
+@testset "ORGANON B*X**2 evaluates as B*(X*X) (crngrow.f MCW, mortality.f PM, start2.f HCB)" begin
+    for (v, cn, r) in (("OP", "30194263010497", "none"), ("OP", "30194263010497", "thinbba"), ("OC", "645142535126144", "none"))
+        c = _case(v, cn, r)
+        @test !c.crashed
+        @test _n(c.ms; file = "FVS_TreeList", col = "HtG") == 0
+        @test _n(c.ms; file = "FVS_CutList") == 0
+    end
+end
+
 end # module
