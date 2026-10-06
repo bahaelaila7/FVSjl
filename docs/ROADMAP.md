@@ -28,8 +28,8 @@ Priority set by the user on 2026-10-05: **eastern variants first** (CS, LS, NE, 
 |---|---|---|---|---|
 | ✔ | CS, LS, NE | **0** / 1.28M | done 2026-10-05 (on integ-1006a; lands with its merge) | — |
 | ✔ | ON | **2** / 358k | one 1-ULP volume cell OPEN; eastern extension/keyword coverage round in progress (FFE keywords, ON keyword suite, stub parity, 4 old kwcov corners) | 1–2 days |
-| 2 | OC, OP | 955 / 193k, 2,092 / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
-| 3 | Western tail (WS, CA, AK, KT, UT, SO, WC, EC, PN; CI/CR/NC done) | 253 / 6.0M | 1-ULP QMD after regeneration, UT/SO FFE ULPs, WS HtG; FUELDCAY/SVSTART guard completeness (CI/NC); all-dead crown dub for KT/AK/BC/BM/EM | 1 day |
+| ✔ | OC, OP | **0** / 193k, **0** / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
+| 3 | Western tail (UT 71, WS 71, SO 33, KT 18, AK 14, WC 9, EC 4, PN 1; CI/CR/NC/CA done) | 221 / 6.0M | 1-ULP QMD after regeneration, UT/SO FFE ULPs, WS HtG; FUELDCAY/SVSTART guard completeness (CI/NC); all-dead crown dub for KT/AK/BC/BM/EM | 1 day |
 | 3 | BC | 8 / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
 
 Shared items found during phase 3, owned by the western-tail round: FVS_Carbon `Total_Removed_Carbon` never written
@@ -42,7 +42,7 @@ root-disease cycle-1 WK1; EM NOAUTOES+PLANT planted birth heights; remaining `NO
 |---|---|
 | Phase 3 complete | 3–6 days |
 | Phase 4 (certification pass) | +1–2 days |
-| **Certification** | **~4–8 days from 2026-10-05 evening** |
+| **Certification** | **~3–6 days from 2026-10-06** |
 | Phase 5 refactor | +1–2 weeks |
 
 History of the estimate: ~2–3 weeks (2026-09-28, before the API outage), 1.5–2.5 weeks (2026-10-04 restart),

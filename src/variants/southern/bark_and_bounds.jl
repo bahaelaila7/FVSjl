@@ -135,7 +135,7 @@ _gradd_rescale(v::AbstractVariant) = v isa Ontario || v isa BlueMountains || v i
                                     v isa EastCascades || v isa PacificNorthwest || v isa WestCascades || v isa Teton ||
                                     v isa Utah || v isa InlandEmpire || v isa Kootenai || v isa CentralRockies ||
                                     v isa WestSierra || v isa CentralCalifornia || v isa SouthCentralOregon ||
-                                    v isa SoutheastAlaska || v isa BritishColumbia
+                                    v isa SoutheastAlaska || v isa BritishColumbia || v isa Olympic || v isa OregonCoast
 
 """
     gradd_dg_scale!(s, fint)
@@ -148,8 +148,11 @@ function gradd_dg_scale!(s::StandState, fint::Float32)
     t = s.trees
     (t.n > 0 && fint != yr) || return s
     scale = fint / yr
+    # OC grows DBH inline in the ORGANON hook: BARK=BRATIO(IS,D,HT) is taken at the pre-UPDATE D (the stashed start-of-cycle DBH, REGENT's
+    # direct small-tree DBH included — see organon_apply_growth!), not the grown t.dbh.
+    pre = s.variant isa OregonCoast && length(s.calib.oc_dbh0) == t.n
     @inbounds for i in 1:t.n
-        d = t.dbh[i]
+        d = pre ? s.calib.oc_dbh0[i] : t.dbh[i]
         bark = variant_bratio(s, t.species[i], d, t.height[i])
         dg = t.diam_growth[i]
         if dg > 0f0

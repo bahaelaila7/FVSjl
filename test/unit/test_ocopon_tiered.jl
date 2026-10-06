@@ -214,4 +214,177 @@ end
     end
 end
 
+# OP FFE crown biomass: fmcrow.f:159-164 SELECT CASE (SPIW) sends only the hardwoods 26,27,34,35,36,37,39 to FMCROWE (Jenkins); every
+# other OP species uses FMCROWW (ISPMAP). jl routed ALL OP species through FMCROWE (conifer CROWNW 0.46x live: DF 7.3in/55ft CROWNW(0)
+# 14.13 vs 30.033 live, FMDOUT dump FVSop_tiered 24164991010900 2002) ⇒ Aboveground_Total_Live 7.81 vs 8.16 and the whole fire year.
+@testset "OP FFE crown biomass = FMCROWW for conifers (op/fmcrow.f:159-164)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test !c.crashed
+    @test _n(c.ms; file = "FVS_Carbon", col = "Aboveground_Total_Live", year = 2002) == 0
+    @test _n(c.ms; file = "FVS_BurnReport", col = "Flame_length") == 0
+    @test FVSjl.op_uses_fmcrowe(26) && FVSjl.op_uses_fmcrowe(39) && !FVSjl.op_uses_fmcrowe(16) && !FVSjl.op_uses_fmcrowe(11)
+end
+
+# Stand Carbon Report merch pool (fmcrbout.f:124-130 LMERCH=LVWEST=.TRUE.; fire/base/fmsvol.f:146-153): OC/OP are not CS/LS/NE/SN, so
+# VOL2HT=MCF with NO cone floor MAX(X,MCF) — the 0.0055·H floor added 0.2 cuft to every unmerchantable tree (OP 24164991010900 2002
+# Aboveground_Merch_Live 1.984 vs 1.4758 live; per-record VT dump FVSop_tiered: tree 8 D6.2 VT 0.0, jl 0.218).
+@testset "OC/OP Aboveground_Merch_Live has no cone floor (fmcrbout.f:127, fmsvol.f:146-153)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Aboveground_Merch_Live", year = 2002) == 0
+end
+
+# op/fmcba.f carries no COVCA/COVCAWT: FLIVE (:453-457) and the initial dead fuel STFUEL (:503-504) load from the single COVTYP. jl used
+# the NC/WS/CA/OC BA-weighted top-2 species pair (OP 24164991010900: 0.899 DF + 0.101 LP) ⇒ Forest_Shrub_Herb 0.19495 vs 0.2000 and
+# Forest_Down_Dead_Wood 21.46 vs 22.806 at the inventory year, and the fire's fuel models/flame/scorch.
+@testset "OP FMCBA loads live+dead fuel from the single COVTYP (op/fmcba.f:453-457,503-504)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", year = 2002) == 0
+    @test _n(c.ms; file = "FVS_BurnReport") == 0
+    @test _n(c.ms; file = "FVS_Mortality") == 0
+    @test _n(c.ms; file = "FVS_PotFire", year = 2002) == 0
+end
+
+# FMSVOL/FMSVL2 for OC/OP (fire/base/fmsvol.f:98-142): NATCRS on the stand's volume equation — a Region-6 forest (KODFOR 6xx) runs
+# R6_EQN (westside FW2 / INGY FW2 / 616BEHW), a BLM forest BLMVOL — at (D,H) with BARK=BRATIO(JS,D,H), then CFTOPK at INT(XHT*100) on
+# every snag report (CTKFLG=T). jl valued FFE snags (and the live-stem carbon) with the BLM total cubic on every forest: OP 24164991010900
+# (forest 609 R6) snag D5.2/H28 LP TCF 2.9802 live vs 1.82; DF D7.09/H48.06 5.1 vs 7.29 ⇒ Standing_Dead 12.705 vs 12.473 after the fire.
+@testset "OC/OP FFE snag + live-stem volume = FMSVOL on the stand's NATCRS equation (fmsvol.f:98-142)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Standing_Dead", year = 2007) == 0
+    @test _n(c.ms; file = "FVS_Carbon", year = 2007) == 0
+    @test _n(c.ms; file = "FVS_BurnReport") == 0
+    @test _n(c.ms; file = "FVS_Mortality") == 0
+end
+
+# OC FFE FMOLDC: OLDHT/OLDCRL are the PRE-growth HT/ICR (fmoldc.f closes FMMAIN, which runs in GRADD before UPDATE). OC's ORGANON hook grows
+# the stand inline, so the non-fire cycle's ffe_fmoldc! stored GROWN heights ⇒ next FMSDIT's crown-lift X was 0 for those records
+# (OC 30193600010497 2013 FD dump: OLDCRW(1) 0.10202 live vs 0 jl) ⇒ the fire snags' CWD2B2 sizes 1-4 (YRSCYC*OLDCRW term, fmscro.f:147) low.
+# oc/fmvinit.f:481-510: snag HTX(I,1:4)=1/0/1/0 + HTR1 0.03406 (fire snags lose height: 48.9 -> 41.1 ft by 2018) and TFALL(I,1)=10, (2)=15,
+# (4:5)=TFALL(3) (the generic tfall class rows dropped a fire's crowns in ~4 yr instead of 10-20).
+@testset "OC FFE: pre-growth FMOLDC, snag height loss HTX/HTR1, crown TFALL (oc/fmvinit.f, fmoldc.f, fmsdit.f)" begin
+    c = _case("OC", "30193600010497", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon") == 0
+    @test isempty(c.ms)                                  # incl. FVS_PotFire 2028 Fuel_Mod1 5 (CWHR on the stored CRWDTH, oc/fmcfmd.f)
+    @test FVSjl._fm_tfall_table(FVSjl.OregonCoast())[18, 1:6] == Float32[3, 10, 10, 10, 10, 10]
+end
+
+# OP snag decay: op/fmvinit.f sets DECAYX(I)=1.0 for every species (MEASURED FVSop_tiered FMDOUT dump, all 39); the OP fire_species_props.csv
+# carried the OC value 999 ("hard snags never soften") ⇒ FMSNGDK DKTIME = JYRSOFT·DECAYX = 21·999, so TSOFT never bounded a fire snag's
+# crown fall (FMSCRO: RLIFE = MIN(TFALL, TSOFT); live LP D5.1 TSOFT 11 ⇒ ILIFE 11, jl 15) ⇒ CWD2B size-3 class 2 29.18 live vs 33.64 lb.
+@testset "OP DECAYX = 1.0 (op/fmvinit.f): fire-snag crown fall bounded by TSOFT" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Standing_Dead", before = 2022) == 0
+    @test _n(c.ms; file = "FVS_Carbon", col = "Forest_Down_Dead_Wood") == 0
+    @test _n(c.ms; file = "FVS_PotFire", before = 2017) == 0
+end
+
+# OC bare-stand cover type (oc/fmcba.f:529-545): no live BA in the first FFE year ⇒ COVTYP = COVINI6(ITYPE) on an R6/BLM forest
+# (IFOR ≥ 6) else COVINI5(ITYPE) (tables byte-identical to ca/fmcba.f), default 7; jl always used 7 ("COVINI waits on habtyp").
+# OC 24446507010900 (no trees): inventory Forest_Shrub_Herb 1.2 vs live 1.15, Forest_Down_Dead_Wood 1.65 vs 3.05 (initial FUINI by cover).
+@testset "OC bare-stand COVTYP = COVINI(ITYPE) (oc/fmcba.f:529-545)" begin
+    c = _case("OC", "24446507010900", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# OC first-year FFE decay rates (oc/fmcba.f:575-737, == ca/fmcba.f): the Oregon base DKRT × DKRADJ(CAHMC(ITYPE),CAWMD(ITYPE),K) with the
+# stand's habtyp ITYPE (CDC321 ⇒ ITYPE 3, TEMP 2, MOIST 3 — MEASURED FVSoc_tiered); jl hard-coded the mesic CWC221 row for every stand.
+# OC 15148784010497: 2015 Forest_Down_Dead_Wood 0.454 live vs 0.436; salvage/simfire Carbon+PotFire 39 cells each -> 0.
+@testset "OC FFE decay rates by habitat ITYPE (oc/fmcba.f:575-737)" begin
+    for r in ("simfire", "salvage")
+        c = _case("OC", "15148784010497", r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
+# OP CROWN: the `ICRI < 10` bumps (op/crown.f:385 CRMAX, :429 floor 10, stmt 58) are guarded `(.NOT. LORGANON) .AND. (IORG(I) .NE. 1)`;
+# LORGANON=.TRUE. (op/grinit.f:340) ⇒ they never fire, for ORGANON and non-ORGANON trees alike (OC already omitted them). jl bumped every
+# non-ORGANON tree: OP 24164991010900 fire-scorched LP ICR 1 live / 10 jl at 2017 ⇒ the survivors' DBH, QMD 14.718 vs 14.695, PotFire.
+@testset "OP CROWN has no ICRI<10 bump under LORGANON=.TRUE. (op/crown.f:385,429)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# ORGANON integer-power precedence: Fortran `B2*DBH**2` is B2*(DBH*DBH) (the power binds first), jl wrote (b2*dbh)*dbh — a 1-ULP
+# difference. MCW_NWO/MCW_SWO (crngrow.f:508,567) -> LCW -> CCH crown-closure table -> TCCH (HG_NWO) -> HTGRO1 height growth (OP
+# 30194263010497 2013 HtG 7.8015337 live vs 7.8015332, K=29: TCCH 21.724193573 live vs 21.724195; CCH(9,11,12,13,14,18,32,36,40) each 1 ULP off,
+# first at one DF D12.8/H71 record's LCW 23.464387894 vs 23.46438980). Also PM_NWO (mortality.f:533-733 `B2*DBH**2`) and the SWO crown
+# HCB `B6*OG**2` (start2.f:534-537). OC 645142535126144 none HtG 2038: 3 cells -> 0.
+@testset "ORGANON B*X**2 evaluates as B*(X*X) (crngrow.f MCW, mortality.f PM, start2.f HCB)" begin
+    for (v, cn, r) in (("OP", "30194263010497", "none"), ("OP", "30194263010497", "thinbba"), ("OC", "645142535126144", "none"))
+        c = _case(v, cn, r)
+        @test !c.crashed
+        @test _n(c.ms; file = "FVS_TreeList", col = "HtG") == 0
+        @test _n(c.ms; file = "FVS_CutList") == 0
+    end
+end
+
+# HTGRO2 (minor ORGANON species): `PDBH=DBH-GROWTH(K,2)` is taken from the already-updated DBH, so the "previous" DBH fed to HD_SWO/HD_NWO is
+# (dbh+dg)-dg, 1 ULP off the stored start DBH (OC 645182389126144 CY 2033->2038: PDBH 7.977936745 live vs 7.977937222 jl ⇒ PRDHT1 43.82196045
+# vs 43.82197952 ⇒ HtG 1.0444946 vs 1.0444717). jl passed the stored start DBH.
+@testset "ORGANON HTGRO2 PDBH = DBH - DG (htgrowth.f HTGRO2)" begin
+    c = _case("OC", "645182389126144", "none")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# OC CROWN for a valid-ORGANON (IORG=1) tree (oc/crown.f:281-288 → stmt 41 → 9052 → CRMAX cap :368-380 → :426-433): CRNEW=ANINT(CR2·100) then the
+# same CRMAX cap as every tree, CRMAX=(HT·ICR/100+HTG)/(HT+HTG)·100 on the UPDATEd HT, ICRI ≤ 95, ≥ 1. jl wrote ANINT(CR2·100) straight in the growth
+# hook: OC 645182389126144 econ (post-thin MA seedlings) 2033 PctCr 3 jl vs 2 live (ICR 1, CR2 0.02507, HT 7.954158, HTG 0.12111 ⇒ CRMAX 2.4846).
+@testset "OC IORG=1 crown takes the CRMAX cap (oc/crown.f:368-380)" begin
+    c = _case("OC", "645182389126144", "econ")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# WC/PN/OP FMCFMD after a burn (fmmain.f:189 FMCFMD3→FMCFMD): CTBA/STNDBA/TARGBA are FMCBA's year-start FMTBA (pre-fire BA); only QMD80 reads the
+# post-kill FMPROB (fmeff.f:547). jl re-summed the survivors' BA for the cover-group weights: OP 15072502010497 simfire 2015 PotFire fuel
+# models 9/5 99:1 live vs 100:0 jl (Surf_Flame_Sev 3.2022 vs 3.1256, PTorch, Mortality_BA 86 vs 84).
+@testset "OP post-burn FMCFMD uses the pre-fire FMTBA (op/fmcfmd.f, fmmain.f:189)" begin
+    c = _case("OP", "15072502010497", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# OC native (non-ORGANON) MORTS reads the DBH REGENT(LESTB=.FALSE.) already wrote for a small tree (oc/regent.f:285-345 sets DBH(K) in place for
+# D < DGMIN; UPDATE only adds the rest) — jl swapped EVERY record to its start-of-cycle DBH for MORTS/FMMAIN. OC 15148784010497 PLANT cycle 3:
+# MORTS ES014 D 0.10667 vs start 0.10261 ⇒ RI 0.002835025 vs 0.002827 ⇒ TOKILL 7.696978 vs 7.696754 ⇒ every record's TPA 3e-5 off (QMD 2 ULP).
+@testset "OC small-tree DBH written by REGENT is what MORTS sees (oc/regent.f:285-345, morts.f)" begin
+    for (cn, r) in (("15148784010497", "plant_cyc"), ("15148784010497", "plant_cal"), ("645101878126144", "plant_cyc"), ("645101878126144", "plant_cal"))
+        c = _case("OC", cn, r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
+# NVEL R6VOL short-tree total cubic (r6vol.f:105 `VOL(1)=0.00272708*(DBHIB*DBHIB)*TTH`, H <= 17.3 ft, 616BEHW): the square binds first. ca_behre_vol
+# (CA + OC on R6 forests) wrote (K*dibh)*dibh*h — 1 ULP (OC 41133570010497 TO D1.2242/H12.087 TCuFt 0.0316143669 live vs 0.0316143632;
+# 24061836010900 likewise).
+@testset "R6VOL short-tree total cubic K*(DBHIB*DBHIB)*H (r6vol.f:105)" begin
+    for (cn, r) in (("41133570010497", "none"), ("24061836010900", "none"))
+        c = _case("OC", cn, r)
+        @test !c.crashed
+        @test _n(c.ms; file = "FVS_TreeList", col = "TCuFt") == 0
+    end
+end
+
+# OP REGENT small-tree DG (op/regent.f:389 then :439): DG(K)=DGR*SCALE*WK4(I) first, THEN DG(K)=DG(K)*BARK*XRDGRO — jl multiplied BARK before the climate
+# WK4 (dg5*bark*wk4): 1 ULP (OP 15072502010497 climate, one regenerated tree DBH 3.8212953 live vs 3.8212955 ⇒ QMD 2020/2025).
+@testset "OP REGENT DG = ((DGR*SCALE)*WK4)*BARK (op/regent.f:389,439)" begin
+    c = _case("OP", "15072502010497", "climate")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# FVS_DM_* inventory-year row (misprt.f MISPRT at ICYC=0, fvs.f:338): MISMRT(.FALSE.) projects with the COMMON FINT, which at that point is the
+# stand table's DG_MEASURE (dbsstandin.f:701, FIA stands carry 10), not the 5-year cycle length: MEASURED FVSoc_tiered 645182389126144 mistletoe
+# MISMRT `Begin MISMRT: Cycle 0, FINT 10.00`; Mort_TPA 2 / Mort_BA 5 / Mort_Vol 182 live vs 1/2/93 (DMMORT^(FINT/10) with FINT 5). BC did this already.
+@testset "OC/OP DM inventory row projects MISMRT with DG_MEASURE (misprt.f, dbsstandin.f:701)" begin
+    c = _case("OC", "645182389126144", "mistletoe")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module

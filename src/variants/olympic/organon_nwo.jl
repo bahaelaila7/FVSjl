@@ -83,7 +83,7 @@ const OP_MCW_NWO_PK = Float32[81.45,999.99,76.70,999.99,999.99,999.99,102.53,999
     if h < 4.501f0
         return h/4.5f0*b0
     else
-        return b0 + b1*dbh + b2*dbh*dbh
+        return b0 + b1*dbh + b2*(dbh*dbh)     # crngrow.f MCW_NWO `B2*DBH**2`: the integer power binds first (B2*(DBH*DBH))
     end
 end
 
@@ -285,11 +285,11 @@ organon/mortality.f PM_NWO — the per-group linear predictor (DIFFERENT form pe
     elseif g == 2
         pm = b0 + b1*dbh + b4*(si_1 + 4.5f0) + b5*(bal/dbh)
     elseif g == 3 || g == 4
-        pm = b0 + b1*dbh + b2*dbh*dbh + b3*cr + b4*(si_2 + 4.5f0) + b5*bal
+        pm = b0 + b1*dbh + b2*(dbh*dbh) + b3*cr + b4*(si_2 + 4.5f0) + b5*bal
     elseif g == 8
-        pm = b0 + b1*dbh + b2*dbh*dbh + b3*cr + b4*(si_1 + 4.5f0) + b5*flog(bal + 5.0f0)
+        pm = b0 + b1*dbh + b2*(dbh*dbh) + b3*cr + b4*(si_1 + 4.5f0) + b5*flog(bal + 5.0f0)
     else
-        pm = b0 + b1*dbh + b2*dbh*dbh + b3*cr + b4*(si_1 + 4.5f0) + b5*bal
+        pm = b0 + b1*dbh + b2*(dbh*dbh) + b3*cr + b4*(si_1 + 4.5f0) + b5*bal
     end
     return pm, pow
 end
@@ -515,7 +515,8 @@ htgrowth.f:241-255) takes the H40 increment RAH40(GEARA+5)−RAH40(GEARA), GEARA
         return oc_rah40(geara + 5.0f0, rasi) - oc_rah40(geara, rasi)
     end
     dbh_end = dbh_start + dgro
-    prdht1 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_start) - 4.5f0)
+    pdbh = dbh_end - dgro          # htgrowth.f HTGRO2 `PDBH=DBH-GROWTH(K,2)` on the already-updated DBH (not the stored start DBH)
+    prdht1 = 4.5f0 + calib1*(op_hd_nwo(g, pdbh) - 4.5f0)
     prdht2 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_end) - 4.5f0)
     return (prdht2/prdht1)*ht - ht
 end

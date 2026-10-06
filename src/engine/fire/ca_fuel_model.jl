@@ -73,7 +73,11 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     cws = something(_fm_cwrec(s), zeros(Float32, t.n))
     _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        cws[i] = ca_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), ba, el, hi)
+        # oc/fmcfmd.f CALL CWHR(ISP,DBH,HT,FMICR,FMPROB,CRWDTH,...): CRWDTH(I) is the array cwidth.f last stored (load / gradd.f:254),
+        # the same value FMCBA's PERCOV reads — not a width recomputed from the FMMAIN-time dims and the current stand BA
+        # (OC 30193600010497 2028: stored 10.70564/11.60288 ⇒ CWHR size class "X" ⇒ FM 5; the recomputed widths gave model 2).
+        cws[i] = s.variant isa OregonCoast ? stored_crwdth(s, i) :
+                 ca_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), ba, el, hi)
     end
 
     # per-species BA% + the site species' site index (SITEAR(ISISP))

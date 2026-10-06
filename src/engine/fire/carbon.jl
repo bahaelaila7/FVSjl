@@ -497,6 +497,10 @@ FFE method V(2) += FMPROB·VT·V2T with FMSVL2 LMERCH=LVWEST (western MCF, easte
 V(4..8)=BIOROOT/BIOSNAG/BIODDW/BIOFLR/BIOSHRB (`fmdout_bio`); ×0.5 (×0.37 for the floor); ICMETRC 1 ⇒ ×TItoTM/ACRtoHA,
 2 ⇒ ×TItoTM; V(9)=V(1)+V(3)+V(5)+V(6)+V(7)+V(8) (+V(4) when LDCAY).
 """
+# fmcrbout.f:127 LMERCH=.TRUE. when LVWEST; fire/base/fmsvol.f:146-153 then returns VOL2HT=MCF (no MAX(X,·) cone floor) for every
+# non-{CS,LS,NE,SN} variant.
+_ffe_oc_merch_carbon(s::StandState) = s.variant isa OregonCoast || s.variant isa Olympic
+
 function stand_carbon_report(s::StandState; vtrip::Bool = false)
     t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
     ffe = s.control.carbon_method == 0
@@ -512,6 +516,7 @@ function stand_carbon_report(s::StandState; vtrip::Bool = false)
         else
             vt = west ? (_ffe_lvwest(s.variant) ? ffe_west_nocut(s, sp, d, h)[2] :
                          max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1])) :   # ON: LVWEST=F ⇒ LMERCH=F
+                 _ffe_oc_merch_carbon(s) ? _ffe_stem_mcf(s, i, sp, d, h) :     # OC/OP LVWEST: LMERCH=T ⇒ MCF, no cone floor
                  max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h))
             v2 += pr * vt * (v2t[sp] / 2000f0)
         end

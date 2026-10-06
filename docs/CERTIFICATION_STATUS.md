@@ -1,6 +1,6 @@
 # FVSjl — certification status
 
-_Last updated 2026-10-06 (integ-1006d = master `810f78e7` + western tail round 2; numbers measured on that branch). No crash cases in any variant. Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
+_Last updated 2026-10-06 (integ-1006e = master `51a539b9` + ORGANON round 2; numbers measured on that branch). **14 of 24 variants at 0 tiered cells; 231 cells left in 10 variants; no crash cases.** Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
 Method: **[DOCTRINE.md](DOCTRINE.md)**. Older narrative status (FIA sweeps, extensions, PPE): [PORT_STATUS.md](PORT_STATUS.md)._
 
 ## What "certified" means here
@@ -40,17 +40,17 @@ exactness.
 | | CR | 110 | 431,194 | 62,672 | **0** | 100% | — |
 | | CI | 110 | 214,008 | 3,020 | **0** | 100% | — |
 | | AK | 90 | 431,138 | 2,283 | 14 | 99.9968% | FFE |
-| | CA | 100 | 434,154 | 14,475 | 23 | 99.9947% | FFE |
+| | CA | 100 | 434,154 | 14,475 | **0** | 100% | — |
 | | WS | 110 | 560,098 | 29,758 | 71 | 99.9873% | FFE |
 | Eastern | NE | 70 | 461,313 | not measured | **0** | 100% | — |
 | | LS | 70 | 392,704 | not measured | **0** | 100% | — |
 | | CS | 70 | 427,228 | not measured | **0** | 100% | — |
 | | ON | 60 | 357,738 | not measured | **2** | 99.9994% | one TA record TCuM 1-ULP (OPEN) |
-| ORGANON | OC | 100 | 192,907 | not measured | 948 | 99.51% | post-fire FFE (snag fate / FMSADD), HTGRO1 ULPs |
-| | OP | 100 | 173,264 | not measured | 2,092 | 98.79% | simfire FFE initialisation (~1,900) |
+| ORGANON | OC | 100 | 192,907 | not measured | **0** | 100% | — |
+| | OP | 100 | 173,264 | not measured | **0** | 100% | — |
 | Canada | BC | 90 | 1,968,465 | not measured | **8** | 99.9996% | plant QMD 1-ULP |
 
-Totals: core 4 — 0 / 2.41M; eastern CS/LS/NE — 0 / 1.28M; ON 2 / 358k; 13 original western — 253 / 6.0M (99.996%); BC 8 / 1.97M.
+Totals: 14 variants at 0 (SN IE EM BM TT CS LS NE CI CR NC CA OC OP); remaining 231 cells: UT 71, WS 71, SO 33, KT 18, AK 14, WC 9, BC 8, EC 4, ON 2, PN 1.
 
 CS/LS/NE/OC/OP/ON entered the tiered suite on 2026-10-05; before that they were validated only by shipped-test goldens,
 keyword-coverage tests and (CS/LS/NE) the FIA full-population `.sum` sweep, which a per-cell tiered comparison is much
@@ -60,7 +60,7 @@ stricter than.
 
 | Branch | Content | State |
 |---|---|---|
-| `integ-1006d` | western tail 2,734 → 253 (CI, CR → 0; BC 55 → 8): removed carbon, FLAMEADJ crown fire, activity fuels, CWHR on FMCBA CRWDTH, CI DCYMLT, KT/IE FMKOD, CR mistoe RANN, AK ESTAB arrays, all-dead crown dub (WS/CA), BC TVOLI, estab GENTIM | suite |
+| `integ-1006e` | OC 955 → 0, OP 2,092 → 0, CA 23 → 0 (ORGANON round 2: OC/OP FFE layer, ORGANON B*(X*X), HTGRO2 PDBH, R6VOL short-tree cubic, TIMEINT>5) | suite |
 | `ocop-2` | OC 15,700 → 4,300, OP 19,545 → 6,762 | Sonnet agent working |
 
 ## How work lands (the gate)
@@ -96,6 +96,7 @@ KT volume setup.
 | `d93375d5` | 10-05 | BC (→ 55), CS/LS/NE (→ 0), status/roadmap docs | 139,622 + 8 promoted improvements |
 | `c231a155` | 10-06 | ON (→ 2), OC/OP round 1; no crash case in any variant | 140,340 / 0 / 1 stale test (fixed) |
 | `810f78e7` | 10-06 | OC 955, OP 2,092 (ORGANON round) | 140,367 / 0 / 0 / 12 |
+| `51a539b9` | 10-06 | western tail → 253, BC 8; all test files registered | 140,367 / 0 / 0 / 12 (+7 newly registered files pass) |
 
 ## Oracles
 

@@ -84,7 +84,7 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
             icr != 0 && continue                            # op/crown.f:407 IF(ICR.NE.0) GO TO 60
             cr = _op_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            icri > 95 && (icri = 95); icri < 1 && (icri = 1)   # LORGANON=.TRUE. (op/grinit.f:340) ⇒ no <10 bump (crown.f:429)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -138,14 +138,14 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
             htg = t.ht_growth[i]
             crln = h * Float32(icr) / 100f0
             crmax = (crln + htg) / (h + htg) * 100f0
-            # op/crown.f:383-385 — the ICRI<10 bump is SKIPPED for ORGANON trees.
-            (!iorg && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
+            # op/crown.f:385 `IF((.NOT. LORGANON) .AND. (IORG(I) .NE. 1))` — LORGANON=.TRUE. (op/grinit.f:340) for every run, so the
+            # ICRI<10 ⇒ CRMAX bump never applies (not even to the non-ORGANON trees): a scorched LP stays at ICR 1 (MEASURED
+            # FVSop_tiered 24164991010900 2017 TreeList PctCr 1 live, 10 jl).
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri > 95 && (icri = 95)                            # statement 59
-        # op/crown.f:426-428 — the ICRI<10→10 bump is SKIPPED for ORGANON trees.
-        (!iorg && icri < 10) && (icri = 10)
+        # op/crown.f:429 — same LORGANON guard ⇒ no ICRI<10→10 bump.
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end

@@ -709,6 +709,60 @@ const _FM_TFALL_UT = Float32[
       2f0  10f0  15f0  15f0  15f0  15f0;   # 23
       1f0  10f0  15f0  15f0  15f0  15f0]   # 24
 
+# oc/fmvinit.f:140-510 TFALL(I,0:5) (MEASURED from FVSoc_tiered FMDOUT dump): TFALL(I,0)/TFALL(I,3) per species (CASE blocks),
+# TFALL(I,1)=10, TFALL(I,2)=15, TFALL(I,4)=TFALL(I,5)=TFALL(I,3), TFALL(I,0)=MIN(TFALL(I,0),LEAFLF(I)), TFALL(I,2)<=TFALL(I,3).
+# (the generic tfall_cls SN class rows gave OC 1/1/1/2/4/4 yr: a fire's snag crowns fell within ~4 yr instead of 10-20.)
+const _FM_TFALL_OC = Float32[
+    3f0  10f0  15f0  20f0  20f0  20f0;   # 1
+    1f0  10f0  15f0  20f0  20f0  20f0;   # 2
+    3f0  10f0  15f0  20f0  20f0  20f0;   # 3
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 4
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 5
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 6
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 7
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 8
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 9
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 10
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 11
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 12
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 13
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 14
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 15
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 16
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 17
+    3f0  10f0  10f0  10f0  10f0  10f0;   # 18
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 19
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 20
+    3f0  10f0  15f0  20f0  20f0  20f0;   # 21
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 22
+    3f0  10f0  15f0  20f0  20f0  20f0;   # 23
+    3f0  10f0  15f0  15f0  15f0  15f0;   # 24
+    3f0  10f0  10f0  10f0  10f0  10f0;   # 25
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 26
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 27
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 28
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 29
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 30
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 31
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 32
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 33
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 34
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 35
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 36
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 37
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 38
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 39
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 40
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 41
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 42
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 43
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 44
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 45
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 46
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 47
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 48
+    1f0  10f0  15f0  15f0  15f0  15f0;   # 49
+    3f0  10f0  15f0  20f0  20f0  20f0]   # 50
 # nc/fmvinit.f:167-300 TFALL(I,0:5): per-species TFALL(I,0)/TFALL(I,3), then for every species TFALL(I,1)=10,
 # TFALL(I,2)=15, TFALL(I,4)=TFALL(I,5)=TFALL(I,3), TFALL(I,0)=MIN(TFALL(I,0),LEAFLF(I)) and TFALL(I,2)<=TFALL(I,3).
 # The CSV tfall_cls (= TFALL(I,3) 10/15/20) fed to the SN class rows clamped NC to row 6 (1/1/1/2/4/4 yr), so a fire's
@@ -829,7 +883,7 @@ const _FM_TFALL_CA = Float32[
 
 "The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM/NC/CR/CI/TT/UT/WS/CA), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
-                     v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
+                     v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP : v isa OregonCoast ? _FM_TFALL_OC :
                      v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM :
                      v isa Klamath ? _FM_TFALL_NC : v isa CentralRockies ? _FM_TFALL_CR :
                      v isa CentralIdaho ? _FM_TFALL_CI : v isa Teton ? _FM_TFALL_TT : v isa Utah ? _FM_TFALL_UT :

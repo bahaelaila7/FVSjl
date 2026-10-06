@@ -252,6 +252,12 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         end
         covca = (Int(ict[1]), Int(ict[2]))
         covcawt = xx > 0.001f0 ? (tba[ict[1]] / xx, tba[ict[2]] / xx) : (0f0, 0f0)
+        # op/fmcba.f has NO COVCA/COVCAWT (only NC/WS/CA/OC carry the top-2 pair): live (:453-457 FLIVE) and dead (:503-504 STFUEL)
+        # fuels load from the single COVTYP. MEASURED FVSop_tiered 24164991010900 2002 Forest_Shrub_Herb C 0.2000 live
+        # (FULIVE(16)=0.2+0.2) vs 0.1950 with the BA-weighted 0.899 DF + 0.101 LP pair.
+        if s.variant isa Olympic
+            covca = (Int(covtyp), 0); covcawt = (covtyp > 0 ? 1f0 : 0f0, 0f0)
+        end
     end
     # No basal area: FVS fmcba.f sets COVTYP to a VARIANT-SPECIFIC default cover-type species the first
     # year (SN 75, NE 1, CS 48, LS 3 red pine — fmcba.f "COVTYP.EQ.0" block), else keeps the previous
@@ -301,7 +307,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  s.variant isa CentralCalifornia ?
                      (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
                                                     _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
-                 s.variant isa OregonCoast ? Int32(7) :
+                 # OC (oc/fmcba.f:529-545): IFOR ≥ 6 (R6/BLM) COVINI6(ITYPE), else COVINI5(ITYPE) (the CA tables, byte-identical); 7 default.
+                 s.variant isa OregonCoast ?
+                     (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
+                                                    _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
                  s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
                  # CR (cr/fmcba.f:417-433): COVINI2(ITYPE) on Region-2 forests, COVINI3(ITYPE) on Region 3, else LP 11.
                  s.variant isa CentralRockies ?
@@ -429,6 +438,14 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         end
         if s.variant isa CentralCalifornia && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_code),
+                                            s.plot.sp_site_index, Int(s.plot.site_species))
+        end
+        # OC (oc/fmcba.f:575-737 == ca/fmcba.f): the same first-year decay rates — California forests (KODFOR 500-599) the flat
+        # 0.025/0.0125 set, else the Oregon base × DKRADJ(CAHMC(ITYPE),CAWMD(ITYPE),K); KODFOR < 600 then ×DCYMLT (GETDUNN). ITYPE =
+        # the habtyp index (`habitat_input`). The fixed mesic CWC221 default (_FM_DKR_OC) over-/under-decayed every other habitat:
+        # MEASURED FVSoc_tiered 15148784010497 (CDC321: ITYPE 3, TEMP 2, MOIST 3) 2015 Forest_Down_Dead_Wood 0.454 live vs 0.436 jl.
+        if s.variant isa OregonCoast && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_input),
                                             s.plot.sp_site_index, Int(s.plot.site_species))
         end
         # EC decay-rate habitat adjustment (ec/fmcba.f:457-491): scale the EC base DKR by DKRADJ(TEMP,MOIST,K)

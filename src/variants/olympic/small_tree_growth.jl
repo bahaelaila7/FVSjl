@@ -125,7 +125,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
             t.dbh[i] = d + 0.001f0 * hk              # DBH set directly (shared loop adds DG=0)
         else
             bark = op_bratio(ispc, d)
-            dg = dg5 * bark * wk4                    # DG(K)=DGR·SCALE·WK4(I) (op/regent.f:389); XRDGRO=1
+            dg = (dg5 * scale * wk4) * bark          # DG(K)=DGR*SCALE*WK4(I) (op/regent.f:389) THEN DG*BARK*XRDGRO (:439) — that association; XRDGRO=1
             dg < 0f0 && (dg = 0.1f0)
             dg > dgmx && (dg = dgmx)
             dds = dg * (2f0 * bark * d + dg) * scale2
