@@ -517,6 +517,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 push!(strclass_collect, (Int(r.year), 1, structure_report(s)))
             end
             if rem.tpa > 0f0
+                s.density.ptbal_stale_n = 0      # grincr.f:305-312 post-thin DENSE: PTBALT is fresh (nothing stale to restore)
                 compute_density!(s)
                 r.rem_tpa  = di(rem.tpa / g);  r.rem_cuft  = di(rem.cuft / g)
                 r.rem_mcuft = di(rem.mcuft / g); r.rem_scuft = di(rem.scuft / g)

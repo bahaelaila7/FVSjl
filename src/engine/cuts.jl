@@ -198,7 +198,19 @@ end
 # cuts.f:255-275 — the CUTS-entry TREDEL of the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
 # (PROB≤1E-10, swap-from-end, +RDTDEL/FMKILL crown carry). ONE implementation; idempotent, so it is called from cuts!
 # (a cycle with activities due, ahead of the thin — the .sum driver runs cuts! before grow_cycle!) and from grow_cycle!.
-cuts_entry_tredel!(s::StandState) = tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
+function cuts_entry_tredel!(s::StandState; save_ptbal::Bool = false)
+    t = s.trees; d = s.density
+    # The driver's early compaction (cuts!, ahead of grow_cycle!'s start-of-cycle DENSE emulation): remember the slot-indexed
+    # PTBALT of the last DENSE, which FVS leaves untouched by TREDEL/TREMOV (grow_cycle! restores it after its own density).
+    if save_ptbal && d.ptbal_stale_n == 0
+        n = t.n; any = false
+        @inbounds for i in 1:n; t.tpa[i] <= 1f-10 && (any = true; break); end
+        if any && n <= length(d.point_bal)
+            copyto!(d.ptbal_stale, 1, d.point_bal, 1, n); d.ptbal_stale_n = n
+        end
+    end
+    return tredel_compact!(t; thresh = 1f-10, onmove = _record_move_hook(s))
+end
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
     # grincr.f:283 OLDBA=BA — the stand BA BEFORE CUTS, latched once per cycle (th[14]; cuts! may be re-entered post-thin
@@ -269,7 +281,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # ties) and the ESTUMP stump order see the compacted list. The .sum driver calls cuts! AHEAD of grow_cycle!
     # (whose CUTS-entry TREDEL runs only after its start-of-cycle DENSE emulation), so a cycle with activities due
     # must compact here; a thin then re-DENSEs the compacted list, as FVS's post-cut density does. Idempotent.
-    cuts_entry_tredel!(s)
+    cuts_entry_tredel!(s; save_ptbal = true)
     # FMSALV (cuts.f:386): the FFE salvage runs at CUTS entry, BEFORE this cycle's thin — so it never salvages the
     # standing yarding-loss snags the thin is about to make (FMSCUT's FMSADD at cuts.f:1823).
     (s.fire !== nothing && s.fire.active) && apply_salvage!(s)

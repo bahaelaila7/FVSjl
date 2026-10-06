@@ -804,9 +804,15 @@ mutable struct Density
     mort_ibasp::Int32            # ON only: persisted index of the species with the most BA (IBASP,
                                  # canada/on/morts.f) — resets the ON self-thinning line when the
                                  # dominant species changes. Default 0 (inert for all other variants).
+    # PTBALT of the last DENSE, by SLOT, saved when the .sum driver's CUTS-entry TREDEL compacts the list ahead of
+    # grow_cycle! (see `cuts_entry_tredel!`): FVS's TREMOV does not move PTBALT and no DENSE follows a removal-free CUTS
+    # (grincr.f:305-312 DENSE only when ONTREM(7)>0), so the cycle's DGDRIV/MORTS read the old value of each SLOT.
+    ptbal_stale::Vector{Float32}
+    ptbal_stale_n::Int           # 0 = none saved
 end
 Density(maxtre::Int = MAXTRE) = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, maxtre),
-                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
+                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0),
+                    zeros(Float32, maxtre), 0)
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls

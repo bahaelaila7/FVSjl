@@ -72,6 +72,19 @@ end
     @test isempty(c.ms)
 end
 
+# The .sum driver compacts the list at CUTS entry (cuts.f:255-275 TREDEL) when activities are due, ahead of grow_cycle!'s DENSE.
+# FVS runs no DENSE after a removal-free CUTS and TREMOV does not move PTBALT, so DGDRIV/MORTS read the previous DENSE's
+# PTBALT by SLOT. jl recomputed it over the compacted list: AK 666741868126144 plant 2026-2036 species-11 seedlings PTBAL
+# 319.1590 vs live 319.1517 (MRT trace of an instrumented morts.f), RIP/WKI ULPs => ESTAB SUM0 (3.0983538 vs 3.0983527) =>
+# ESA/PROB1 => 194 records' PROB, QMD/ATQMD 2066.
+@testset "PTBALT stays slot-indexed across a removal-free CUTS-entry TREDEL (cuts.f:255, grincr.f:305)" begin
+    for r in ("plant_cal", "plant_cyc")
+        c = _w3_case("AK", "666741868126144", r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 # crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
 # the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
 # n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.

@@ -860,6 +860,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _rd_nodense ? (s.root_disease.skip_dense = false) :
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
                                       s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
+    # The driver's CUTS-entry TREDEL (cuts!, activities due) compacted the list without a following DENSE: FVS's cycle then reads
+    # the last DENSE's PTBALT by slot (TREMOV does not move it), not this fresh recomputation over the compacted records.
+    let d = s.density
+        if d.ptbal_stale_n > 0
+            copyto!(d.point_bal, 1, d.ptbal_stale, 1, d.ptbal_stale_n); d.ptbal_stale_n = 0
+        end
+    end
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
     econ_cycle_start!(s)
