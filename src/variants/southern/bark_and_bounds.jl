@@ -53,6 +53,7 @@ function variant_bratio(s::StandState, sp::Integer, d::Float32, h::Float32 = 0f0
     v isa WestSierra         && return ws_bratio(sd, isp, d)
     v isa Ontario            && return on_bratio(isp, d, h)
     v isa Olympic            && return op_bratio(isp, d)
+    v isa OregonCoast        && return oc_bratio(isp, d)      # oc/bratio.f (JBARK 3-type, clamp [0.80,0.99])
     v isa InlandEmpire       && return ie_bratio(isp, d)
     v isa EasternMontana     && return em_bratio(isp, d)
     v isa Utah               && return ut_bratio(sd, isp, d)

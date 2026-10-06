@@ -118,7 +118,7 @@ const _FM_DKR_OC = Float32[
 # Variant-default DKR: SN uses `_FM_DKR`; LS/NE/CS/CR use their own faithful tables (…/fmvinit.f).
 _fm_dkr_default(::AbstractVariant) = _FM_DKR
 _fm_dkr_default(::OregonCoast) = _FM_DKR_OC      # oc/fmcba.f R6-Oregon DKRT × DKRADJ(mesic CWC221)
-_fm_dkr_default(::LakeStates) = _FM_DKR_LS
+_fm_dkr_default(::Union{LakeStates,Ontario}) = _FM_DKR_LS   # ON links fire/ls/fmvinit.f
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
 _fm_dkr_default(::CentralStates) = _FM_DKR_CS
 _fm_dkr_default(::CentralRockies) = _FM_DKR_CR

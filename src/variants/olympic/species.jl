@@ -73,6 +73,8 @@ function init_blockdata!(s::StandState, v::Olympic)
     s.rng.s0 = Float64(OP_RNG_SEED); s.rng.ss = OP_RNG_SEED
     fill!(s.control.ht_drag_sp, false) # LHTDRG all .FALSE. (op/grinit.f:106)
     s.control.dg_sd = 0.0f0            # DGSD=0 (op/grinit.f:170) — ORGANON + FVS-native both deterministic here
+    s.control.dg_stddev_bound = 0.0f0  # the SAME DGSD (op/grinit.f:170; FVS has ONE): it gates the dgdriv.f calibration OLDRN
+                                       # seeding + DO 191 BACHLO draws and the ESTAB ±10% random — the BM/CI field-disconnect
     return s
 end
 

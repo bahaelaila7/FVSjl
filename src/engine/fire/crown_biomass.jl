@@ -235,10 +235,13 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                # ak/htdbh.f is byte-identical to pn/htdbh.f (a PN copy indexed by the AK species number) —
                # FMCROWE's HTDBH(IFOR,SPIYV,DMIN,HMIN,0) is its only caller.
                s.variant isa SoutheastAlaska ? pn_htdbh_height(_pn_htdbh_ifor(ifor), Int(sp), dmin) :
+               s.variant isa Ontario ? _on_htdbh_height(Int(sp), dmin) :          # canada/on/htdbh.f MODE=0
                _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
+        # ON: fire/base/fmsvol.f's VARACD test leaves 'ON' on the MAX(X,TCF) branch (LMERCH=.FALSE.), TCF = OCFVOL.
         vt  = max(0.005454154f0 * hmin, s.variant isa SoutheastAlaska ? ak_tree_vol(s, Int(sp), dmin, hmin)[2] :
+                                        s.variant isa Ontario ? on_ocfvol(s, Int(sp), dmin, hmin)[1] :
                                         _fm_cuft(s, sp, dmin, hmin; merch = true))
         vt1 = 0.0015f0 * dx * dx * hx                 # cone vol of the actual tree
         vt2 = 0.0015f0 * dmin * dmin * hmin           # cone vol of the DBHMIN tree
@@ -292,6 +295,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa SoutheastAlaska ? ak_bratio(Int(sp), d) :                 # ak/bratio.f
              s.variant isa Kootenai ? KT_BKRAT[Int(sp)] :                            # kt/bratio.f BKRAT(IS)
              s.variant isa BritishColumbia ? bc_bratio(Int(sp)) :                    # canada/bc/bratio.f (IMAP 2: BARK1)
+             s.variant isa Ontario ? on_bratio(Int(sp), d, h) :                      # canada/on/bratio.f BRATIO(SPIYV,D,H)
              (s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
                                              bark_ratio(coef, sp, d)

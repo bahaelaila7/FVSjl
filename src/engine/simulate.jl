@@ -262,6 +262,7 @@ function setup_growth!(s::StandState)
                                           # records (DO 79). RELDEN is set by compute_density! for every variant now.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa OregonCoast
+        oc_dgcons!(s)                     # oc/cratet.f:461 RCON → oc/dgf.f ENTRY DGCONS (DGCON/DGDSQ, ATTEN=OBSERV)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN before the dub
         crown_init_lstart_dead_inclusive!(s)  # oc/cratet.f:463-499 (== bm core) backdated dead-inclusive DENSE →
                                           # :856 `IF(MISSCR) CALL CROWN`. oc/crown.f LSTART dubs the records whose
@@ -270,6 +271,11 @@ function setup_growth!(s::StandState)
                                           # RW-GS logistic for d>=1, plus the cycle-0 DEAD records (DO 79 :448).
                                           # Was entirely MISSING ⇒ every IORG=0 seedling and every dead record kept
                                           # crown_pct=0, and the DO 79 DUBSCR draws were never consumed.
+        calibrate_diameter_growth!(s; scale = dgscale)   # oc/cratet.f:875 CALL DGDRIV (LSTART): the large-tree DG
+                                          # self-calibration (oc/dgdriv.f:597-1080, == op/dgdriv.f but for the species
+                                          # lists) — DO 105 inside-bark DG, DGF(WK3) on the backdated stand, COR/WCI/
+                                          # SIGMA/VARDG. Was entirely MISSING ⇒ COR=0 for the FVS-native (IORG=0) trees
+                                          # and the measured outside-bark DG kept in the cycle-0 tree list.
     elseif s.variant isa Olympic
         op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)
@@ -281,11 +287,16 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Ontario
         on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
                                           # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
-        compute_density!(s)               # current-stand density (BA) for the crown dub
-        on_cratet_dead_snapshot!(s)       # cycle-0 dead records' BAPctile/PtBAL (cratet.f:128-160 DENSE)
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
-                                          # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
-                                          # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.
+        compute_density!(s)               # current-stand density before the CRATET DENSE
+        crown_init_lstart_dead_inclusive!(s)  # canada/on/cratet.f:159-161 `LBKDEN = IDG.LT.2; CALL DENSE` over the live
+                                          # AND cycle-0 dead records (deleted only after it), then :501 `IF(MISSCR) CALL
+                                          # CROWN` — the TWIGS dub (canada/on/crown.f, ON_BCR1..4) reads THAT density's
+                                          # BA: backdated by the measured DG, dead-inclusive. jl dubbed on the current
+                                          # live-only BA (FIA 245908831010661, 16 measured DG + 3 dead: seedling ICR 37/27
+                                          # vs live 39/30) — the bm-core shared helper, as for every western variant.
+        # That DENSE also leaves the cycle-0 dead records' BAPctile (cratet_dead_pct, backdated WK5 in the IND1-seeded
+        # RDPSRT order); their PtBAL stays 0 — ptbal.f CASE('CS','LS','NE','ON') walks the live records only.
+        fill!(s.calib.cratet_dead_ptbal, 0f0)
         calibrate_diameter_growth!(s; scale = dgscale)   # canada/on/cratet.f → DGDRIV (LSTART, after CROWN/AVHT40):
                                           # dgdriv.f DO 155-202 — SIGMA=SIGMAR (on/blkdat.f), COR fit for measured-DG
                                           # species (FN≥FNMIN), else DO 191 OLDRN=BACHLO(0,SIGMA) bounded by DGSD·SIGMA
@@ -299,6 +310,13 @@ function setup_growth!(s::StandState)
     # SDICHK — reset the species SDImax when the inventory is over-dense. Every variant's cratet.f calls it LAST
     # (after the CROWN dub, the DGDRIV/REGENT calibration and the final DENSE), so the dub and the calibration read the
     # unreset SDIDEF. AK FIA 10708179010497: resetting first gave XMAXPT 711.63 vs live 614.10 ⇒ crowns 1-3 pts high.
+    # {oc,op}/sitset.f:327-329 load the ORGANON RVARS(3:5) = SDIDEF(DF/GF/PP|WH) once, before this SDICHK may raise
+    # SDIDEF on an over-dense inventory — EXECUTE's SUBMAX keeps reading those first values (MEASURED FVSoc 645182389126144:
+    # A1 6.47888 live vs 6.5562 from the post-SDICHK SDIDEF).
+    if s.variant isa OregonCoast || s.variant isa Olympic
+        sd = s.plot.sp_sdi_def
+        s.calib.organon_msdi = s.variant isa OregonCoast ? Float32[sd[7], sd[4], sd[18]] : Float32[sd[16], sd[3], sd[19]]
+    end
     sdi_max_check!(s)
     cwidth!(s)                            # fvs.f:207 CWIDTH — initial CRWDTH(I) after CRATET (IE/EM stored)
     return s
@@ -1463,6 +1481,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
         s.variant isa OregonCoast && continue   # (OC's ABIRTH is aged with the others after VOLS, gradd.f:205)
+        _dstart = t.dbh[i]
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
@@ -1472,8 +1491,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # a ~0.05-ft NORMHT error over cycles for topkill trees (the broken-top cuft ±1 residual).
         t.norm_ht[i] > 0 &&
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
+        # canada/on/vols.f:127-131: a top-killed record's VOLS BARK is BRATIO(ISPC, D_start, NORMHT/100) — ON's H/D bark
+        # reads the height — with the NORMHT update.f:66-67 just made.
+        if _on_up && t.trunc[i] > 0 && t.height[i] >= 4.5f0
+            t.vol_bark[i] = on_bratio(Int(t.species[i]), _dstart, Float32(t.norm_ht[i]) / 100f0)
+            s.scratch.vol_dstart[i] = _dstart
+        end
     end
     compute_volumes!(s)                     # end-of-period volumes
+    _on_up && fill!(view(s.scratch.vol_dstart, 1:n), 0f0)
     # gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` — AFTER UPDATE and its VOLS (above), so an age-dependent volume (ON's
     # Mowraski NMV) uses the pre-increment age this cycle. The one ABIRTH aging for every variant that reads it.
     _age_up && @inbounds(for i in 1:n; t.birth_age[i] += fint; end)
@@ -1528,6 +1554,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # before ESUCKR's sprouts and the new regen — ESGENT runs inside ESTAB, before gradd.f:244's post-regen DENSE).
     _strp_esg = s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
                 s.variant isa Klamath || s.variant isa Kootenai ||   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
+                s.variant isa Ontario ||                             # ON: strp esgent → canada/on/regent.f LESTB
                 s.variant isa BritishColumbia                        # BC: bc_esgent! (strp/esgent.f → canada/bc/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
@@ -1594,6 +1621,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         pccf_pre = es_pccf_pre)                                                                                  # ca/esgent.f (strp)
     s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
         pccf_pre = es_pccf_pre)                                                                                  # nc/esgent.f (strp)
+    s.variant isa Ontario && on_esgent!(s, es_nstart; fint = fint, ba_pre = es_st_ba_pre, pccf_pre = es_pccf_pre)   # strp esgent.f → canada/on/regent.f LESTB
     s.variant isa BritishColumbia && bc_esgent!(s, es_nstart; fint = fint, atba = es_at_ba, atccf = es_at_relden,
         atavh = es_at_avh, ba_pre = es_st_ba_pre, relden_pre = es_st_relden_pre, pccf_pre = es_pccf_pre)   # strp/esgent.f → bc/regent.f LESTB
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
@@ -1807,8 +1835,9 @@ function run_keyfile(keypath::AbstractString;
                              mgmt_id = mid, variant = variant_code(s.variant),
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
-            # FVS_InvReference (dbsreference.f) is not linked in the metric builds (BC/ON source lists: no dbsreference.f).
-            _metric_variant(s.variant) || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            # FVS_InvReference (dbsreference.f) is not in the BC build's source list; the ON oracle (build_g16_on.sh) compiles
+            # the upstream vdbsqlite/dbsreference.f (LocationCode upgrade) and writes it (live tiered ON goldens).
+            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario

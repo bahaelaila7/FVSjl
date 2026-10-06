@@ -27,8 +27,8 @@ Priority set by the user on 2026-10-05: **eastern variants first** (CS, LS, NE, 
 | Priority | Variants | Off / compared | What is known | Estimate |
 |---|---|---|---|---|
 | ✔ | CS, LS, NE | **0** / 1.28M | done 2026-10-05 (on integ-1006a; lands with its merge) | — |
-| 1 | ON | 7,351 / 358k on its branch (0 crashes) | late-cycle growth drift from a small-tree DG floor (2019); ULP mortality in one stand | 1–3 days |
-| 2 | OC, OP | 4,300 / 193k, 6,762 / 173k on their branch | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
+| ✔ | ON | **2** / 358k | one 1-ULP volume cell OPEN; eastern extension/keyword coverage round in progress (FFE keywords, ON keyword suite, stub parity, 4 old kwcov corners) | 1–2 days |
+| 2 | OC, OP | 4,300 / 193k, 6,762 / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
 | 3 | Western tail (WS, CA, AK, CI, CR, KT, UT, SO, WC, EC, NC, PN) | 2,679 / 6.0M | Mostly FFE salvage/simfire down-wood/flame cells; CR mistletoe DMR | 1–2 days |
 | 3 | BC | 55 / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
 

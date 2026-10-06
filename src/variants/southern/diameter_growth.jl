@@ -338,6 +338,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     sigmar = s.variant isa Olympic ? OP_DG_SIGMAR :   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
              s.variant isa Ontario ? ON_DG_SIGMAR :     # ON SIGMAR (canada/on/blkdat.f:268)
+             s.variant isa OregonCoast ? OC_DG_SIGMAR : # OC SIGMAR (oc/blkdat.f:233-242)
              s.variant isa CentralRockies ? cr_sigmar(Int(s.plot.model_type)) : sd[:dg_resid_sd]   # cr/sitset.f by IMODTY
     _op_cal = s.variant isa Olympic           # OP bark = op_bratio (op/bratio.f) — same watchpoint class as WC (WF COR)
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
@@ -831,6 +832,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # OC (oc/regent.f:407-509, oc/cratet.f:912 REGENT(.FALSE.,1) after DGDRIV): raw small-tree HCOR → htg_cor_init.
+    s.variant isa OregonCoast && oc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # ON (canada/on/regent.f:419-563): the same LSTART small-tree HCOR, ONSTHG-based EDH.
+    s.variant isa Ontario && on_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # AK (ak/regent.f LSTART, cratet.f:629): HTCALC-predicted vs measured small-tree (DBH<3) height increment.
     s.variant isa SoutheastAlaska && ak_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒

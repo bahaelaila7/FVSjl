@@ -340,8 +340,10 @@ end
     t.n = 2; t.species[1] = 3; t.species[2] = 3; t.dbh[1] = 10f0; t.dbh[2] = 12f0; t.tpa[1] = t.tpa[2] = 10f0
     c.dg_cor_goal[3] = 0.2f0; c.dg_cor[3] = 0.4f0                # present species: attenuated
     c.dg_cor_goal[5] = 0.1f0; c.dg_cor[5] = 0.17f0               # absent species: keeps its previous COR
-    FVSjl._op_cor_attenuate!(s, 0.5f0)
-    @test c.dg_cor[3] == 0.2f0 + 0.5f0 * 0.2f0
+    # OC/OP share one implementation, `_organon_cor_attenuate!` ({oc,op}/dgdriv.f:494-513; CORMLT=EXP(-0.02773·SFINT)).
+    m = FVSjl.fexp(-0.02773f0 * 25f0)
+    FVSjl._organon_cor_attenuate!(s, 25f0, 0f0)
+    @test c.dg_cor[3] == 0.2f0 + m * 0.2f0
     @test c.dg_cor[5] == 0.17f0
 end
 

@@ -59,14 +59,15 @@ const OP_REG_REGYR = 5.0f0
                            ptba::Float32, avht::Float32, si::Float32)
     relht = avht > 0f0 ? h / avht : 0f0
     relht > 1.5f0 && (relht = 1.5f0)
-    ptbal2 = log(ptbal + 2.71f0); ptba2 = log(ptba + 2.71f0); relht2 = sqrt(relht)
-    boost = ptba < 100f0 ? 1f0 / (1f0 + exp(-3.1f0 + 0.18f0 * ptba)) : 0f0
+    # op/smhgdg.f:263-278 LOG/EXP = glibc logf/expf (doctrine §4)
+    ptbal2 = flog(ptbal + 2.71f0); ptba2 = flog(ptba + 2.71f0); relht2 = sqrt(relht)
+    boost = ptba < 100f0 ? 1f0 / (1f0 + fexp(-3.1f0 + 0.18f0 * ptba)) : 0f0
     beta = OP_SMH_BETA[ispc]
     z = OP_SMH_ALPHA[1, ispc] + OP_SMH_ALPHA[2, ispc] * ptba + OP_SMH_ALPHA[3, ispc] * ptba2 +
         OP_SMH_ALPHA[4, ispc] * ptbal + OP_SMH_ALPHA[5, ispc] * ptbal2 + OP_SMH_ALPHA[6, ispc] * boost +
         OP_SMH_ALPHA[7, ispc] * cr + OP_SMH_ALPHA[8, ispc] * relht + OP_SMH_ALPHA[9, ispc] * relht2 +
         OP_SMH_ALPHA[10, ispc] * si
-    dgs = OP_SMH_DMAX[ispc] / (1f0 + exp(z))
+    dgs = OP_SMH_DMAX[ispc] / (1f0 + fexp(z))
     hg5 = dgs / beta
     local dg5::Float32
     if h < 4.5f0
@@ -102,7 +103,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
         ptba  = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : 0f0   # PTBAA(ITRE) — per-point BA
         si = ispc <= length(p.sp_site_index) ? p.sp_site_index[ispc] : 0f0
         hg5, dg5 = op_smhgdg(ispc, h, d, cr, ptbal, ptba, avh, si)
-        con = exp(c.htg_cor_small[ispc])            # RHCON=1 (no READCORR); HCOR small-tree calib (0 ⇒ CON=1)
+        con = fexp(c.htg_cor_small[ispc])            # RHCON=1 (no READCORR); HCOR small-tree calib (0 ⇒ CON=1)
         wk4 = cw === nothing ? 1f0 : cw[i]          # op/regent.f:270-275 WK4(I) = the CLGMULT climate multiplier
         htgr = hg5 * scale * con * wk4               # XRHGRO=1, ZZRAN=0 (DGSD<1)
         htgr < 0.1f0 && (htgr = 0.1f0)

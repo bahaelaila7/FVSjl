@@ -22,7 +22,8 @@
 
 # ca/varmrt.f — EFFTR = PEFF·VARADJ·0.1, PEFF = 0.84525 − 0.01074·PCT + 2e-7·PCT³ (PCT = BA percentile in
 # t.crown_ratio after stand_pct!; no crown term, unlike CR). Same PEFF as SN/EC; CA's own VARADJ.
-function _varmrt_efftr!(efftr, s, ::CentralCalifornia, t::TreeList, n::Int)
+# OC's FVS-native path (oc/varmrt.f) is byte-identical to ca/varmrt.f (same 50-species order and VARADJ).
+function _varmrt_efftr!(efftr, s, ::Union{CentralCalifornia,OregonCoast}, t::TreeList, n::Int)
     varadj = s.coef.species[:varmrt_varadj]
     pass1 = 0.0f0
     @inbounds for i in 1:n

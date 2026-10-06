@@ -43,7 +43,7 @@ const _FM_MOIS_NC = Float32[           # NC (nc/fmmois.f) — like IE but cond-1
     0.12  0.12  0.14  0.25  1.25  1.50   1.50]   # 4 high (nc/fmmois.f: identical to cond 3)
 
 fm_mois_table(::Northeast) = _FM_MOIS_NE
-fm_mois_table(::LakeStates) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
+fm_mois_table(::Union{LakeStates,Ontario}) = _FM_MOIS_NE   # ls/fmmois.f preset table == ne/fmmois.f (verified bit-identical)
 fm_mois_table(::CentralRockies) = _FM_MOIS_CR   # cr/fmmois.f (verified vs buildDir fmmois.f)
 fm_mois_table(::Teton) = _FM_MOIS_CR            # tt/fmmois.f == cr (verified byte-identical)
 fm_mois_table(::Utah) = _FM_MOIS_CR             # ut/fmmois.f == cr (verified byte-identical)
