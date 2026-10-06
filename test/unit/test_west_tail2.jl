@@ -72,4 +72,13 @@ end
         @test isempty(_wt2_in(c.ms, ["FVS_DM_Stnd_Sum", "FVS_DM_Spp_Sum"]))
     end
 end
+
+# CR DM spread: the overstory-intensification branch's second CALL RANN(XNUM) overwrites XNUM (mistoe.f:415), and the DMR
+# decrease test PMINUS.GT.XNUM (mistoe.f:462) reads that second draw. jl's cr_mistoe! kept the first draw (ie_mistoe! already
+# had this): FIA 46279527020004 cycle 2 record 447 PMINUS 0.00328 vs draw 0.0029 (first) / 0.746 (second): DMR 3 live, 2 jl.
+@testset "CR mistoe DMR decrease reads the overwritten XNUM (mistoe.f:415/462)" begin
+    c = _wt2_case("CR", "46279527020004", "mistletoe")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
 end

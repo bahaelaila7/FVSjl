@@ -82,6 +82,8 @@ function cr_mistoe!(s::StandState; fint::Float32)
                 if idmr != 6 && pplus > xnum
                     if dtall * 0.7f0 > t.height[i]
                         x2 = rann!(rng)                                  # overstory intensification magnitude
+                        xnum = x2                     # mistoe.f:415 the 2nd CALL RANN(XNUM) OVERWRITES XNUM, so the
+                                                      # PMINUS.GT.XNUM test (mistoe.f:462) reads this draw, not the first
                         m = Int(t.dmr[i])
                         inc = if m == 1
                             x2 < 0.61f0 ? 1 : (x2 < 0.83f0 ? 2 : 3)
