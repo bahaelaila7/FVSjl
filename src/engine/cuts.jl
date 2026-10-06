@@ -185,8 +185,12 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # no :is_sprouting column (e.g. OC ORGANON — hardwood sprouting is not ported) have no sprouters.
     (s.control.lsprut && (s.variant isa Ontario ? (sp in ON_SPROUT_SPP) :
                           (haskey(s.coef.species, :is_sprouting) && coef_col(s.coef, :is_sprouting)[sp] == 1f0))) || return
+    # cuts.f:1713 `CALL ESTUMP(IS,D,AMAX1(0.0,PREM-SSNG(IT)),ITRE(IT),ISHAG)`: the stump list carries the removal MINUS the standing yarding-loss
+    # snags (SSNG = PREM·PRLOST·(1−PRDSNG), cuts.f:1383-1385; LYARD is the YARDLOSS keyword, not FFE) — those trees were left standing.
+    _pl = s.control.yardloss_prlost
+    _stump = _pl > 0f0 ? max(0f0, prem - (prem * _pl) * (1f0 - s.control.yardloss_prdsng)) : prem
     push!(s.control.cut_log,
-          (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
+          (species = Int32(sp), dstmp = t.dbh[i], prem = _stump,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
     return
 end
