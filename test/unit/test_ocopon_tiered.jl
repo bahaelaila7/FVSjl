@@ -198,4 +198,15 @@ end
     end
 end
 
+# OP FFE crown biomass: fmcrow.f:159-164 SELECT CASE (SPIW) sends only the hardwoods 26,27,34,35,36,37,39 to FMCROWE (Jenkins); every
+# other OP species uses FMCROWW (ISPMAP). jl routed ALL OP species through FMCROWE (conifer CROWNW 0.46x live: DF 7.3in/55ft CROWNW(0)
+# 14.13 vs 30.033 live, FMDOUT dump FVSop_tiered 24164991010900 2002) ⇒ Aboveground_Total_Live 7.81 vs 8.16 and the whole fire year.
+@testset "OP FFE crown biomass = FMCROWW for conifers (op/fmcrow.f:159-164)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test !c.crashed
+    @test _n(c.ms; file = "FVS_Carbon", col = "Aboveground_Total_Live", year = 2002) == 0
+    @test _n(c.ms; file = "FVS_BurnReport", col = "Flame_length") == 0
+    @test FVSjl.op_uses_fmcrowe(26) && FVSjl.op_uses_fmcrowe(39) && !FVSjl.op_uses_fmcrowe(16) && !FVSjl.op_uses_fmcrowe(11)
+end
+
 end # module

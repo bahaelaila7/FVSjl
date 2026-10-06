@@ -6,3 +6,8 @@ const OP_FFE_V2T = Float32[24.9,23.1,21.8,19.3,22.5,20.6,23.1,26.2,21.8,20.6,23.
 const OP_FFE_ISPMAP = Int32[4,4,4,1,4,18,4,8,20,18,11,15,15,15,13,3,19,7,6,24,5,23,10,17,17,41,17,17,16,1,14,11,7,56,57,61,64,0,41]
 const OP_FFE_DBHMIN = 7.0f0
 const OP_FFE_SPROUT = let v = zeros(Float32, 39); for sp in (17,21,22,23,24,25,26,27,28,33,34,35,36,37); v[sp] = 1f0; end; v end
+
+# op/fmcrow.f:159-164 SELECT CASE (SPIW): only the OP hardwoods 26,27,34,35,36,37,39 use the eastern FMCROWE (Jenkins);
+# every other OP species uses the western FMCROWW (via cr_crownw + OP_FFE_ISPMAP). OP was routed ALL through FMCROWE
+# (conifer foliage/branch ~half the live values: MEASURED FVSop_tiered 24164991010900 2002 rec 1 DF 7.3in/55ft CROWNW(0) 30.033 live).
+@inline op_uses_fmcrowe(sp::Integer) = (sp == 26 || sp == 27 || sp == 34 || sp == 35 || sp == 36 || sp == 37 || sp == 39)
