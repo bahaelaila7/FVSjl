@@ -2,6 +2,7 @@
 module WestTail2Test
 using Test
 using FVSjl
+using SQLite, DBInterface
 include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
 
 function _wt2_case(v, cn, r)
@@ -99,5 +100,28 @@ end
     c = _wt2_case("AK", "10709344010497", "simfire")
     @test !c.crashed
     @test isempty([m for m in c.ms if !(m.col in ("QMD", "ATQMD"))])      # QMD/ATQMD: 1-2 ULP (3e-6 rel), open
+end
+
+# crown.f:118/143 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74 — a stand whose inventory is ALL dead records still dubs their
+# missing crowns (DUBSCR BACHLO draws, DO 79). jl's CA/WS crown_ratio_update! returned at n == 0: PctCr 0 on every dead record
+# and the RNG short of those draws (WS 7689156010901: 52+52+3 tiered cells, dead trees PctCr 29/10/53 live).
+# ca_alldead: FIA CA stand 15320267010497 with every record HISTORY 6 and CR blank, goldens = live FVSca_g16 TreeList.
+@testset "all-dead inventory still dubs dead crowns (WS/CA crown.f GO TO 74)" begin
+    c = _wt2_case("WS", "7689156010901", "plant_cal")
+    @test !c.crashed
+    @test isempty(c.ms)
+    fx = joinpath(@__DIR__, "..", "fixtures", "west_tail")
+    dir = mktempdir(); cp(joinpath(fx, "ca_alldead.stands.db"), joinpath(dir, "stands.db"))
+    key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+           for l in readlines(joinpath(fx, "ca_alldead.key"))]
+    write(joinpath(dir, "s.key"), join(key, '\n'))
+    FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = FVSjl.CentralCalifornia())
+    gl = readlines(joinpath(fx, "ca_alldead.FVS_TreeList.csv")); hdr = split(gl[1], ',')
+    gold = sort([(split(l, ',')[findfirst(==("TreeId"), hdr)], split(l, ',')[findfirst(==("SpeciesFVS"), hdr)],
+                  parse(Int, split(l, ',')[findfirst(==("PctCr"), hdr)])) for l in gl[2:end]])
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    jl = sort([(string(r.TreeId), string(r.SpeciesFVS), Int(r.PctCr)) for r in DBInterface.execute(db, "SELECT TreeId,SpeciesFVS,PctCr FROM FVS_TreeList")])
+    SQLite.close(db)
+    @test gold == jl
 end
 end

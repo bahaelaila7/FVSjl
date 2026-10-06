@@ -160,11 +160,18 @@ end
 function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
     sd = s.coef.species
     relden = p.relative_density; sdiac = crown_sdi
     dens = s.density
     prdf = ws_point_prd_fn(s)                                     # ZRD/XMAXPT per point (ws/crown.f:160,321)
+    n = t.n
+    if n == 0
+        # crown.f:174 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74 — a stand with only dead inventory records still
+        # dubs their missing crowns (the BACHLO draws are consumed before DGDRIV's); jl returned here, leaving
+        # PctCr 0 (WS 7689156010901: dead trees 29/10/53 live) and the RNG stream short by the draws.
+        lstart && _ws_dead_crown_dub!(s, p, dens, prdf)
+        return s
+    end
     # rank trees by projected DBH (ws/crown.f ISORT via RDPSRT on D+DG/BARK), descending → ISORT[i] ∈ 1..n
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
@@ -256,8 +263,14 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
         icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
-    # ws/crown.f:500-560 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT; TPCCF = PCCF(ITRE(I))).
-    lstart && dub_dead_crowns!(s) do i
+    lstart && _ws_dead_crown_dub!(s, p, dens, prdf)
+    return s
+end
+
+# ws/crown.f:500-560 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT; TPCCF = PCCF(ITRE(I))).
+function _ws_dead_crown_dub!(s::StandState, p, dens, prdf)
+    t = s.trees
+    dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
         icri_round(ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prdf(pt), _ws_qmdplt(dens, pt),
