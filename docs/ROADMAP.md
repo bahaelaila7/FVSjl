@@ -17,7 +17,7 @@ code is refactored to a cleaner design with the tiered suite as a lock-step safe
 | 1 | Port every variant's base model + extensions | **done** |
 | 2 | Tiered suite with live goldens for every variant | **done** 2026-10-05 (CS/LS/NE/ON/OC/OP were the last six; BC on 10-04) |
 | 3 | Drive every variant's tiered cells to zero or to named corners | **in progress** — see below |
-| 4 | Certification pass: re-audit every CORNER entry against the live oracle, close or justify each OPEN entry, full suite on the final tip | not started |
+| 4 | Certification pass: re-audit every CORNER entry against the live oracle, close or justify each OPEN entry, FIA full-population re-sweeps, full suite on the final tip | **in progress** — eastern FIA re-sweep running (1.47M stands, ~30–45 h + digs) |
 | 5 | Refactor to a cleaner design (jl-vs-jl bit-identity snapshots + oracle fast tier + coverage + mutation + thread-determinism as the net) | after phase 4 |
 
 ## Phase 3 — remaining work, in priority order
@@ -29,8 +29,8 @@ Priority set by the user on 2026-10-05: **eastern variants first** (CS, LS, NE, 
 | ✔ | CS, LS, NE | **0** / 1.28M | done 2026-10-05 (on integ-1006a; lands with its merge) | — |
 | ✔ | ON | **2** / 358k | one 1-ULP volume cell OPEN; eastern extension/keyword coverage round in progress (FFE keywords, ON keyword suite, stub parity, 4 old kwcov corners) | 1–2 days |
 | ✔ | OC, OP | **0** / 193k, **0** / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
-| 3 | Western tail (UT 71, WS 71, SO 33, KT 18, AK 14, WC 9, EC 4, PN 1; CI/CR/NC/CA done) | 221 / 6.0M | 1-ULP QMD after regeneration, UT/SO FFE ULPs, WS HtG; FUELDCAY/SVSTART guard completeness (CI/NC); all-dead crown dub for KT/AK/BC/BM/EM | 1 day |
-| 3 | BC | 8 / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
+| 3 | Western tail (UT 71, WS 53, SO 33, WC 9, EC 4, KT 3, AK 2, PN 1) | 176 / 6.0M | UT snag-bin carbon ULPs, SO FFE/volume rounding edges, WS HtG | 1 day |
+| ✔ | BC | **0** / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
 
 Shared items found during phase 3, owned by the western-tail round: FVS_Carbon `Total_Removed_Carbon` never written
 (BIOREM(2) harvest terms); FLAMEADJ with FLMULT≠1 skipped the crown-fire path; SO activity-fuel consumption; EC/NC/WC
