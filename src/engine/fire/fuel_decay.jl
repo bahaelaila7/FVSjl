@@ -148,6 +148,28 @@ _fm_dkr_default(::InlandEmpire) = _FM_DKR_NR     # ie/fmvinit.f:77-88 — DKR(I,
 _fm_dkr_default(::Kootenai) = _FM_DKR_NR         # kt/fmvinit.f:73-83 — NO ×0.45
 _fm_dkr_default(::EasternMontana) = _FM_DKR_NR   # em/fmvinit.f:87-96 — NO ×0.45
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_NR     # ci/fmvinit.f:118-128 — NO ×0.45
+# CI habitat-moisture decay multiplier (ci/fmcba.f:407-445): at the first FFE year (not from SVSTART, ISWTCH=1), unless
+# FUELDCAY set the class, every DKR(I,J) (I=1..MXFLCL, litter and duff included) is multiplied by DCYMLT = 0.66 / 1.0 / 1.33
+# for MAPDRY(ICINDX) = 0 dry / 1 mesic / 2 moist (habitat moisture codes of Kathy Geier-Hayes, ci/fmcba.f:277-296). An
+# ICINDX outside 1:130 matches no CASE ⇒ DCYMLT = 1. MEASURED FVSci_g16 5385337010690 litter 0.508 -> 0.3404 after year 1
+# (DKR(10,*) = 0.33 = 0.5·0.66), jl 0.254 (undecorated 0.5).
+const _CI_MAPDRY = Int8[
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    1, 1, 0, 0, 1, 1, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    1, 0, 0, 0, 0, 1, 2, 1, 2, 0,  1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 1, 1, 1, 1, 2, 1, 1, 1,  2, 2, 2, 1, 0, 1, 2, 2, 2, 1,
+    2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 0, 1, 1, 1, 1, 0, 1,  1, 1, 0, 0, 0, 0, 0, 0, 1, 1,
+    1, 1, 1, 1, 1, 0, 0, 1, 0, 1]
+function ci_adjusted_dkr(icindx::Int)::Matrix{Float32}
+    dcymlt = 1f0
+    if 1 <= icindx <= length(_CI_MAPDRY)
+        m = _CI_MAPDRY[icindx]
+        dcymlt = m == 0 ? 0.66f0 : m == 1 ? 1f0 : m == 2 ? 1.33f0 : 1f0
+    end
+    return _FM_DKR_NR .* dcymlt
+end
 # canada/fire/bc/fmvinit.f:66-93: DKR(1:3,1) 0.12/0.12/0.09, the 3"+ woody classes 0.03 (Klenner 2021, vs the N-Rockies
 # 0.015), DKR(I,J)=DKR(I,1); litter DKR(10,J)=0.355 and duff DKR(11,J)=0.0033 (Kurz et al. 2009) — no ×0.45.
 const _FM_DKR_BC = let m = copy(_FM_DKR_NR)
@@ -522,7 +544,9 @@ decay) by new/old, or dumping into the hard/fast pool if the class was empty. No
 """
 function apply_fuelmove!(s::StandState)::Bool
     fs = s.fire
-    (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    (fs === nothing || !fs.active) && return false
+    fs.tonrmc = 0f0                                        # fmtret.f:217 TONRMC=0 on every FMFMOV call
+    isempty(s.control.schedule) && return false
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     cwd = fs.cwd
     # FORG/FSRC/FTRG by size class 0:11 (0 = outside sink); +1 offset so idx 1 = class 0, idx j+1 = class j.
@@ -542,8 +566,10 @@ function apply_fuelmove!(s::StandState)::Bool
             xget = q >= 0f0 ? max(x, y * fsrc[fi], fsrc[fi] - z, q - fsrc[ti]) : max(x, y * fsrc[fi], fsrc[fi] - z)
             xget > fsrc[fi] && (xget = fsrc[fi])
             fsrc[fi] -= xget
+            ito == 0 && (fs.tonrmc = fs.tonrmc + xget)    # fmtret.f:308 exported ⇒ removed
         else
             xget = q >= 0f0 ? max(x, q - fsrc[ti]) : x
+            fs.tonrmc = fs.tonrmc - xget                   # fmtret.f:320 imported
         end
         ftrg[ti] += xget
         xget > 0f0 && (altered = true)

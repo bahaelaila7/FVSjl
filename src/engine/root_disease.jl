@@ -3182,8 +3182,17 @@ function rd_cycle_start!(s::StandState)
     # KT: kt/dgdriv.f:131 WK1(I)=DG(I) after the kt/dgdriv.f:716-742 DO-220 calibration — the same seam (kt_do220_dg).
     _do220_c0 = (s.variant isa Teton || s.variant isa CentralIdaho || s.variant isa Kootenai) && Int(s.control.cycle) == 0 &&
                 length(t.dg_prev) >= n
+    # CR/UT/SO/WS/EC/NC/WC/PN: the same dgdriv.f `WK1(I)=DG(I)` (e.g. nc/dgdriv.f:131, wc/dgdriv.f:128) — at cycle 1 the
+    # DO-220 DG of each build's LSTART calibration (do220_dg, the variant's BRATIO(ISPC,DBH,HT)), not the input increment
+    # or its −1 missing sentinel (tiered NC 15303130010497 rootdis 2015 Live_Merch_CuFt 115.76 live / 0 jl).
+    _west_c0 = (s.variant isa CentralRockies || s.variant isa Utah || s.variant isa SouthCentralOregon ||
+                s.variant isa WestSierra || s.variant isa EastCascades || s.variant isa Klamath ||
+                s.variant isa WestCascades || s.variant isa PacificNorthwest) && Int(s.control.cycle) == 0 &&
+               length(s.calib.dub_wk2) == m
     wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire || _do220_c0) ? t.dg_prev :
-           (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) : t.diam_growth
+           (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) :
+           _west_c0 ? Float32[do220_dg(s, i, t.dbh[i], variant_bratio(s, t.species[i], t.dbh[i], t.height[i])) for i in 1:m] :
+           t.diam_growth
     rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
     return
 end

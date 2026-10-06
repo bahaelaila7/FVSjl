@@ -143,7 +143,8 @@ function so_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     kf = Int(s.plot.user_forest_code)
     if (500 <= kf < 600) || kf == 701                           # CALIFORNIA (so/fmcfmd.f:248)
         _so_r5_eqwt!(eqwt, s, percov)
-        eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        afwt = _ffe_afwt!(s, eqwt; m14 = true)                 # so/fmcfmd.f:633-647 follows the California rules too
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0 - afwt; eqwt[13] = 1f0
         return _fmdyn(sm, lg, eqwt, _SO_FMD_XPTS)
     end
     itype = Int(s.plot.habitat_input); itype <= 0 && (itype = 49)   # so/habtyp.f DEFAULT CPS111 = ITYPE 49
@@ -210,10 +211,10 @@ function so_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         w2 > 0f0 && (eqwt[8] += w2)
     end
 
-    # Post-activity models 11/14 (AFWT/LATFUEL, so/fmcfmd.f:633-640) — deferred (no activity fuel ⇒ AFWT=0,
-    # LATFUEL false); models 10/12/13 are the always-on natural-fuel candidates.
-    eqwt[10] = 1f0
-    eqwt[12] = 1f0
+    # Post-activity models 11/14 (AFWT/LATFUEL, so/fmcfmd.f:633-640) sharing with 10/12; 13 always (:645-647).
+    afwt = _ffe_afwt!(s, eqwt; m14 = true)
+    eqwt[10] = 1f0 - afwt
+    eqwt[12] = 1f0 - afwt
     eqwt[13] = 1f0
 
     return _fmdyn(sm, lg, eqwt, _SO_FMD_XPTS)

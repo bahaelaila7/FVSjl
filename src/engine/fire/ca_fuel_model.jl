@@ -70,8 +70,8 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # per-tree crown widths (CRWDTH) — same load-time BAREA=1 cyc1 clamp as NC/WS (Crookston uses BAREA)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
     el = s.plot.elevation; hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = ca_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), ba, el, hi)
     end
@@ -123,7 +123,8 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # FM10/FM11 sharing + FM12/FM13 natural fuels (ca/fmcfmd.f:362-404, identical to NC/WS)
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

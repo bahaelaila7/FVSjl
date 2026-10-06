@@ -114,14 +114,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         r.byram <= 0f0 && (fire_carries = false)          # this model does not carry → FVS FLAG(1)=1
         byram += r.byram * w
     end
-    # FVS recomputes flame from the WEIGHTED Byram (fmfint.f:541, NLC 2003) — NOT the Σ of per-model
-    # flames (x^0.46 is concave, so the per-model sum biases low). fmburn.f:439-464: apply the FLAMEADJ
-    # multiplier to flame, then back-compute Byram from the modified flame so scorch tracks it.
-    flame = byram > 0f0 ? 0.45f0 * fpow(byram / 60f0, 0.46f0) : 0f0     # ^0.46 via gfortran companion (doctrine #8)
-    oldfl = flame
-    flmult != 1f0 && (flame = oldfl * flmult)
-    flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
-    sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
+    # FMBURN flame / crown logic (fire/vbase/fmburn.f:327-562). FLAMEADJ (fmburn.f:337-351): FLMULT, user FLAME (USRFL =
+    # FLAME>0), CRBURN (·.01, −1 = not set), SCH (−1 = not set); with no FLAMEADJ FLAME=−1, FLMULT=1, CRBURN=−1, SCH=−1.
+    usrfl = fs.user_flame > 0f0
     fire_type = "SURFACE"                    # FVS_BurnReport Fire_Type (fmcfir.f CFTMP); crown-fire branch overwrites
     # Effective crown-fraction-burned fed to the FMEFF crowning-kill term (fmeff.f:547-551, CURKIL = PMORT·FMPROB
     # + CRBURN·(FMPROB−PMORT·FMPROB)). FVS passes FMEFF the RESOLVED common CRBURN — the FMCFIR crown fraction
@@ -129,45 +124,53 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # parameter (whose default sentinel is −1/0). Without this a passive/active crown fire applied ZERO extra kill:
     # the low-PMORT large overstory survived the scorch logistic but should also lose CRBURN·(1−PMORT) to crowning.
     crfrac = crburn > 0f0 ? crburn : 0f0
-    # Crown-fire flame adjustment (fmburn.f:538-543, NE/CR): a passive/active crown fire adds the canopy fuel
-    # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
-    # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
-    # NC's SURFACE fire is bit-exact (byram 10172 = live FMFINT 10547; cbd 0.147 = live FMPOCR 0.152, actcbh 6=6).
-    # Live's 2003 SIMFIRE has a PASSIVE crown fire (live FMCFIR: CRBURN=0.561, RFINAL=29.03). NC's own FMCFIR is
-    # ported (`nc_crown_fire_result`, below): it reproduces RACT (jl 41.6 = live 41.71), RFINAL (28.4 vs 29.03),
-    # CRBURN (0.537 vs 0.561), HPA (1069.6 vs 1120.5) — the crown-fire SPREAD/type path is now correct (the shared
-    # CR/NE path used the wrong RACT: 3.34·selected@OACT1 instead of 3.34·FM10@SWIND·0.4). BUT the shared crown-fire
-    # BYRAM step still over-drives FINTEN = (HPA + TCLOAD·7744.8·CRBURN)·RFINAL/60 = 1128 vs the ~352 that yields
-    # live's flame 8.3 — even HPA·RFINAL/60 alone (505) exceeds 352, so the residual is the crown-BYRAM HPA/TCLOAD
-    # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
-    # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
-    # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
-        cf2 = canopy_bulk_density(s)
-        if cf2.cbd > 0f0 && cf2.actcbh >= 0
-            # FMBURN → FMCFIR(IYR,1,WMULT,INT(SWIND),…) (fmburn.f:510; base fmcfir.f is the same file in every variant)
-            # on the S*(1) intermediates + HPA of the burn's own FMFINT(IYR,BYRAM,FLAME,1,HPA,1) (fmburn.f:436, midflame
-            # FWIND=SWIND·WMULT) — the same FMCFIR the FMPOFL path runs (`_pofl_fmcfir`): OACT1 from FM10 at SWIND·0.4,
-            # OINIT1 from fmcfir.f:180's analytic start then the 1000-step bisection, RACT=3.34·FM10 spread, the
-            # INTEGER SWIND in the fire-type tests and the PASSIVE CFB. (Was a separate burn-only port that bisected
-            # [0,999] from scratch and compared the fire type against the REAL wind.)
-            fb = _pofl_fmfint(s, models, mois, fwind, dpmod)
-            cr = _pofl_fmcfir(s, models, mois, fb, unsafe_trunc(Int, wind), fire_wind_reduction(fs.percov),
-                              cf2.cbd, cf2.actcbh, dpmod)
-            crb, rfinal, hpa, fire_type = cr.crburn, cr.rfinal, fb.hpa, cr.cftype
-            # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
-            # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
-            # FLAMEADJ forces CRBURN=1% (0.01) ⇒ FINTEN=(HPA+TCLOAD·7744.8·0.01)·RFINAL/60 ⇒ flame 8.29 (live 8.3),
-            # NOT the ~18 the computed 0.561 would give. Klamath-guarded (the shared CR/NE path is unchanged).
-            # fmburn.f:507/514 `UCRBURN = CRBURN … IF (UCRBURN .GE. 0) CRBURN = UCRBURN` runs for EVERY non-SN/CS variant
-            # (the whole FMCFIR branch), not just NC/OP: pnt01/wct01 stand 4 (FLAMEADJ 1%) burned with FMCFIR's 0.24 ⇒ over-kill.
-            crburn >= 0f0 && (crb = crburn)
-            if crb > 0f0
-                crfrac = crb                                                # FMEFF crowning-kill fraction (fmeff.f CRBURN)
-                byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN
-                finten = byram / 60f0
-                flame = 0.45f0 * fpow(finten, 0.46f0) + crb * (0.2f0 * fpow(finten, 0.667f0) - 0.45f0 * fpow(finten, 0.46f0))
-                sch = scorch_height(byram, atemp, fwind)
+    if fs.user_sch > -1f0 && fs.user_flame > -1f0 && crburn > -1f0
+        # fmburn.f:412-425: SCH, FLAME and CRBURN all user-set ⇒ straight to the fire effects (GOTO 490) — no FMFINT,
+        # no FLAG(1) test (FMEFF/FMCONS run), CFTMP='USER_DEF'.
+        flame = fs.user_flame; sch = fs.user_sch; fire_carries = true
+    else
+        # fmburn.f:427-464: FMFINT flame (FLAME≤0) × FLMULT, or the user FLAME (FMFINT still runs for BYRAM/HPA, OLDFL=0);
+        # a changed flame back-computes BYRAM = 60·(FLAME/.45)**(1/.46). FVS recomputes flame from the WEIGHTED Byram
+        # (fmfint.f:541, NLC 2003) — NOT the Σ of per-model flames.
+        if !usrfl
+            flame = byram > 0f0 ? 0.45f0 * fpow(byram / 60f0, 0.46f0) : 0f0     # ^0.46 via gfortran companion (doctrine #8)
+            oldfl = flame
+            flmult != 1f0 && (flame = oldfl * flmult)
+        else
+            flame = fs.user_flame; oldfl = 0f0
+        end
+        flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
+        sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
+        # Crown fire (fmburn.f:473-562), only for a carrying fire (FLAG(1)=1 ⇒ GOTO 500 first). SN/CS: surface, CRBURN=0.
+        # Otherwise FMCFIR runs unless the user set both FLAME and CRBURN (fmburn.f:500); a user CRBURN≥0 (UCRBURN)
+        # replaces FMCFIR's crown fraction (fmburn.f:507,514), RFINAL/HPA are FMCFIR's/FMFINT's. CRBURN>0 then raises
+        # the flame (FINTEN=(HPA+TCLOAD·7744.8·CRBURN)·RFINAL/60, unless USRFL) × FLMULT, and a user flame or FLMULT≠1
+        # bisects FINTEN back from the flame (fmburn.f:547-583); SCH follows FINTEN.
+        if fire_carries && byram > 0f0 && (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska)
+            cf2 = canopy_bulk_density(s)
+            if cf2.cbd > 0f0 && cf2.actcbh >= 0
+                crb = crburn; rfinal = 0f0; hpa = 0f0
+                if crburn == -1f0 || !usrfl
+                    # FMBURN → FMCFIR(IYR,1,WMULT,INT(SWIND),…) (fmburn.f:510) on the S*(1) intermediates + HPA of the burn's
+                    # own FMFINT (midflame FWIND=SWIND·WMULT) — the same FMCFIR the FMPOFL path runs (`_pofl_fmcfir`).
+                    fb = _pofl_fmfint(s, models, mois, fwind, dpmod)
+                    cr = _pofl_fmcfir(s, models, mois, fb, unsafe_trunc(Int, wind), fire_wind_reduction(fs.percov),
+                                      cf2.cbd, cf2.actcbh, dpmod)
+                    crb, rfinal, hpa, fire_type = cr.crburn, cr.rfinal, fb.hpa, cr.cftype
+                    crburn >= 0f0 && (crb = crburn)                         # IF (UCRBURN .GE. 0) CRBURN = UCRBURN
+                end
+                if crb > 0f0
+                    crfrac = crb                                            # FMEFF crowning-kill fraction (fmeff.f CRBURN)
+                    finten = 0f0
+                    if !usrfl
+                        finten = ((hpa + cf2.tcload * 7744.8f0 * crb) * rfinal) / 60f0
+                        flb = 0.45f0 * fpow(finten, 0.46f0); flt = 0.2f0 * fpow(finten, 0.667f0)
+                        flame = flb + crb * (flt - flb)
+                        flmult != 1f0 && (flame = flame * flmult)
+                    end
+                    (usrfl || flmult != 1f0) && (finten = _fmburn_finten_bisect(flame, crb))
+                    sch = _scorch_finten(finten, atemp, fwind)
+                end
             end
         end
     end
@@ -308,8 +311,13 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
     # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
     cons = if fire_carries
+        # FMCONS reads the common FMSLOP (=SLOPE), FWIND (FMBURN's midflame wind; FMCFIR restores it) and DEPTH (the last
+        # fuel model FMFINT's FMGFMV loaded, ×DPMOD) — SO's activity-fuels branch uses all three (so/fmcons.f:155, :217).
+        dlast = 0f0
+        for (fm, w) in models; (fm == 0 || w <= 0f0) && continue; dlast = fmgfmv(s, fm, mois)[3] * dpmod; end
         c = fire_consumption!(fs, mois; psburn, burncr = bcrown, so = s.variant isa SouthCentralOregon,
-                              activity = Int(year) - Int(fs.harvyr) <= 5)   # fmcons.f:121 (IYR-HARVYR) ≤ 5 ⇒ activity fuels
+                              activity = Int(year) - Int(fs.harvyr) <= 5,    # fmcons.f:121 (IYR-HARVYR) ≤ 5 ⇒ activity fuels
+                              fmslop = s.plot.slope, fwind = fwind, depth = dlast)
         fs.exposr_last = c.exposr
         c
     else
@@ -365,12 +373,40 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
     # FLAMEADJ (fmburn.f:348,413): a user-forced CRBURN (crburn≥0; the default UCRBURN sentinel is -1) or FLMULT
     # (flmult≠1) makes the fire USER-DEFINED — CFTMP='USER_DEF' overrides the computed crown-fire type.
-    (crburn >= 0f0 || flmult != 1f0) && (fire_type = "USER_DEF")
+    # Any FLAMEADJ sets CFTMP='USER_DEF' (fmburn.f:348), kept across FMCFIR (LCFTMP, :505-515); only a carrying SN/CS fire
+    # resets it to 'SURFACE' (fmburn.f:494-498, skipped by the all-user GOTO 490 and the FLAG(1) GOTO 500).
+    _sncs = s.variant isa Southern || s.variant isa CentralStates
+    _alluser = fs.user_sch > -1f0 && fs.user_flame > -1f0 && crburn > -1f0
+    (fs.flameadj_on && !(_sncs && fire_carries && !_alluser)) && (fire_type = "USER_DEF")
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
           slope = s.plot.slope, scorch = sch, fire_type = fire_type, models = collect(models), killed = killed, killed_ba = killed_ba,
           killed_vol = killed_vol, released = carbon_released, totcon = cons.totcon, carried = fire_carries,
           clskil = Tuple(clskil), totcls = Tuple(totcls), species_mort = species_mort, consumption = consumption))
     return FireResult(killed, flame, byram, sch, carbon_released)
+end
+
+# fmburn.f:547-583: a user flame or FLMULT≠1 on a crown fire — bisect FINTEN until FLB+CRBURN·(FLT−FLB) is within 1% of FLAME
+# (200 steps; the 200th leaves FINTEN = the last TMPINT). Exponents 1/.667, 1/.46 are REAL constant quotients.
+function _fmburn_finten_bisect(flame::Float32, crburn::Float32)::Float32
+    e1 = 1f0 / 0.667f0; e2 = 1f0 / 0.46f0
+    tmpint = crburn * fpow(flame / 0.2f0, e1) + (1f0 - crburn) * fpow(flame / 0.45f0, e2)
+    a = fpow(flame / 0.21f0, e1); b = fpow(flame / 0.45f0, e2)
+    maxint = max(a, b); minint = min(a, b)
+    finten = 0f0
+    for i in 1:200
+        flb = 0.45f0 * fpow(tmpint, 0.46f0)
+        flt = 0.2f0 * fpow(tmpint, 0.667f0)
+        tmpflame = flb + crburn * (flt - flb)
+        if tmpflame >= flame * 0.99f0 && tmpflame <= flame * 1.01f0
+            return tmpint
+        elseif tmpflame < flame
+            minint = tmpint; tmpint = 0.5f0 * tmpint + 0.5f0 * maxint
+        else
+            maxint = tmpint; tmpint = 0.5f0 * tmpint + 0.5f0 * minint
+        end
+        i == 200 && (finten = tmpint)
+    end
+    return finten
 end
 
 _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeast || v isa Southern

@@ -1,6 +1,6 @@
 # FVSjl — certification status
 
-_Last updated 2026-10-06 (integ-1006c = master `c231a155` + OC/OP round 2; numbers measured on that branch). No crash cases in any variant. Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
+_Last updated 2026-10-06 (integ-1006d = master `810f78e7` + western tail round 2; numbers measured on that branch). No crash cases in any variant. Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
 Method: **[DOCTRINE.md](DOCTRINE.md)**. Older narrative status (FIA sweeps, extensions, PPE): [PORT_STATUS.md](PORT_STATUS.md)._
 
 ## What "certified" means here
@@ -30,27 +30,27 @@ exactness.
 | | EM | 132 | 690,049 | 698 | **0** | 100% | — |
 | | BM | 132 | 280,949 | 9,350 | **0** | 100% | — |
 | Western | TT | 110 | 511,958 | 53,551 | **0** | 100% | — |
-| | NC | 110 | 245,530 | 23,002 | 1 | 99.9996% | rootdis |
+| | NC | 110 | 245,530 | 23,002 | **0** | 100% | — |
 | | PN | 110 | 509,215 | 7,888 | 1 | 99.9998% | climate |
-| | EC | 110 | 314,151 | 24,789 | 7 | 99.998% | rootdis / FFE |
-| | WC | 110 | 341,295 | 1,757 | 10 | 99.997% | simfire |
-| | SO | 110 | 819,712 | 56,238 | 41 | 99.995% | FFE |
-| | UT | 110 | 517,866 | 43,333 | 77 | 99.985% | FFE, rootdis |
-| | KT | 110 | 665,474 | 82,984 | 97 | 99.985% | FFE |
-| | CR | 110 | 431,194 | 62,672 | 107 | 99.975% | mistletoe |
-| | CI | 110 | 214,008 | 3,020 | 179 | 99.916% | salvage/simfire down wood |
-| | AK | 90 | 431,138 | 2,283 | 272 | 99.937% | FFE |
-| | CA | 100 | 434,154 | 14,475 | 670 | 99.846% | FFE |
-| | WS | 110 | 560,098 | 29,758 | 1,217 | 99.783% | FFE |
+| | EC | 110 | 314,151 | 24,789 | 4 | 99.9987% | rootdis / FFE |
+| | WC | 110 | 341,295 | 1,757 | 9 | 99.9974% | simfire |
+| | SO | 110 | 819,712 | 56,238 | 33 | 99.9960% | FFE |
+| | UT | 110 | 517,866 | 43,333 | 71 | 99.9863% | FFE, rootdis |
+| | KT | 110 | 665,474 | 82,984 | 18 | 99.9973% | FFE |
+| | CR | 110 | 431,194 | 62,672 | **0** | 100% | — |
+| | CI | 110 | 214,008 | 3,020 | **0** | 100% | — |
+| | AK | 90 | 431,138 | 2,283 | 14 | 99.9968% | FFE |
+| | CA | 100 | 434,154 | 14,475 | 23 | 99.9947% | FFE |
+| | WS | 110 | 560,098 | 29,758 | 71 | 99.9873% | FFE |
 | Eastern | NE | 70 | 461,313 | not measured | **0** | 100% | — |
 | | LS | 70 | 392,704 | not measured | **0** | 100% | — |
 | | CS | 70 | 427,228 | not measured | **0** | 100% | — |
 | | ON | 60 | 357,738 | not measured | **2** | 99.9994% | one TA record TCuM 1-ULP (OPEN) |
-| ORGANON | OC | 100 | 192,907 | not measured | 955 | 99.50% | post-fire FFE (snag fate / FMSADD), HTGRO1 ULPs |
+| ORGANON | OC | 100 | 192,907 | not measured | 948 | 99.51% | post-fire FFE (snag fate / FMSADD), HTGRO1 ULPs |
 | | OP | 100 | 173,264 | not measured | 2,092 | 98.79% | simfire FFE initialisation (~1,900) |
-| Canada | BC | 90 | 1,968,465 | not measured | **55** | 99.997% | post-fire down-wood carbon |
+| Canada | BC | 90 | 1,968,465 | not measured | **8** | 99.9996% | plant QMD 1-ULP |
 
-Totals: core 4 — 0 / 2.41M; eastern CS/LS/NE — 0 / 1.28M; 13 original western — 2,679 / 6.0M (99.955%; the west-tail branch takes it to 1,437).
+Totals: core 4 — 0 / 2.41M; eastern CS/LS/NE — 0 / 1.28M; ON 2 / 358k; 13 original western — 253 / 6.0M (99.996%); BC 8 / 1.97M.
 
 CS/LS/NE/OC/OP/ON entered the tiered suite on 2026-10-05; before that they were validated only by shipped-test goldens,
 keyword-coverage tests and (CS/LS/NE) the FIA full-population `.sum` sweep, which a per-cell tiered comparison is much
@@ -60,9 +60,8 @@ stricter than.
 
 | Branch | Content | State |
 |---|---|---|
-| `integ-1006c` | OC 4,300 → 955, OP 6,762 → 2,092 (OP habitat decode, ORGANON thinning response, stale-IORG crown, REGENT(LESTB) DBH, stored CRWDTH, OC FFE on cycle-start dims) | suite |
+| `integ-1006d` | western tail 2,734 → 253 (CI, CR → 0; BC 55 → 8): removed carbon, FLAMEADJ crown fire, activity fuels, CWHR on FMCBA CRWDTH, CI DCYMLT, KT/IE FMKOD, CR mistoe RANN, AK ESTAB arrays, all-dead crown dub (WS/CA), BC TVOLI, estab GENTIM | suite |
 | `ocop-2` | OC 15,700 → 4,300, OP 19,545 → 6,762 | Sonnet agent working |
-| `west-tail` | west 2,734 → 1,437 (removed carbon, FLAMEADJ crown fire, activity fuels, WS/CA snags, WRD WK1) | waiting for integration |
 
 ## How work lands (the gate)
 
@@ -96,6 +95,7 @@ KT volume setup.
 | `f0272193` | 10-05 | all 24 variants in the tiered suite + CORE round 3 (core at 0) | 139,553 / 0 / 0 / 19 |
 | `d93375d5` | 10-05 | BC (→ 55), CS/LS/NE (→ 0), status/roadmap docs | 139,622 + 8 promoted improvements |
 | `c231a155` | 10-06 | ON (→ 2), OC/OP round 1; no crash case in any variant | 140,340 / 0 / 1 stale test (fixed) |
+| `810f78e7` | 10-06 | OC 955, OP 2,092 (ORGANON round) | 140,367 / 0 / 0 / 12 |
 
 ## Oracles
 

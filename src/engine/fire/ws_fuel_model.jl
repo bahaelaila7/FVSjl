@@ -97,8 +97,8 @@ function ws_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 15)              # WS ICLSS = 15 positions (models 1-13, 25, 26)
 
     # per-tree crown widths (CRWDTH) via R5CRWD (fn of sp/D/H only)
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = ws_r5crwd(Int(t.species[i]), t.dbh[i], t.height[i])
     end
@@ -149,10 +149,11 @@ function ws_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         end
     end
 
-    # FM10/FM11 sharing (ws/fmcfmd.f:383-404) — the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL) is not yet
-    # wired (as in NC); with no recent activity AFWT=0 ⇒ FM10=1. FM11 present via the CWHR table bypasses this.
+    # FM10/FM11 sharing (ws/fmcfmd.f:383-404): the 5-yr post-activity FM11 (AFWT/SLCHNG/LATFUEL); FM11 present via
+    # the CWHR table bypasses it.
     if eqwt[11] == 0f0
-        eqwt[10] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                         # post-activity FM11 window (fmcfmd.f AFWT/LATFUEL)
+        eqwt[10] = 1f0 - afwt
     else
         eqwt[10] = 0f0
     end

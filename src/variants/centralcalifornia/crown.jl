@@ -71,7 +71,18 @@ end
 function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n
+    if n == 0
+        # ca/crown.f IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        if lstart && t.ndead > 0
+            prd, qmdplt, _ = point_crown_inputs(s)
+            dub_dead_crowns!(s) do i
+                pt = Int(t.plot_id[i])
+                icri_round(_ca_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area, prd(pt), qmdplt(pt)))
+            end
+        end
+        return s
+    end
     sd = s.coef.species
     relden = p.relative_density
     sdiac = crown_sdi

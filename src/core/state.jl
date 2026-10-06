@@ -1261,6 +1261,26 @@ mutable struct FireState
                                        # bm/fmcfmd.f BMSTAGE; FMCBA's year-start FMTBA) still read the pre-fire density
     harvyr::Int32                      # HARVYR (fminit.f:36 = 0; fmscut.f:75-76 = IY(ICYC) when a cut leaves crown slash or
                                        # downed snags): the last harvest year — FMCFMD's DSTLG/AFWT and FMCONS's activity test
+    tonrmh::Float32                    # TONRMH (fmscut.f:162-177): tons removed by this cycle's harvest — Σ FMSVL2·V2T·WK3
+                                       # − LVSNBM + TKCRBM; FMDOUT TONREM = TONRMS+TONRMH+TONRMC (fmdout.f:274), then zeroed
+    tonrmc::Float32                    # TONRMC (fmtret.f:217/308/320): FUELMOVE tons exported (+) / imported (−) this year
+    biorem1::Float32                   # BIOREM(1) (fmscut.f:124/184-187, fmdout.f:284): Jenkins-method removed biomass,
+                                       # accumulated until FMCRBOUT reports and zeroes it (fmcrbout.f:198)
+    cut_acc::Dict{Int32,NTuple{5,Float32}} # this CUTS call's per-record (WK3, SSNG, DSNG, CTCRWN, TKCRWN) (cuts.f:1381-1391),
+                                       # consumed by FMSCUT (cuts.f:1823) before TREDEL
+    user_flame::Float32                # FLAMEADJ FLAME = FPRMS(2) (fmin.f:401/412: −1 when blank or <0); >0 ⇒ USRFL
+    user_sch::Float32                  # FLAMEADJ SCH = FPRMS(4) (fmin.f:403-406, fmburn.f:340-344; −1 when field 5 blank)
+    flameadj_on::Bool                  # a FLAMEADJ was read ⇒ IFTYPE=1, CFTMP='USER_DEF' (fmburn.f:348-349)
+    salv_year::Int32                   # the year FMSALV last ran (it runs once per CUTS, cuts.f:386, ahead of the thin)
+    o_large::Float32                   # OLARGE/OSMALL (fminit.f:79-80 = 0): FMTRET's SMALL/LARGE of the previous FMMAIN
+    o_small::Float32                   #   (fmtret.f:372-373), the base of SLCHNG
+    slchng::Float32                    # SLCHNG (fmtret.f:395-400): % change of SMALL+LARGE since the previous FMTRET
+    latfuel::Bool                      # LATFUEL (fminit.f:82): the ≤5-yr post-activity fuel-model window is open (fmcfmd.f)
+    fmtret_year::Int32                 # the year FMTRET last computed SLCHNG (once per FMMAIN)
+    fmtba::Vector{Float32}             # FMTBA(KSP) as FMCBA last accumulated it (FMCOM): FMCFMD's LPPDOM reads this stale common
+                                       # array (after a fire kill FMPROB is 0 but FMTBA is still the pre-fire stand)
+    cwrec::Vector{Float32}             # CRWDTH(I) as FMCBA last read it (cwidth/fmcba.f CWIDTH=CRWDTH(I)); FMCFMD's CWHR call
+                                       # reads the same common-block CRWDTH (ca/fmcfmd.f:230), so the NC/WS/CA selects reuse it
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1271,7 +1291,8 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0))
+                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), -1f0, -1f0, false, Int32(-1),
+                        0f0, 0f0, 0f0, false, Int32(-1), Float32[], Float32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

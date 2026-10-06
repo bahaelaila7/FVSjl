@@ -24,17 +24,18 @@ SPHIS/SFRATE/SCBE, plus HPA = SXIR·384/SSIGMA — each accumulated `x·FWT` in 
 """
 function _pofl_fmfint(s::StandState, models, mois::AbstractMatrix{Float32}, fwind::Float32, dpmod::Float32)
     byram = 0f0; ssig = 0f0; srho = 0f0; sxir = 0f0; sirxi = 0f0; sphis = 0f0; sfrate = 0f0; scbe = 0f0
+    dlast = 0f0                                                        # the common DEPTH FMFINT's last FMGFMV leaves
     for (fm, w) in models
         (fm == 0 || w <= 0f0) && continue                              # fmfint.f:89
         load, sav, depth, mext = fmgfmv(s, fm, mois)
-        depth *= dpmod
+        depth *= dpmod; dlast = depth
         r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
         byram += r.byram * w; ssig += r.sigma * w; srho += r.rhobqig * w; sxir += r.xir * w
         sirxi += r.xio * w; sphis += r.phis * w; sfrate += r.spread * w; scbe += r.scbe * w
     end
     flame = 0.45f0 * fpow(byram / 60f0, 0.46f0)                         # fmfint.f:810
     hpa = ssig != 0f0 ? sxir * 384f0 / ssig : 0f0
-    return (; byram, flame, ssigma = ssig, srhobq = srho, sxir, sirxi, sphis, sfrate, scbe, hpa)
+    return (; byram, flame, ssigma = ssig, srhobq = srho, sxir, sirxi, sphis, sfrate, scbe, hpa, depth = dlast)
 end
 
 # FMFINT(…, FTYP=2, …, ICALL=2): only the weighted spread SFRATE(2) is used by FMCFIR's bisection/passive steps.
@@ -186,18 +187,16 @@ end
 # FMCONS ICALL=1 (fmcons.f:196-360, BTYPE=0, IPM=1): TSMOKE = Σ PRBURN·BURNZ·EMMFAC over the fuel classes, then
 # PLVBRN·FLIVE·EMFACL for herb and shrub one at a time — the pools are not touched. PBRNCR·EMFACL(4) is added by
 # `_pofl_smoke` once FMEFF has produced PBRNCR (the FMMAIN seam), and PSMOKE·P2T is what DBSFMPF reports.
-function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32; so::Bool = false, activity::Bool = false)::Float32
-    pr0 = fire_consumption_fractions(mois; so = so, activity = activity)
-    burnz3 = 0f0
-    @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
-    small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
+function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32; so::Bool = false, activity::Bool = false,
+                           fmslop::Float32 = 0f0, fwind::Float32 = 0f0, depth::Float32 = 0f0)::Float32
+    pr0, _ = fmcons_prburn(fs, mois; so = so, activity = activity, fmslop = fmslop, fwind = fwind, depth = depth)
     m4 = mois[1, 4]
     im = m4 <= 0.20f0 ? 3 : m4 <= 0.375f0 ? 2 : 1
     ts = 0f0
     @inbounds for il in 1:11
         z = 0f0
         for k in 1:2, l in 1:4; z += fs.cwd[il, k, l]; end
-        f = (il <= 2 ? small : pr0[il]) * psburn / 100f0
+        f = pr0[il] * psburn / 100f0
         ts = ts + f * z * _FM_EMMFAC[im, il, 1]
     end
     ts = ts + (1f0 * psburn / 100f0) * fs.flive[1] * _FM_EMFACL[1]
@@ -384,7 +383,8 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
         end
         sc[k] = (; surf, pflam, sch, crburn = cfir.crburn, burnseas, psburn, cftype = cfir.cftype, oinit = cfir.oinit,
                  oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn; so = s.variant isa SouthCentralOregon,
-                                           activity = Int(year) - Int(fs.harvyr) <= 5),   # fmcons.f:121 (IYR-HARVYR)
+                                           activity = Int(year) - Int(fs.harvyr) <= 5,    # fmcons.f:121 (IYR-HARVYR)
+                                           fmslop = s.plot.slope, fwind = fwind, depth = f.depth),
                  bcrown0 = _pofl_bcrown_cwd2b(fs, cfir.crburn, psburn), models = collect(models), prewnd,
                  potemp, mois)
     end
