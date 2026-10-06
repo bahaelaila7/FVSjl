@@ -596,6 +596,7 @@ _snag_lasco(v, jsp::Int) = v isa Utah ? (jsp == 6 || jsp == 18 || jsp == 19) :
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
 # HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
 _snag_htr1(::AbstractVariant) = 0.1f0
+_snag_htr1(::Union{Southern,CentralStates}) = 0.01f0   # sn|cs/fmvinit.f HTR1 (SN/CS default HTX=0 ⇒ inert unless SNAGBRK)
 _snag_htr1(::Northeast) = 0.015f0
 _snag_htr1(::EasternMontana) = 0.0228f0   # em/fmvinit.f HTR1
 

@@ -2348,28 +2348,56 @@ end
 function _snagbrk!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
     p = fs.params
-    HTR1 = 0.1f0; HTR2 = 0.01f0; HTXSFT = 2f0
-    yr(i) = rec.present[i] ? max(1, Int(trunc(Float64(rec.values[i])))) : 1   # INT, clamp ≥1 (fmin.f:526…)
-    y50h = yr(2); y50s = yr(3); y30h = yr(4); y30s = yr(5)
-    # HTX1/3: 50%-loss rate (>0.5·HTD regime, /HTR1); HTX2/4: 30%-loss rate in the <0.5·HTD regime (the 0.3/0.5
-    # step, over YRS30−YRS50 years, bumped to avoid div-0, /HTR2). Only fields actually given are written.
-    htx1 = rec.present[2] ? (1f0 - 0.5f0^(1f0 / y50h)) / HTR1 : 0f0
-    htx3 = rec.present[3] ? (1f0 - 0.5f0^(1f0 / y50s)) / (HTR1 * HTXSFT) : 0f0
-    dh = y30h > y50h ? Float32(y30h - y50h) : 0.001f0
-    ds = y30s > y50s ? Float32(y30s - y50s) : 0.001f0
-    htx2 = rec.present[4] ? (1f0 - 0.6f0^(1f0 / dh)) / HTR2 : 0f0            # 0.3/0.5 = 0.6
-    htx4 = rec.present[5] ? (1f0 - 0.6f0^(1f0 / ds)) / (HTR2 * HTXSFT) : 0f0
-    htx = (htx1, htx2, htx3, htx4)
+    # fmin.f:504-600 (opt 10) with the variant's own HTR1/HTR2/HTXSFT (fmvinit.f) — NOT a fixed 0.1: HTR1·HTX only cancels
+    # against the height-loss step when both use the same constant, and the product is not bit-exact otherwise (NE HTR1 .015).
+    HTR1 = _snag_htr1(s.variant); HTR2 = _snag_htr2(s.variant); HTXSFT = _snag_htxsft(s.variant)
+    fld(i) = rec.present[i] ? Float32(rec.values[i]) : 0f0
+    yi(i) = (x = Float32(trunc(Int, fld(i))); x < 1f0 ? 1f0 : x)            # YRS50/YRS30 = INT(ARRAY), clamp ≥ 1
+    y50 = Float32[yi(2), yi(3)]; y30 = Float32[yi(4), yi(5)]                 # REAL YRS50(2), YRS30(2) (fmin.f:39)
     spfield = strip(rec.fields[1])
-    setone(sp) = @inbounds begin
-        (1 <= sp <= length(s.species.class_codes[:, 1])) || return
-        p.snag_htx[Int32(sp)] = htx
+    nsp = length(s.species.class_codes[:, 1])
+    function setone(sp)
+        (1 <= sp <= nsp) || return
+        h1, h2, h3, h4 = get(p.snag_htx, Int32(sp), (0f0, 0f0, 0f0, 0f0))   # HTX(JSP,1:4): kept where a field is blank
+        # initially HARD snags (fmin.f:539-557)
+        if rec.present[2]
+            h1 = (1f0 - fpow(0.5f0, 1f0 / y50[1])) / HTR1
+        elseif h1 != 0f0
+            y50[1] = flog(0.5f0) / flog(1f0 - min(0.9f0, h1 * HTR1))
+        else
+            y50[1] = 999f0
+        end
+        if rec.present[4]
+            y30[1] <= y50[1] && (y30[1] = y50[1] + 0.001f0)
+            h2 = (1f0 - fpow(0.6f0, 1f0 / (y30[1] - y50[1]))) / HTR2
+        elseif h2 != 0f0
+            y30[1] = y50[1] + flog(0.6f0) / flog(1f0 - min(0.9f0, h2 * HTR2))
+        else
+            y30[1] = 999f0
+        end
+        # initially SOFT snags
+        if rec.present[3]
+            h3 = (1f0 - fpow(0.5f0, 1f0 / y50[2])) / (HTR1 * HTXSFT)
+        elseif h3 != 0f0 && HTXSFT != 0f0
+            y50[2] = flog(0.5f0) / flog(1f0 - min(0.9f0, h3 * HTR1 * HTXSFT))
+        else
+            y50[2] = 999f0
+        end
+        if rec.present[5]
+            y30[2] <= y50[2] && (y30[2] = y50[2] + 0.001f0)
+            h4 = (1f0 - fpow(0.6f0, 1f0 / (y30[2] - y50[2]))) / (HTR2 * HTXSFT)
+        elseif h4 != 0f0 && HTXSFT != 0f0
+            y30[2] = y50[2] + flog(0.6f0) / flog(1f0 - min(0.9f0, h4 * HTR2 * HTXSFT))
+        else
+            y30[2] = 999f0
+        end
+        p.snag_htx[Int32(sp)] = (h1, h2, h3, h4)
     end
     fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0
-            for sp in 1:length(s.species.class_codes[:, 1]); setone(sp); end
+            for sp in 1:nsp; setone(sp); end
         elseif isp < 0
             g = -isp
             (1 <= g <= length(s.control.sp_groups)) || return
