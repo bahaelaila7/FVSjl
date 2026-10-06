@@ -28,7 +28,8 @@ const CASES = [
     ("OP", "15072502010497", "plant_cal"),
     ("OP", "15072502010497", "thinbba"),
     ("OP", "24164991010900", "thinbba"),
-    ("OC", "645182389126144", "plant_cal")
+    ("OC", "645182389126144", "plant_cal"),
+    ("OC", "24061836010900", "plant_cyc")
 ]
 
 @testset "OC/OP TIMEINT 10 vs live: $v $cn $r" for (v, cn, r) in CASES

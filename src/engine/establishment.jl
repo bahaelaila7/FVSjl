@@ -1185,6 +1185,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0
             t.crown_ratio[i] = Float32(icr0)
+            # {oc,op}/regent.f:215 IORG(I)=0 for every record REGENT(LESTB) grows (a new seedling is not a valid ORGANON tree); IORG is a
+            # SLOT-indexed COMMON, so without this a new record inherits the slot's stale flag (a planted RC read IORG=1, CR2=0 ⇒ ICR 1).
+            (oc_estab || op_estab) && i <= length(s.calib.op_iorg) && (s.calib.op_iorg[i] = Int32(0))
             if ne_estab || cs_estab || ls_estab                # REGENT(LESTB) (+ ESGENT) for the new record
                 # {ne,cs,ls}/regent.f LESTB: CR dub (above), HTG over FNT=FINT−5 (LSKIPH ⇒ HTG=0 when FINT≤5, no draw),
                 # SIZCAP(·,4) cap, HK=H+HTG; HK≤4.5 ⇒ DG=0, DBH=D+0.001·HK (:291-294), else DBH=HTDBH⁻¹(HK) floored to DIAM,
