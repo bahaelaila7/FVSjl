@@ -678,12 +678,14 @@ function _oc_with_pre_dims(f, s::StandState; keep_crown_bypass::Bool = false)
     try
         return f()
     finally
-        if t.n == n
-            byp = (keep_crown_bypass && s.fire !== nothing) ? s.fire.crown_bypass : Int32[]
-            @inbounds for i in 1:n
-                t.dbh[i] = gd[i]; t.height[i] = gh[i]
-                (length(byp) == n && byp[i] != 0) || (t.crown_pct[i] = gc[i])
-            end
+        # The grown values go back on the records they were taken from. Records the pass appended (index > n) never had a
+        # pre-growth value and stay as they are; a pass that SHRANK the list cannot be mapped back by position, so it is
+        # an error instead of silently leaving the whole stand at its cycle-start dimensions.
+        t.n < n && error("_oc_with_pre_dims: the FFE pass shrank the record list ($n -> $(t.n)); grown DBH/HT/CR cannot be restored")
+        byp = (keep_crown_bypass && s.fire !== nothing) ? s.fire.crown_bypass : Int32[]
+        @inbounds for i in 1:n
+            t.dbh[i] = gd[i]; t.height[i] = gh[i]
+            (length(byp) >= n && byp[i] != 0) || (t.crown_pct[i] = gc[i])
         end
     end
 end
@@ -1432,7 +1434,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     end
     # FMOLDC (fmmain.f:268) closes a non-fire cycle's FMMAIN on its list: TRIPLEd, heights and ICR not yet UPDATEd, before
     # ESTAB books this cycle's regeneration (a fire cycle ran it after FMBURN, inside mortality_and_fire!).
-    fire_cyc || ffe_fmoldc!(s)
+    fire_cyc || _oc_with_pre_dims(() -> ffe_fmoldc!(s), s)   # OC: OLDHT/OLDCRL are the PRE-growth HT/ICR (FMMAIN precedes UPDATE)
     # FMKILL(2) (fmkill.f:135-143): the non-fire tripling cycle's snags from the final post-TRIPLE WK2 per record — the
     # WK2 array itself (t.mort_pa), not PROB−survivor, which rounds to the survivor's ULP (FMSADD's density-weighted
     # HTDEAD then drifts: akffe YC 8.4"×5' ⇒ 4.9999995 live).
