@@ -37,7 +37,10 @@ the dead moisture of extinction.
         ov = get(fs.defulmod, Int32(model), nothing)
         ov !== nothing && return ov
     end
-    Int(model) > size(s.coef.ffe_fuel_models, 1) && haskey(_SB_FUEL_MODELS, Int(model)) && return _sb_fuel_model(model)
+    # a Scott-Burgan model absent from the variant CSV (zero row of the sparse table, e.g. LS 181-185/187) is still in FMLOAD/SURFVL
+    # (fminit.f "ADD IN THE 40 NEW FUEL MODELS" runs for every variant): MEASURED FVSls_tiered DEBUG FMCFMD2 DINDEX FM=181..189
+    ffm = s.coef.ffe_fuel_models
+    haskey(_SB_FUEL_MODELS, Int(model)) && (Int(model) > size(ffm, 1) || ffm[Int(model), 8] == 0f0) && return _sb_fuel_model(model)
     return standard_fuel_model(s.coef, model)
 end
 
@@ -251,6 +254,7 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
         u.ldynfm || (out = [(out[1][1], 1f0)])
         return out
     end
+    (u !== nothing && u.iflogic != 0) && return select_iflogic_models(s)           # FIRECALC 1 (FMCFMD2) / 2 (FM 89 from the modelled loads)
     models = _select_fuel_models_core(s, mois; fire_basis = fire_basis)
     (u !== nothing && !u.ldynfm && !isempty(models)) && (models = [(models[1][1], 1f0)])
     return models

@@ -2864,6 +2864,13 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             prm[1] < 0f0 && (prm[1] = 0f0); prm[1] > 2f0 && (prm[1] = 2f0)
             prm[2] < 1f0 && (prm[2] = 1f0); prm[2] > 3f0 && (prm[2] = 3f0)
             ffe_schedule!(s, 2525, idt, prm)
+        elseif k == "FMODLIST"                             # fmin.f:2375 (opt 50, act 2550): PRMS = (model, -1 default/0 on/1 off)
+            v = r.values
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[1f0, -1f0]
+            r.present[2] && (prm[1] = Float32(max(0, Int(trunc(v[2])))))
+            r.present[3] && (prm[2] = Float32(max(-1, min(1, Int(trunc(v[3]))))))
+            ffe_schedule!(s, 2550, idt, prm)
         elseif k == "FIRECALC"                             # fire-calc method (fmin.f:2293, opt 49, act 2549)
             _firecalc!(s, r)
         elseif k == "DROUGHT"                              # fmin.f:1475 (opt 33, act 2529): years of drought / dormancy

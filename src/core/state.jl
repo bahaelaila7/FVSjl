@@ -1222,11 +1222,12 @@ mutable struct FFEUser
     fmtret_year::Int32     # the year the SLCHNG block last ran (once per FMMAIN)
     crdcay::Float32        # CRDCAY dead coarse-root decay rate (fminit.f:918 0.0425; CARBCALC field 3)
     cdbrk::NTuple{2,Float32}   # CDBRK pulp/saw DBH break, softwood/hardwood (fminit.f:919-920 9/11; CARBCALC fields 4/5)
+    ifuelmon::Vector{Int32}    # IFUELMON(1:MXDFMD) (fminit.f:832 = -1): FMODLIST per-model switch for FMCFMD2's pick list (0 = force on, 1 = force off)
     fate_cuts::Vector{Tuple{Int32,Float32}}   # this CUTS call's (record, removed TPA) — FMSCUT's FATE accrual walks them in RECORD order at cuts.f:1823
 end
 FFEUser() = FFEUser(FFEAct[], true, Float32[0, 5, 10, 20, 30, 40, 50], Int32(0), Int32(0), Int32(0), 6f0, Int32(0), 30f0, 100f0,
                     Int32(0), Int32(2), (2000f0, 1800f0, 1500f0), (0.10f0, 0.75f0), 8000f0, false, zeros(Int32, 4),
-                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, zeros(Float32, 11), 0f0, 0f0, 0f0, false, Int32(-1), 0.0425f0, (9f0, 11f0), Tuple{Int32,Float32}[])
+                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, zeros(Float32, 11), 0f0, 0f0, 0f0, false, Int32(-1), 0.0425f0, (9f0, 11f0), fill(Int32(-1), 256), Tuple{Int32,Float32}[])
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)

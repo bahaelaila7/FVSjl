@@ -101,7 +101,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     for (fm, w) in models
         load, sav, depth, mext = fmgfmv(s, fm, mois)
         depth *= dpmod
-        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
+        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope, lhv = _fm_lhv(s, fm))
         r.byram <= 0f0 && (fire_carries = false)          # this model does not carry → FVS FLAG(1)=1
         byram += r.byram * w
     end

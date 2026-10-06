@@ -440,6 +440,7 @@ include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loadi
 include("engine/fire/covini_tables.jl")  # FFE bare-stand COVINI(ITYPE) tables (generated from the western fmcba.f)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
 include("engine/fire/ffe_acts.jl")    # FFE — OPFIND/OPDONE activity semantics for the FMIN keywords
+include("engine/fire/fmcfmd2.jl")     # FFE — FIRECALC IFLOGIC 1/2: FMCFMD2 fuel-model selection, FMCFMD3 modelled-load FM 89
 include("engine/fire/fuel_decay.jl")     # FFE F3 — per-cycle surface-fuel decay (FMCWD)
 include("engine/fire/fuel_additions.jl") # FFE F3 — annual fuel additions / litterfall (FMCADD)
 include("engine/fire/fire_effects.jl")   # FFE F6 — fire-caused tree mortality (FMEFF/FMBRKT)
