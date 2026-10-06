@@ -1027,14 +1027,3 @@ status = "OPEN"
 max_cells = 5
 issue = """BC first tiered measurement (west-kcwa-2, 2026-10-05, live /workspace/.bcwork/dbfix/FVSbc_dbfix) — OPEN, owner: the BC campaign. Measured clusters: (a) salvage/simfire = jl CRASH: BC FFE fuel tables unported (loud error, no silent output); (b) dense SkyRanch seedling stands: REGENT ZZRAN draw-to-record offset on the tripling cycle (live values permuted across records) + dwarf-mistletoe spread MistCD; (c) Fir.20 (no Plot_ID): live PtIndex/ActPt 0, jl 1 ⇒ every TreeList row key differs (ROWCOUNT); (d) YSM/Fir late-cycle growth/mortality drift (BA/TCuFt over, one-directional TALLY) not yet dug; (e) metric extension tables (FVS_Climate_Metric, FVS_DM_*_Metric, FVS_StrClass_Metric) absent/extra vs live | 5 cells, e.g. year 2029: live=0.39681392908096313 jl=0.3623773157596588"""
 
-[[residual]]
-variant = "ON"
-regime = "none"
-file = "FVS_TreeList_East_Metric"
-col = "TCuM"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1093
-issue = """tiered-east 2026-10-05 measured: ON growth drift on the dense metric-converted LS stands (245908831010661 .sum diverges at cycle 1, TPA 13909 live vs 14035) — small-tree REGENT / mortality path, not dug; FVS_StrClass(_Metric) follows | 1093 cells over 5 stand(s), e.g. 245908831010661 year 2059: live=0.8913305401802063 jl=0.8671678900718689"""
-
