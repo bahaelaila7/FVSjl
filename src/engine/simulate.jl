@@ -1904,20 +1904,22 @@ function run_keyfile(keypath::AbstractString;
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
-            _fuels_db && carb_rows !== nothing &&
+            # metric/fire/vbase/fmin.f FUELOUT sets IFLALB = IY(1) > 0 ⇒ fmdout.f:366 `IF (.NOT. LPRINT) GOTO 750` (LPRINT =
+            # IFLALB ≤ 0) precedes DBSFUELS ⇒ BC/ON never write FVS_Fuels_Metric (MEASURED FVSon_tiered kwcov_on: absent).
+            _fuels_db && !met && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             if carb_rows !== nothing
                 ctl1 = s.control
                 ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
                     write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
-                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
-                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef)
+                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef; metric = met)
                 (ctl1.dbs_dwdvol && ctl1.ffe_dwdvlout) &&                # fmdout.f LPRINT2 + dbsfmdwvol.f IDWDVOL
-                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_dwdcov && ctl1.ffe_dwdcvout) &&                # fmdout.f LPRINT3 + dbsfmdwcov.f IDWDCOV
-                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
             end
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
@@ -1931,7 +1933,7 @@ function run_keyfile(keypath::AbstractString;
                 (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
                     write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
-                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
+                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
             end
             # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
             # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.
