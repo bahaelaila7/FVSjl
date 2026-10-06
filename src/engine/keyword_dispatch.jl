@@ -2986,6 +2986,9 @@ costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest reve
 species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
 are recognized but not yet ported.
 """
+# the ECIN (ecin.f) SELECT CASE keywords
+const _ECON_KEYWORDS = Set(["ANNUCST", "ANNURVN", "BURNCST", "END", "HRVFXCST", "HRVVRCST", "HRVRVN", "LBSCFV", "MECHCST", "NOTABLE",
+                            "PCTFXCST", "PCTSPEC", "PCTVRCST", "PLANTCST", "PRETEND", "SPECCST", "SPECRVN", "STRTECON"])
 function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block::Bool = false)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
@@ -2997,6 +3000,11 @@ function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        # ecin.f `CASE DEFAULT: CALL ERRGRO(.TRUE.,1)`: a keyword outside ECIN's SELECT CASE list is FVS01 with the record count
+        if !(k in _ECON_KEYWORDS)
+            errgro!(s, 1; irecnt = kr.record_count)
+            continue
+        end
         # Faithful ECIN storage (econ_calc.jl) for the per-cycle ECCALC / FVS_EconSummary engine. Runs first
         # so a supplemental '&' rate/duration record is consumed here (ecin.f ratesAndDurations reads it).
         k == "END" || econ_keyword!(s, k, r, kr)
