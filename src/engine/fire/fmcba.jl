@@ -305,7 +305,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  s.variant isa CentralCalifornia ?
                      (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
                                                     _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
-                 s.variant isa OregonCoast ? Int32(7) :
+                 # OC (oc/fmcba.f:529-545): IFOR ≥ 6 (R6/BLM) COVINI6(ITYPE), else COVINI5(ITYPE) (the CA tables, byte-identical); 7 default.
+                 s.variant isa OregonCoast ?
+                     (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
+                                                    _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
                  s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
                  # CR (cr/fmcba.f:417-433): COVINI2(ITYPE) on Region-2 forests, COVINI3(ITYPE) on Region 3, else LP 11.
                  s.variant isa CentralRockies ?

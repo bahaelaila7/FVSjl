@@ -262,4 +262,13 @@ end
     @test _n(c.ms; file = "FVS_PotFire", before = 2017) == 0
 end
 
+# OC bare-stand cover type (oc/fmcba.f:529-545): no live BA in the first FFE year ⇒ COVTYP = COVINI6(ITYPE) on an R6/BLM forest
+# (IFOR ≥ 6) else COVINI5(ITYPE) (tables byte-identical to ca/fmcba.f), default 7; jl always used 7 ("COVINI waits on habtyp").
+# OC 24446507010900 (no trees): inventory Forest_Shrub_Herb 1.2 vs live 1.15, Forest_Down_Dead_Wood 1.65 vs 3.05 (initial FUINI by cover).
+@testset "OC bare-stand COVTYP = COVINI(ITYPE) (oc/fmcba.f:529-545)" begin
+    c = _case("OC", "24446507010900", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module
