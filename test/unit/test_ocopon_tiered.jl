@@ -282,4 +282,13 @@ end
     end
 end
 
+# OP CROWN: the `ICRI < 10` bumps (op/crown.f:385 CRMAX, :429 floor 10, stmt 58) are guarded `(.NOT. LORGANON) .AND. (IORG(I) .NE. 1)`;
+# LORGANON=.TRUE. (op/grinit.f:340) ⇒ they never fire, for ORGANON and non-ORGANON trees alike (OC already omitted them). jl bumped every
+# non-ORGANON tree: OP 24164991010900 fire-scorched LP ICR 1 live / 10 jl at 2017 ⇒ the survivors' DBH, QMD 14.718 vs 14.695, PotFire.
+@testset "OP CROWN has no ICRI<10 bump under LORGANON=.TRUE. (op/crown.f:385,429)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module
