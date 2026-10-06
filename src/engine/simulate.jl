@@ -450,7 +450,9 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
     # — so `ifert_date = yr` here is correct (full-cycle effect from the cycle start). Boundary dates unchanged.
     ce = cycle_year_at(c, Int(c.cycle) + 1); ce <= yr && (ce = yr + 1)
     @inbounds for ev in c.fertilize_events           # a fert scheduled this cycle becomes active (OPDONE)
-        (yr <= Int(ev.year) < ce) && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
+        # an OPFIND date < 1000 is a CYCLE NUMBER (FERTILIZ with a blank date is IDT=1, ffin.f:9-10): it fires in the cycle whose 1-based index it is
+        ((yr <= Int(ev.year) < ce) || (0 < Int(ev.year) < 1000 && Int(ev.year) == Int(c.cycle) + 1)) &&
+            (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
     end
     c.ifert_date < 0 && return s
     ifint  = round(Int, fint)
