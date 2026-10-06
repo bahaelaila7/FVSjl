@@ -1660,34 +1660,50 @@ function _invref_bf_voleq(s::StandState, sp::Int)
     return invref_voleq(s, sp)
 end
 
-function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
-                           standid::AbstractString, s::StandState)
+"""
+    invref_rows(s) -> Vector{Tuple}
+
+The per-species FVS_InvReference rows (without CaseID/StandID/LocationCode) as `s` stands NOW. dbsreference.f runs once at
+stand initialisation (before any cycle), so a dated VOLUME/BFVOLUME/SETSITE/SDIMAX activity that fires later must not
+show in the table: the driver snapshots the rows before the projection (MEASURED FVSon_tiered kwcov_on volume/setsite).
+"""
+function invref_rows(s::StandState)
     # dbsreference.f prints DBHMIN/TOPD/… as SITSET left them — fill the per-stand standards even when no volume
     # call has touched them yet (a bare or all-seedling stand never reaches the lazy AK/NVEL initialisation).
     s.control.merch_init || init_merch_standards!(s)
-    c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
+    c = s.control; co = s.coef; p = s.plot
     nsp = nspecies(s.variant)   # the variant's real species count (code arrays are padded to MAXSP capacity)
     fia3(x) = s.variant isa CentralRockies ? lpad(strip(x), 3, '0') : strip(x)   # 3-char FIAJSP (CR western codes)
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
+    rows = Tuple[]
+    for sp in 1:nsp
+        # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
+        # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
+        _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
+        push!(rows, (sp,
+            String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
+            String(fia3(co.code_fia[sp])), sditype,
+            trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
+            "FVS", invref_voleq(s, sp),
+            Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
+            Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
+            _invref_bf_voleq(s, sp),
+            Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
+    end
+    return rows
+end
+
+function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, s::StandState; rows = nothing)
+    rows === nothing && (rows = invref_rows(s))
     db = SQLite.DB(dbpath)
     try
         loc = _invref_loccode(s.variant)
         _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        for sp in 1:nsp
-            # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
-            # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
-            _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, (loc ? (_invref_kodfor(s),) : ())..., sp,
-                String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
-                String(fia3(co.code_fia[sp])), sditype,
-                trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
-                "FVS", invref_voleq(s, sp),
-                Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
-                Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
-                _invref_bf_voleq(s, sp),
-                Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (_invref_kodfor(s),) : ())..., r...))
         end
     finally
         SQLite.close(db)

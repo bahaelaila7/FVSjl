@@ -1824,6 +1824,7 @@ function run_keyfile(keypath::AbstractString;
                 push!(tl_cycles, treelist_snapshot(st, yr, pl_eff; cycle = cy))
             end
         end : nothing
+        invref_snap = has_db && !(s.variant isa BritishColumbia) ? invref_rows(s) : nothing   # dbsreference.f: at stand init
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
@@ -1850,7 +1851,7 @@ function run_keyfile(keypath::AbstractString;
                              run_datetime = strip(string(date, " ", time)))
             # FVS_InvReference (dbsreference.f) is not in the BC build's source list; the ON oracle (build_g16_on.sh) compiles
             # the upstream vdbsqlite/dbsreference.f (LocationCode upgrade) and writes it (live tiered ON goldens).
-            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s; rows = invref_snap)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
