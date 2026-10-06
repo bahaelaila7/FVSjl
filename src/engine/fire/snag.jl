@@ -122,7 +122,8 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     if slot > 0                                    # FMSADD reuses an emptied record (fmsadd.f:47-56, see fmsadd_bin!)
         psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
         sn.sp[slot] = Int32(sp); sn.dbh[slot] = dbh
-        sn.den_soft[slot] = density * psoft; sn.den_hard[slot] = density - density * psoft
+        # fmsadd.f:420-421  DENIH=(1.0-PSOFT)*DEND, DENIS=PSOFT*DEND (NOT DEND-DENIS: differs in the last bit)
+        sn.den_soft[slot] = psoft * density; sn.den_hard[slot] = (1f0 - psoft) * density
         sn.origden[slot] = density; sn.year[slot] = Int32(year); sn.yrdead[slot] = Int32(yrdead)
         sn.bolevol[slot] = bolevol; sn.fallvol[slot] = fallvol >= 0f0 ? fallvol : bolevol
         sn.height[slot] = height; sn.htcur[slot] = htcur > 0f0 ? min(htcur, height) : height
@@ -131,7 +132,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     end
     # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
     psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
-    soft = density * psoft; hard = density - soft
+    soft = psoft * density; hard = (1f0 - psoft) * density   # fmsadd.f:420-421 DENIH=(1.0-PSOFT)*DEND, DENIS=PSOFT*DEND
     # `height` = HTDEAD (taper reference); `htcur` = current top (< HTDEAD only for pre-broken SNAGINIT snags
     # or SNAGBRK height-loss). Default htcur = height ⇒ no truncation (ordinary snags).
     hc = htcur > 0f0 ? min(htcur, height) : height
