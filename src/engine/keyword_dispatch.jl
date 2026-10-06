@@ -1734,6 +1734,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         if dtk >= 4f0                       # permanent broken top
                             t.trunc[i] = itrc2
                             t.norm_ht[i] = floor(Int32, h * 100f0 + 0.5f0)
+                            t.mort_code[i] = Int32(3)       # htgstp.f:140 IMC(I)=3 — permanently topkilled
                         end
                     end
                     t.height[i] = toph
@@ -1743,6 +1744,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         new = floor(Int32, cn / toph * 100f0 + 0.5f0)
                         new < 5 && (new = Int32(5))
                         t.crown_pct[i] = -new
+                        t.mort_code[i] == 1 && (t.mort_code[i] = Int32(2))   # htgstp.f:178 damaged trees get IMC>1 (cut priority)
                     end
                 end
             end
