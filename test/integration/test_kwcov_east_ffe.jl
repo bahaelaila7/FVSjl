@@ -31,8 +31,6 @@ const _KWFFE_OPEN = Dict{String,String}(
     "cs_salvage" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 228 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum",
     "cs_salvage_sp" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Down_Wood_Cov",
     "cs_simfire_nomort" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 173 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
-    "cs_snagfall_sp" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_SnagDet",
-    "cs_snagpsft" => "OPEN: 44 cells after the fmsadd.f:420 DENIH/DENIS operation-order fix; remaining cause (diagnosed 2026-10-06) = jl carries ONE current snag height (htcur) per record where fmsnag.f keeps HTIH (hard pool) and HTIS (soft pool) separately (fmsnag.f:243-253) and fmsnght/CWD1/CWD2/fmsout use each pool's own height — only exercised once SNAGPSFT creates soft snags",
     "cs_statfuel" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 500 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire_East,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "ls_cancalc" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 8 cells in FVS_PotFire",
     "ls_canfprof" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 792 cells in FVS_CanProfile",
@@ -54,7 +52,6 @@ const _KWFFE_OPEN = Dict{String,String}(
     "ls_pileburn_jack" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 209 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ls_salvage" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 244 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire,FVS_SnagDet,FVS_SnagSum",
     "ls_simfire_nomort" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 60 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ls_snagpsft" => "OPEN: 397 cells after the fmsadd.f:420 DENIH/DENIS operation-order fix; remaining cause (diagnosed 2026-10-06) = jl carries ONE current snag height (htcur) per record where fmsnag.f keeps HTIH (hard pool) and HTIS (soft pool) separately (fmsnag.f:243-253) and fmsnght/CWD1/CWD2/fmsout use each pool's own height — only exercised once SNAGPSFT creates soft snags",
     "ls_statfuel" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 257 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary,sum",
     "ne_cancalc" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 10 cells in FVS_PotFire",
     "ne_canfprof" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 841 cells in FVS_CanProfile",
@@ -75,7 +72,6 @@ const _KWFFE_OPEN = Dict{String,String}(
     "ne_pileburn" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 204 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ne_pileburn_jack" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 205 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_PotFire",
     "ne_salvage" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 482 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Hrv_Carbon,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary",
-    "ne_snagpsft" => "OPEN: 236 cells after the fmsadd.f:420 DENIH/DENIS operation-order fix; remaining cause (diagnosed 2026-10-06) = jl carries ONE current snag height (htcur) per record where fmsnag.f keeps HTIH (hard pool) and HTIS (soft pool) separately (fmsnag.f:243-253) and fmsnght/CWD1/CWD2/fmsout use each pool's own height — only exercised once SNAGPSFT creates soft snags",
     "ne_statfuel" => "OPEN (first measured 2026-10-06, stock-flag live oracle): 201 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_PotFire,FVS_SnagDet,FVS_SnagSum,FVS_Summary",
 )
 

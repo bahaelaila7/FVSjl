@@ -127,6 +127,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
         sn.origden[slot] = density; sn.year[slot] = Int32(year); sn.yrdead[slot] = Int32(yrdead)
         sn.bolevol[slot] = bolevol; sn.fallvol[slot] = fallvol >= 0f0 ? fallvol : bolevol
         sn.height[slot] = height; sn.htcur[slot] = htcur > 0f0 ? min(htcur, height) : height
+        sn.htcur_soft[slot] = sn.htcur[slot]            # HTIS = HTIH at creation (fmsadd.f:414-417, :433-436)
         sn.pbfris[slot] = 0f0; sn.pbfrih[slot] = 0f0
         return
     end
@@ -141,7 +142,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     push!(sn.sp, Int32(sp));   push!(sn.dbh, dbh)
     push!(sn.den_hard, hard);  push!(sn.den_soft, soft)
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
-    push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc)
+    push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc); push!(sn.htcur_soft, hc)
     push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
     return
 end
@@ -151,7 +152,7 @@ function add_empty_snag!(fs::FireState, sp::Integer, year::Integer; yrdead::Inte
     sn = fs.snags
     push!(sn.sp, Int32(sp)); push!(sn.dbh, 0f0); push!(sn.den_hard, 0f0); push!(sn.den_soft, 0f0)
     push!(sn.origden, 0f0); push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
-    push!(sn.bolevol, 0f0); push!(sn.fallvol, 0f0); push!(sn.height, 0f0); push!(sn.htcur, 0f0)
+    push!(sn.bolevol, 0f0); push!(sn.fallvol, 0f0); push!(sn.height, 0f0); push!(sn.htcur, 0f0); push!(sn.htcur_soft, 0f0)
     push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
     return
 end
@@ -264,7 +265,9 @@ function snag_bole_carbon(s::StandState)::Float32
     @inbounds for i in eachindex(sn.sp)
         den = sn.den_hard[i] + sn.den_soft[i]
         den > 0f0 || continue
-        c += _snag_bole_tons(s, i) * den
+        # each pool at its own current height (HTIH hard, HTIS soft): identical bole while no soft pool exists
+        c += _snag_bole_tons(s, i) * sn.den_hard[i]
+        sn.den_soft[i] > 0f0 && (c += _snag_bole_tons(s, i; soft = true) * sn.den_soft[i])
     end
     return c * 0.5f0
 end
@@ -300,8 +303,9 @@ function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
     end
     return max(0.005454154f0 * htd, mcf)
 end
-function _snag_bole_tons(s::StandState, i::Int)::Float32
+function _snag_bole_tons(s::StandState, i::Int; soft::Bool = false)::Float32
     fs = s.fire; sn = fs.snags; coef = s.coef
+    hcur = soft ? sn.htcur_soft[i] : sn.htcur[i]      # HTIS for the initially-soft pool, HTIH for the hard
     @inbounds begin
         b = sn.bolevol[i]
         b <= 0f0 && (b = let (a, _, _) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
@@ -309,14 +313,14 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
         # ORIGINAL tree (dbh, HTDEAD) TRUNCATED at htcur via CFTOPK (the Behre top-kill reduction, fmsvol.f:
         # 101-142), i.e. the fat LOWER bole — NOT a normal short tree of (dbh, htcur). Scale the stored bole by
         # the CFTOPK merch ratio. No-op at the default HTX=0 (htcur ≡ height ⇒ frozen bole, bit-exact).
-        if _ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+        if _ffe_west_vol(s.variant) && hcur < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i])       # {v}/fmsvol.f(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
-            b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
+            b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], hcur) * coef_col(coef, :v2t)[sp] / 2000f0
         elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
             # fmdout.f:139-147 → fmsvol.f (CS/LS/NE/SN): FMSVOL(I, HTIH) recomputed at every report on (DBHS, HTDEAD)
             sp = Int(sn.sp[i])
-            b = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * (coef_col(coef, :v2t)[sp] / 2000f0)
-        elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+            b = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], hcur) * (coef_col(coef, :v2t)[sp] / 2000f0)
+        elseif !isempty(fs.params.snag_htx) && hcur < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
             mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
             vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
@@ -326,7 +330,7 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
                              scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
                 bk = bark_ratio(coef, sp, d)
                 _, mcf_t, _ = cftopk(merch_std, sp, d, htd, vmax, mcf_full, 0f0, vmax, bk,
-                                     round(Int, sn.htcur[i] * 100f0))   # CFTOPK: merch reduced for the broken top
+                                     round(Int, hcur * 100f0))   # CFTOPK: merch reduced for the broken top
                 b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
             end
         end
@@ -546,7 +550,8 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # CWD1(I, DIH, DIS) (fmcwd.f:152-205): HIHT = HTIS/HTIH (the snag's current top), LOHT = 1.0/0.10, and TVOLI =
             # FMSVL2('D') recomputed on (DBHS, HTDEAD) as FVS does — for every variant (_fm_tvoli), not the stored fall bole.
             if sn.height[i] > 0f0
-                _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
+                # HIHT(1)=HTIS(I), HIHT(2)=HTIH(I) (fmcwd.f:164-165)
+                _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur_soft[i], sn.htcur[i], 1.0f0, 0.10f0;
                                tvoli = max(0.005454154f0 * sn.height[i], _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])))
             else    # jl-only: a snag with no recorded height (bare add_snag!) books its bole into the DBH class
                 kd = _cwd_size_class(sn.dbh[i])
@@ -640,6 +645,29 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     r6 = _snag_r6htls(s)
     # `only` = one record inside the caller's per-record FMSNAG pass; the caller brackets that pass with the RANNGET/RANNPUT.
     r6save = (r6 === :none || only !== nothing) ? nothing : rannget(s.rng)
+    # FMSNGHT(VAR,KSP,HTD,HTCURR,IHRD,HTSNEW) for ONE pool (fmsnght.f:52-165): IHRD=1 ⇒ HTINDX 1/2, SFTMULT 1; IHRD=0 ⇒
+    # HTINDX 3/4, SFTMULT=HTXSFT; the >0.5·HTD regime uses HTR1·HTX(…,1|3), below it HTR2·HTX(…,2|4). A loss fraction `x2`
+    # drawn from FMR6HTLS replaces HTR·HTX·SFTMULT where the R6 branch applies (HTX within [0.99,1.01]).
+    function fmsnght(sp::Integer, htx, htd::Float32, htc::Float32, soft::Bool, x2::Float32)::Float32
+        above = htc > 0.5f0 * htd
+        idx = soft ? (above ? 3 : 4) : (above ? 1 : 2)
+        sftmult = soft ? HTXSFT : 1f0
+        htr = above ? HTR1 : HTR2
+        lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
+        (r6 !== :none && 0.99f0 <= htx[idx] <= 1.01f0) && (lossfrac = x2)
+        htnew = htc * (1f0 - lossfrac)^Float32(nyears)
+        # fmsnght.f CASE('CI') KSP 1,6 (WP, RC): lose height at HTR1 only while above 75% of HTD, then stop.
+        if ci75 && (sp == 1 || sp == 6)
+            if htc > 0.75f0 * htd
+                lossfrac = clamp(HTR1 * htx[soft ? 3 : 1] * sftmult, 0f0, 1f0)
+                htnew = htc * (1f0 - lossfrac)^Float32(nyears)
+            else
+                htnew = htc
+            end
+        end
+        htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
+        return htnew
+    end
     @inbounds for i in (only === nothing ? eachindex(sn.sp) : (only:only))
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         x2h = 0f0; x2s = 0f0
@@ -652,41 +680,34 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
             _snag_htx0_default(s.variant) || continue
             htx = (0f0, 0f0, 0f0, 0f0)
         end
-        htd = sn.height[i]; htc = sn.htcur[i]
-        (htd > 0f0 && htc > 0f0) || continue
-        # FMSNGHT picks the hard/soft rate from the snag's INITIAL state (FMSNAG calls it with IHRD=1 for the
-        # DENIH/hard portion, IHRD=0 for DENIS/soft) — NOT the DKTIME report transition. jl carries one htcur,
-        # so use the dominant initial pool: hard rate while den_hard ≥ den_soft (the common all-hard snag).
-        soft = sn.den_soft[i] > sn.den_hard[i]
-        above = htc > 0.5f0 * htd                       # height regime (>0.5·HTD uses the 50%-loss rate)
-        idx = soft ? (above ? 3 : 4) : (above ? 1 : 2)   # HTINDX1/2 hard, 3/4 soft (fmsnght.f:52-59)
-        sftmult = soft ? HTXSFT : 1f0
-        htr = above ? HTR1 : HTR2                         # first-50% uses HTR1, after-50% uses HTR2 (fmsnght.f:154-159)
-        lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
-        # FMR6HTLS: HTX(KSP,HTINDX) in [0.99,1.01] ⇒ the pool's random loss X2 replaces HTR·HTX·SFTMULT.
-        (r6 !== :none && 0.99f0 <= htx[idx] <= 1.01f0) && (lossfrac = soft ? x2s : x2h)
-        htnew = htc * (1f0 - lossfrac)^Float32(nyears)
-        # fmsnght.f CASE('CI') KSP 1,6 (WP, RC): lose height at HTR1 only while above 75% of HTD, then stop.
-        if ci75 && (sn.sp[i] == 1 || sn.sp[i] == 6)
-            if htc > 0.75f0 * htd
-                lossfrac = clamp(HTR1 * htx[soft ? 3 : 1] * sftmult, 0f0, 1f0)
-                htnew = htc * (1f0 - lossfrac)^Float32(nyears)
-            else
-                htnew = htc
+        htd = sn.height[i]
+        # fmsnag.f:243-253: the HARD pool (HTIH, DENIH>0) and the SOFT pool (HTIS, DENIS>0) each advance on their own height,
+        # IHRD=1 / IHRD=0. They differ only where PSOFT>0 (SNAGPSFT) made a soft pool at creation.
+        oldhth = -1f0; oldhts = -1f0
+        newhth = sn.htcur[i]; newhts = sn.htcur_soft[i]
+        (htd > 0f0) || continue
+        if sn.den_hard[i] > 0f0 && sn.htcur[i] > 0f0
+            oldhth = sn.htcur[i]; newhth = fmsnght(Int(sn.sp[i]), htx, htd, oldhth, false, x2h)
+        end
+        if sn.den_soft[i] > 0f0 && sn.htcur_soft[i] > 0f0
+            oldhts = sn.htcur_soft[i]; newhts = fmsnght(Int(sn.sp[i]), htx, htd, oldhts, true, x2s)
+        end
+        changed = (oldhth > 0f0 && newhth < oldhth) || (oldhts > 0f0 && newhts < oldhts)
+        if changed
+            if _ffe_cwd2(s.variant)
+                # CWD2(I, DIH, DIS, OLDHTH, OLDHTS) (fmcwd.f:207-246): HIHT(1)=OLDHTS, HIHT(2)=OLDHTH, LOHT(1)=HTIS, LOHT(2)=HTIH —
+                # the same label-1000 split as CWD1 on TVOLI = FMSVL2('D') of (DBHS, HTDEAD)
+                _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], oldhts, oldhth, newhts, newhth)
+            elseif _snag_htx0_default(s.variant)
+                # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
+                _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], oldhts, oldhth, newhts, newhth;
+                               tvoli = max(0.005454154f0 * htd, _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], htd)))
             end
         end
-        htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
-        if _ffe_cwd2(s.variant) && htnew < htc            # CWD2: the broken-off piece → down wood (fmsnag.f:254)
-            # CWD2(I, DIH, DIS, OLDHTH, OLDHTS) (fmcwd.f:207-246): HIHT = the old height, LOHT = the new one, the same
-            # label-1000 split as CWD1 on TVOLI = FMSVL2('D') of (DBHS, HTDEAD)
-            _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew)
-        elseif _snag_htx0_default(s.variant) && htnew < htc
-            # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
-            _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew;
-                           tvoli = max(0.005454154f0 * htd, _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], htd)))
-        end
-        sn.htcur[i] = htnew
-        htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
+        sn.htcur[i] = newhth; sn.htcur_soft[i] = newhts
+        # fmsnag.f:262-270: a pool whose height broke below the floor is emptied (FMSNGHT zeroes anything < 1.5 ft)
+        (sn.den_hard[i] > 0f0 && sn.htcur[i] < 1f0) && (sn.den_hard[i] = 0f0)
+        (sn.den_soft[i] > 0f0 && sn.htcur_soft[i] < 1f0) && (sn.den_soft[i] = 0f0)
     end
     r6save === nothing || rannput!(s.rng, r6save)          # RANNPUT(SAVESO) (fmsnag.f:290-293)
     return
@@ -817,28 +838,45 @@ function snag_detail(s::StandState)
         denih = sn.den_hard[i]; denis = sn.den_soft[i]; d = sn.dbh[i]
         (denih + denis) > 0f0 || continue
         d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
-        sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
-        vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
-              _snag_east_vol(s.variant) ? ffe_east_snag_vol_at(s, sp, d, sn.height[i], h) :   # fmsout.f:122-133
-              _snag_merch_cuft_on(s, sp, d, h)
+        sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d)
+        htih = sn.htcur[i]; htis = sn.htcur_soft[i]
+        # FMSVOL(II, HTIS|HTIH) (fmsout.f:122-133): each pool at its own current height
+        vol_at(h) = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :
+                    _snag_east_vol(s.variant) ? ffe_east_snag_vol_at(s, sp, d, sn.height[i], h) :
+                    _snag_merch_cuft_on(s, sp, d, h)
         ishard = _snag_hard_flag(s, i, iyr)              # HARD(II) (fmsout.f:135; same flip as snag_summary)
-        dh  = ishard ? denih : 0f0
-        ds  = denis + (ishard ? 0f0 : denih)
-        vh  = ishard ? vol * denih : 0f0
-        vs  = vol * denis + (ishard ? 0f0 : vol * denih)
+        # fmsout.f:116-173, the same REAL*4 accumulation order as FVS: SNVOLS = V(HTIS)·DENIS (+ V(HTIH)·DENIH when the
+        # initially-hard pool is no longer HARD), SNVOLH = V(HTIH)·DENIH; then the class totals.
+        snvols = 0f0
+        denis > 0f0 && (snvols = vol_at(htis) * denis)
+        snvolh = 0f0
+        if denih > 0f0
+            tv = vol_at(htih)
+            ishard ? (snvolh = tv * denih) : (snvols = snvols + tv * denih)
+        end
         p = get(acc, (sp, yd, jcl), (0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0))
-        acc[(sp, yd, jcl)] = (p[1] + dh, p[2] + ds, p[3] + h * dh, p[4] + h * ds,
-                              p[5] + vh, p[6] + vs, p[7] + d * (denih + denis))
+        tdh, tds, thth, thts, tvh, tvs, tdbh = p
+        tds = tds + denis; thts = thts + htis * denis
+        if ishard
+            tdh = tdh + denih; thth = thth + htih * denih
+        else
+            tds = tds + denih; thts = thts + htih * denih
+        end
+        tvs = tvs + snvols; tvh = tvh + snvolh
+        tdbh = tdbh + d * (denis + denih)
+        acc[(sp, yd, jcl)] = (tdh, tds, thth, thts, tvh, tvs, tdbh)
     end
     rows = NamedTuple[]
     for (key, v) in acc
         (sp, yd, jcl) = key
         totn = v[1] + v[2]
         totn > 0f0 || continue
+        # dbsfmdsnag.f:152 SDTB = SDH+SDS is a REAL*4 sum (the operands are REAL*4) widened to REAL*8; :158 SVLTB = SVLHB+SVLSB adds the REAL*8
+        # copies, i.e. a DOUBLE sum of the two REAL*4 volumes
         push!(rows, (sp = sp, jcl = jcl, death_dbh = v[7] / totn,
                      hth = v[1] > 0f0 ? v[3] / v[1] : 0f0, hts = v[2] > 0f0 ? v[4] / v[2] : 0f0,
-                     vh = v[5], vs = v[6], tv = v[5] + v[6], yrdied = yd,
-                     dh = v[1], ds = v[2], dt = totn))
+                     vh = v[5], vs = v[6], tv = Float64(v[5]) + Float64(v[6]), yrdied = yd,
+                     dh = v[1], ds = v[2], dt = Float64(v[1] + v[2])))
     end
     sort!(rows, by = r -> (r.sp, r.yrdied, r.jcl))
     return rows
@@ -1012,13 +1050,13 @@ function _fmsalv!(s::StandState)::Bool
     end
     isalvs = Int(fs.salv_isalvs); isalvc = Int(fs.salv_isalvc)
     west = _ffe_west_vol(s.variant)
-    svol(i) = (west && sn.height[i] > 0f0) ?
-              ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]; always = true) :
-              _snag_bole_tons(s, i) / (v2t[sn.sp[i]] / 2000f0)
+    svol(i; soft = false) = (west && sn.height[i] > 0f0) ?
+              ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], soft ? sn.htcur_soft[i] : sn.htcur[i]; always = true) :
+              _snag_bole_tons(s, i; soft = soft) / (v2t[sn.sp[i]] / 2000f0)    # FMSALV: FMSVOL(I,HTIS)/(I,HTIH)
     totvol = 0f0
     @inbounds for i in eachindex(sn.sp)
         (sn.den_soft[i] + sn.den_hard[i]) > 0f0 || continue
-        sn.den_soft[i] > 0f0 && (totvol = totvol + sn.den_soft[i] * svol(i))
+        sn.den_soft[i] > 0f0 && (totvol = totvol + sn.den_soft[i] * svol(i; soft = true))
         sn.den_hard[i] > 0f0 && (totvol = totvol + sn.den_hard[i] * svol(i))
     end
     cutvol = 0f0
@@ -1037,7 +1075,7 @@ function _fmsalv!(s::StandState)::Bool
             (sn.den_hard[i] <= 0f0 && oksoft == 1) && continue
             (sn.den_soft[i] <= 0f0 && oksoft == 2) && continue
             ((yr - Int(sn.yrdead[i])) > maxag || sn.dbh[i] >= maxdb || sn.dbh[i] < mindb) && continue
-            isoftv = sn.den_soft[i] > 0f0 ? svol(i) : 0f0
+            isoftv = sn.den_soft[i] > 0f0 ? svol(i; soft = true) : 0f0
             ihardv = sn.den_hard[i] > 0f0 ? svol(i) : 0f0
             cutdih = sn.den_hard[i] > 0f0 && oksoft != 2 ? prop * sn.den_hard[i] : 0f0   # all jl snags are HARD
             cutdis = (sn.den_soft[i] > 0f0 && oksoft != 1) ? prop * sn.den_soft[i] : 0f0
@@ -1046,7 +1084,7 @@ function _fmsalv!(s::StandState)::Bool
             cutvol = cutvol + (cutdis * isoftv + cutdih * ihardv)
             if sn.height[i] > 0f0                                                              # CWD1(I, DIH, DIS)
                 _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
-                               sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
+                               sn.htcur_soft[i], sn.htcur[i], 1.0f0, 0.10f0;
                                tvoli = west ? max(0.005454154f0 * sn.height[i],
                                                   _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i])) : ihardv + isoftv - (sn.den_soft[i] + cutdis > 0f0 && sn.den_hard[i] + cutdih > 0f0 ? ihardv : 0f0))
             end

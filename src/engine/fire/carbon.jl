@@ -379,20 +379,17 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             # fmdout.f:139-155: SNVIH = FMSVOL(I,HTIH)·DENIH, SNVIS = FMSVOL(I,HTIS)·DENIS — the TOTAL cubic of (DBHS,HTDEAD)
             # with CFTOPK at the current height on every snag (XHT>−1 ⇒ LTKIL), fresh each report — then (SNVIS+SNVIH)·V2T
             sp = Int(sn.sp[i])
-            vv = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
-            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
-            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            snvih = sn.den_hard[i] > 0f0 ? ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true) * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur_soft[i]; always = true) * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
         elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
             # same FMSVOL(I,HTIx)·DENIx, (SNVIS+SNVIH)·V2T with V2T pre-divided by 2000 (fmvinit.f:1094) — CS/LS/NE/SN
             sp = Int(sn.sp[i])
-            vv = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i])
-            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
-            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            snvih = sn.den_hard[i] > 0f0 ? ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur_soft[i]) * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
         else
-            b = _snag_bole_tons(s, i)
-            v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
+            v = _snag_bole_tons(s, i; soft = true) * sn.den_soft[i] + _snag_bole_tons(s, i) * sn.den_hard[i]   # (SNVIS+SNVIH)·V2T, bole in tons/stem at each pool's height
         end
         sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
     end
