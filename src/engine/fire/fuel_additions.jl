@@ -290,7 +290,9 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer; vtrip::Bool = false)
         fmcadd!(s; vtrip = vtrip)                      # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
     end
-    fs.bioroot *= fpowi(1f0 - _FM_CRDCAY, nyrs)    # dead-root decay (fmcrbout.f:273, REAL**INTEGER ⇒ __powisf2)
+    # dead-root decay (fmcrbout.f:268-275; X=1): LDCAY = CRDCAY>0 ⇒ BIOROOT·(1-CRDCAY·X)**NYRS (REAL**INTEGER ⇒ __powisf2), else BIOROOT=0
+    crd = fs.user.crdcay
+    fs.bioroot = crd > 0f0 ? fs.bioroot * fpowi(1f0 - crd * 1f0, nyrs) : 0f0
     return s
 end
 
@@ -420,7 +422,7 @@ function apply_pileburn!(s::StandState)::Bool
     fired = false
     for a in s.control.schedule
         a.icflag == Int32(2523) || continue
-        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        act_due(s, a.year) || continue          # OPFIND: the activities of the CURRENT cycle (ffe_acts.jl)
         affect = a.params[2] / 100f0; atreat = a.params[3] / 100f0
         fulcon = a.params[4] / 100f0; trmort = clamp(a.params[5] / 100f0, 0f0, 1f0)
         # consume the staged (piled) fraction of each fuel size class (FMCONS net, FMOIS=3 medium)

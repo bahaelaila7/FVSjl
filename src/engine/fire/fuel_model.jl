@@ -230,15 +230,33 @@ distance to each model's iso-line. Returns up to `MXFMOD` (model, weight) pairs 
 weights sum to 1. This is the input FMFINT integrates over for the surface fire.
 """
 function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
-    # FUELMODL (fmusrfm.f → fmcfmd.f:113 IF(LUSRFM)RETURN): a forced fuel-model list for this cycle skips
-    # the FMCFMD auto-selection entirely.
-    if s.fire !== nothing && !isempty(s.fire.fuelmodl)
-        yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
-        for (date, pairs) in s.fire.fuelmodl
-            (Int(date) == yr || (0 < Int(date) < 1000 && Int(date) == fvscyc)) || continue
-            return [(Int(m), w) for (m, w) in pairs]
+    fs = s.fire; u = fs === nothing ? nothing : fs.user
+    # FUELMODL (fmusrfm.f → fmcfmd.f:107-113 IF(LUSRFM)RETURN): once a forced fuel-model list is in force (from the cycle of its
+    # FUELMODL activity on, until another one with model 0 / no valid pair) the FMCFMD auto-selection is skipped entirely. The
+    # weights are sorted descending (RDPSRT), FMD = the top model if its weight > 1E-6 else 8, at most 4 models; STATFUEL
+    # (LDYNFM=FALSE, fmusrfm.f:186-196 / fmdyn.f:423-431 / fmcfmd2.f:453) keeps only the heaviest at weight 1.
+    if u !== nothing && u.lusrfm
+        fw = copy(u.fwtusr); indx = zeros(Int32, 4)
+        rdpsrt!(4, fw, indx, true)
+        mods = [(Int(u.fmdusr[indx[i]]), fw[i]) for i in 1:4]
+        out = Tuple{Int,Float32}[]
+        if !(mods[1][2] > 1f-6)
+            push!(out, (8, 1f0))                                  # FMD < 0 ⇒ model 8 (RCDSET(2) warning)
+        else
+            for (m, w) in mods
+                w <= 1f-6 && break
+                push!(out, (m, w))
+            end
         end
+        u.ldynfm || (out = [(out[1][1], 1f0)])
+        return out
     end
+    models = _select_fuel_models_core(s, mois; fire_basis = fire_basis)
+    (u !== nothing && !u.ldynfm && !isempty(models)) && (models = [(models[1][1], 1f0)])
+    return models
+end
+
+function _select_fuel_models_core(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
     # FVS_StandInit FUEL_MODEL override (dbsstandin.f:1081 → FUELMODL activity 2538 → fmusrfm.f LUSRFM):
     # a fixed input fuel model burns on that model at weight 1.0 for the whole run, bypassing FMCFMD/FMCFMD2
     # auto-selection (fmcfmd.f:107 IF(LUSRFM)RETURN). Honors the Anderson 13 and the Scott-Burgan 101-204.
@@ -427,7 +445,7 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     burnseas = Int(fs.burnseas)
     fwind   = fs.swind * fire_wind_reduction(percov)      # 20-ft → midflame wind
     itype   = Int(s.plot.forest_idx)                      # ITYPE (/PLOT/) — FDc/FDn habitat checks
-    ldry    = false                                       # DROUGHT (IDRYB..IDRYE) — none in these stands
+    ldry    = (let yr = Int(current_cycle_year(s)); yr >= Int(fs.user.idryb) && yr <= Int(fs.user.idrye) end)   # DROUGHT (fmcfmd.f:194-195 IYR in IDRYB..IDRYE)
     # FMAVH = ATAVH (ls/fmcfmd.f:150) — the post-thin top-40 AVH grincr.f:318 saves each cycle, NOT a TPA-weighted
     # mean of all trees (MEASURED live FVSls 104685266010661 simfire 2016: jack pine PERCOV 40 ⇒ FMAVH>25 ⇒ FM10
     # live vs FM4 jl, flame 3.29 vs 12.04).
@@ -726,7 +744,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     t = s.trees; fs = s.fire
     percov = fs.percov
     fwind = fs.swind * fire_wind_reduction(percov)
-    ldry = false                                   # DROUGHT (IDRYB..IDRYE) — none in crt01
+    ldry = (let yr = Int(current_cycle_year(s)); yr >= Int(s.fire.user.idryb) && yr <= Int(s.fire.user.idrye) end)   # DROUGHT (IDRYB..IDRYE)
     NSP = nspecies(s.variant)                       # CR=38, UT=24, TT=18 (fmcfmd shared, VARACD-branched)
     usht = 0.5f0 * stand_top_height(s)             # UNDERSTORY = HT ≤ 0.5·FMAVH (top-40 ht) (fmcfmd.f:182)
     ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)

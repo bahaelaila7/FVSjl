@@ -522,7 +522,7 @@ end
 # mineral-soil exposure for the AUTOES BurnPrep seam. Row 1 col 5 = duff (fmburn.f:373-380).
 function _fire_duff_moisture(s::StandState, year::Int)::Float32
     (s.fire === nothing) && return 0f0
-    movr = _active_moisture_override(s, year)
+    movr = _active_moisture_override(s, year; consume = false)
     mois = movr === nothing ? fuel_moisture(Int(s.fire.fmois), s.variant) : _moisture_matrix(movr)
     return Float32(mois[1, 5])
 end
@@ -548,9 +548,20 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
     pre_cfv = Float32[t.cuft_vol[i] for i in 1:t.n]
+    # FLAMEADJ (fmburn.f:331-358): the activities scheduled for THIS cycle, in date order — the last one wins; blank/absent ⇒
+    # FLAME=−1, FLMULT=1, CRBURN=−1, SCH=−1 (CRBURN is stored as a fraction once set, fmburn.f:345)
+    fa_mult = 1f0; fa_flame = -1f0; fa_crb = -1f0; fa_sch = -1f0; fa_any = false
+    for a in ffe_find(s, 2507)
+        p = a.params
+        fa_flame = p[2]; fa_mult = p[1]; fa_crb = p[3]
+        fa_sch = length(p) >= 4 ? p[4] : -1f0
+        fa_crb > -1f0 && (fa_crb = fa_crb * 0.01f0)
+        fa_any = true; ffe_done!(s, a)
+    end
     fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
             psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
-            burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
+            burnseas = Int(s.fire.burnseas), flmult = fa_mult, crburn = fa_crb,
+            flame_user = fa_flame, sch_user = fa_sch, flameadj = fa_any,
             year = yr, cyclen = fint)
     fm = 0f0
     @inbounds for i in 1:length(pre_tpa)
@@ -914,6 +925,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _trim_crown_bypass!(s)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
+        ffe_cycle_acts!(s)                                 # FMBURN/FMUSRFM activities of this cycle (DROUGHT, DEFULMOD, FUELMODL, FUELTRET, FIRECALC)
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
         apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMTRET)
         apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET)

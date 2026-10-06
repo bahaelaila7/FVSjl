@@ -531,7 +531,7 @@ function apply_fuelmove!(s::StandState)::Bool
     fsrc = copy(forg); ftrg = zeros(Float32, 12); altered = false
     for a in s.control.schedule
         a.icflag == Int32(2530) || continue
-        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        act_due(s, a.year) || continue          # OPFIND: the activities of the CURRENT cycle (ffe_acts.jl)
         ifrm = Int(round(a.params[1])); ito = Int(round(a.params[2]))
         x = a.params[3]; y = a.params[4]; z = a.params[5]; q = a.params[6]
         (0 <= ifrm <= 11 && 0 <= ito <= 11 && ifrm != ito && x >= 0f0 && 0f0 <= y <= 1f0 && z >= 0f0) || continue

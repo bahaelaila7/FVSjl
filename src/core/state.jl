@@ -1171,6 +1171,55 @@ FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(
                         Dict{Int32,Int32}(), (PotFireCond(), PotFireCond()), Dict{Int32,Float32}(),
                         Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}())
 
+"""
+One scheduled FFE activity (fmin.f OPNEW codes 2505 MOISTURE, 2507 FLAMEADJ, 2525 FUELTRET, 2529 DROUGHT, 2538 FUELMODL,
+2539 DEFULMOD, 2549 FIRECALC …): the keyword's date (a value < 1000 is a CYCLE number, opexpn.f:40-44), its parameter vector
+(PRMS) and a done flag (OPDONE). `ffe_find` is OPFIND: the not-done activities whose date falls in the CURRENT cycle, in
+date order (ties in keyword order).
+"""
+mutable struct FFEAct
+    code::Int32
+    date::Int32
+    seq::Int32
+    dcyc::Int32            # cycle (0-based) in which OPDONE last marked it; −1 = never. A date ≤ 0 repeats every cycle (opexpn.f).
+    params::Vector{Float32}
+end
+
+"""
+FFE model state the FMIN keywords set that persists across cycles (FMCOM): LDYNFM (STATFUEL), LOWDBH (MORTCLAS), IDRYB/IDRYE
+(DROUGHT), the canopy-fuel options (CANCALC), the FIRECALC fire-model choice and the user fuel-model list/weights (LUSRFM,
+FMDUSR, FWTUSR from FUELMODL) and the FUELTRET fuel-bed treatment (IFTYR, FTREAT, HARTYP, DPMOD).
+"""
+mutable struct FFEUser
+    acts::Vector{FFEAct}
+    ldynfm::Bool
+    lowdbh::Vector{Float32}
+    idryb::Int32
+    idrye::Int32
+    icbhmt::Int32
+    canmht::Float32
+    icansp::Int32
+    cbhcut::Float32
+    folmc::Float32
+    iflogic::Int32
+    ifmset::Int32
+    usav::NTuple{3,Float32}
+    ubd::NTuple{2,Float32}
+    ulhv::Float32
+    lusrfm::Bool
+    fmdusr::Vector{Int32}
+    fwtusr::Vector{Float32}
+    iftyr::Int32
+    ftreat::Int32
+    hartyp::Int32
+    dpmod::Float32
+    crdcay::Float32        # CRDCAY dead coarse-root decay rate (fminit.f:918 0.0425; CARBCALC field 3)
+    cdbrk::NTuple{2,Float32}   # CDBRK pulp/saw DBH break, softwood/hardwood (fminit.f:919-920 9/11; CARBCALC fields 4/5)
+end
+FFEUser() = FFEUser(FFEAct[], true, Float32[0, 5, 10, 20, 30, 40, 50], Int32(0), Int32(0), Int32(0), 6f0, Int32(0), 30f0, 100f0,
+                    Int32(0), Int32(2), (2000f0, 1800f0, 1500f0), (0.10f0, 0.75f0), 8000f0, false, zeros(Int32, 4),
+                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, 0.0425f0, (9f0, 11f0))
+
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
     covtyp::Int32                      # cover type = species with the most basal area (COVTYP)
@@ -1256,6 +1305,7 @@ mutable struct FireState
     prob_prefire::Vector{Float32}      # PROB(I) at this cycle's burn, before FMEFF's kill: FVS takes the fire kill off
                                        # PROB only in FMKILL (GRADD), so FMMAIN's post-burn FMCFMD3→FMCFMD (fmmain.f:189,
                                        # bm/fmcfmd.f BMSTAGE; FMCBA's year-start FMTBA) still read the pre-fire density
+    user::FFEUser                      # FMIN-keyword model state + scheduled activities (FFEAct) — see FFEUser
     harvyr::Int32                      # HARVYR (fminit.f:36 = 0; fmscut.f:75-76 = IY(ICYC) when a cut leaves crown slash or
                                        # downed snags): the last harvest year — FMCFMD's DSTLG/AFWT and FMCONS's activity test
 end
@@ -1268,7 +1318,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0))
+                        Float32[], FFEUser(), Int32(0))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

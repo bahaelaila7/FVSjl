@@ -2529,34 +2529,48 @@ function _duffprod!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# FIRECALC (fmin.f:2293, opt 49, act 2549): PRMS(1:8) default to the model state at keyword time (fminit.f:824-831), then the card's
+# fields 2-9 (clamped) replace them. FMUSRFM (`_fmusrfm_update!`) turns the cycle's activity into IFLOGIC/IFMSET/USAV/UBD/ULHV.
+function _firecalc!(s::StandState, r::KeywordRecord)
+    u = s.fire.user; v = r.values
+    idt = r.present[1] ? Int(trunc(v[1])) : 1
+    prm = Float32[u.iflogic, u.ifmset, u.usav[1], u.usav[2], u.usav[3], u.ubd[1], u.ubd[2], u.ulhv]
+    r.present[2] && (prm[1] = Float32(max(0, min(2, Int(trunc(v[2]))))))
+    r.present[3] && (prm[2] = Float32(max(0, min(2, Int(trunc(v[3]))))))
+    for (k, j) in ((4, 3), (5, 4), (6, 5), (7, 6), (8, 7), (9, 8))
+        r.present[k] && (prm[j] = max(0f0, Float32(v[k])))
+    end
+    ffe_schedule!(s, 2549, idt, prm)
+    return
+end
+
 # DEFULMOD (fmin.f:1795, opt 39, act 2539): define/alter a fuel model. Field 2 = model#; fields 3-7 =
 # PRMS(2-6) = dead 1/10/100-hr SAV, live SAV, dead 1-hr load; a SUPPLEMENTAL record (7×F10) = PRMS(7-13) =
 # dead 10/100-hr load, live-woody load, depth, mext, live-herb SAV, live-herb load. −1/blank = keep the
 # standard model's value. Stores the resolved (load, sav, depth, mext) override read by fuel_model_resolved.
 function _defulmod!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     fs = s.fire; fs === nothing && return
+    # fmin.f:1795-1960: IDT = field 1 when ≥ 0 (a 0 date is every cycle), the supplemental record is read for the PRMS(7:13) fields; the
+    # activity (2539) is evaluated by FMBURN in its cycle (`_fmburn_acts!`) — the SURFVL/FMLOAD table changes only from that date on.
+    v = rec.values
+    idt = (rec.present[1] && v[1] >= 0f0) ? Int(trunc(v[1])) : 1
     rec.present[2] || (read_raw_line!(kr); return)         # no model# ⇒ still consume the supplemental line
-    model = Int(trunc(rec.values[2]))
+    model = Int(trunc(v[2]))
     (1 <= model <= size(s.coef.ffe_fuel_models, 1)) || (read_raw_line!(kr); return)  # invalid model ⇒ skip (still consume the record)
-    load, sav, depth, mext = standard_fuel_model(s.coef, model)
-    load = copy(load); sav = copy(sav)
-    p = fill(-1f0, 13)
-    @inbounds for i in 2:6                                  # PRMS(2-6) from fields 3-7
-        (rec.present[i+1] && rec.values[i+1] >= 0f0) && (p[i] = Float32(rec.values[i+1]))
-    end
-    line = read_raw_line!(kr)                               # supplemental record: PRMS(7-13), 7×10-char fields
+    load, sav, depth, mext = fuel_model_resolved(s, model)
+    p = fill(-1f0, 13); p[1] = Float32(model)
+    # PRMS(2:6): the card's value, else the model's CURRENT table value at keyword time (fmin.f:1862-1888)
+    for i in 2:4; p[i] = rec.present[i + 1] ? Float32(v[i + 1]) : sav[1, i - 1]; end
+    p[5] = rec.present[6] ? Float32(v[6]) : sav[2, 1]
+    p[6] = rec.present[7] ? Float32(v[7]) : load[1, 1]
+    line = read_raw_line!(kr)                               # supplemental record: PRMS(7-13), 7×10-char fields (blank ⇒ −1)
     @inbounds for j in 0:6
         lo = j * 10 + 1; hi = min((j + 1) * 10, length(line))
         lo <= hi || continue
         val = tryparse(Float32, strip(line[lo:hi]))
-        (val !== nothing && val >= 0f0) && (p[7+j] = val)
+        val !== nothing && (p[7 + j] = val)
     end
-    p[2] >= 0f0 && (sav[1, 1] = p[2]); p[3] >= 0f0 && (sav[1, 2] = p[3]); p[4] >= 0f0 && (sav[1, 3] = p[4])
-    p[5] >= 0f0 && (sav[2, 1] = p[5]); p[12] >= 0f0 && (sav[2, 2] = p[12])
-    p[6] >= 0f0 && (load[1, 1] = p[6]); p[7] >= 0f0 && (load[1, 2] = p[7]); p[8] >= 0f0 && (load[1, 3] = p[8])
-    p[9] >= 0f0 && (load[2, 1] = p[9]); p[13] >= 0f0 && (load[2, 2] = p[13])
-    p[10] >= 0f0 && (depth = p[10]); p[11] >= 0f0 && (mext = p[11])
-    fs.defulmod[Int32(model)] = (load, sav, depth, mext)
+    ffe_schedule!(s, 2539, idt, p)
     return
 end
 
@@ -2662,12 +2676,21 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             ev = fs.fire_schedule[1]
             fs.fire_year = Int32(ev[1]); fs.swind = ev[2]; fs.fmois = Int32(ev[3])
             fs.atemp = ev[4]; fs.mortcode = Int32(ev[5]); fs.psburn = ev[6]; fs.burnseas = Int32(ev[7])
-        elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
+        elseif k == "FLAMEADJ"                             # schedule act 2507 (fmin.f:365-440); consumed by FMBURN per cycle
             v = r.values
-            r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
-            # CRBURN = FPRMS(3)·.01 only when > −1 (fmburn.f:345-347); a blank/≤−1 field leaves the fmin.f:397 default −1
-            # = "not set" (FMCFIR's own crown fraction is used), NOT 0 (which would force a surface-only fire).
-            r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : Float32(v[4]))
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[1f0, -1f0, -1f0, -1f0]; np = 3
+            r.present[2] && (prm[1] = Float32(v[2]))              # PRMS(1) flame-length multiplier
+            # metric/fire/base/fmin.f (BC/ON): FLAME and SCH are read in metres and multiplied by MtoFT (3.28084)
+            mtf = _metric_variant(s.variant) ? 3.28084f0 : 1f0
+            r.present[3] && (prm[2] = Float32(v[3]) * mtf)         # PRMS(2) flame length (ft), −1 = computed
+            r.present[4] && (prm[3] = Float32(v[4]))              # PRMS(3) % crowning, −1 = modelled
+            r.present[5] && (prm[4] = Float32(v[5]) * mtf; np = 4)   # PRMS(4) scorch height (ft)
+            prm[1] < 0f0 && (prm[1] = 1f0)
+            prm[2] < 0f0 && (prm[2] = -1f0)
+            prm[3] < 0f0 && (prm[3] = -1f0)
+            prm[3] > 100f0 && (prm[3] = 100f0)
+            ffe_schedule!(s, 2507, idt, prm[1:np])
         elseif k == "CARBREPT"                             # request the FFE Stand Carbon Report (fmcrbout.f)
             s.control.carbon_report_on = true
         elseif k == "POTFIRE" || k == "POTFLAME"           # request the Potential Fire report (fmpofl.f)
@@ -2677,6 +2700,13 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "CARBCALC"                             # FLD1 method 0=FFE*/1=Jenkins, FLD2 units 0=US-t/ac*/1=t-ha/2=t-ac
             r.present[1] && (s.control.carbon_method = Int32(clamp(nint(r.values[1]), 0, 1)))
             r.present[2] && (s.control.carbon_units  = Int32(clamp(nint(r.values[2]), 0, 2)))
+            r.present[3] && (fs.user.crdcay = max(0f0, min(1f0, Float32(r.values[3]))))               # CRDCAY (fmin.f:2105)
+            if r.present[4] || r.present[5]                                                           # CDBRK(1:2) (fmin.f:2106-2107)
+                c1, c2 = fs.user.cdbrk
+                r.present[4] && (c1 = max(0f0, min(999f0, Float32(r.values[4]))))
+                r.present[5] && (c2 = max(0f0, min(999f0, Float32(r.values[5]))))
+                fs.user.cdbrk = (c1, c2)
+            end
         elseif k == "FMORTMLT"                             # fire-caused mortality multiplier (fmin.f:2506)
             kw_mult!(s, r, :fmort)
         elseif k == "SNAGFALL"                             # per-species snag fall rates (fmin.f:464, opt 9)
@@ -2722,25 +2752,33 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "DEFULMOD"                             # define/alter a fuel model (fmin.f:1795, opt 39, act 2539)
             _defulmod!(s, r, kr)
         elseif k == "FUELMODL"                             # force standard fuel models (fmin.f:1717, opt 38, act 2538)
-            # field 1 = date, then up to 3 (model#, weight) pairs (fields 2-7). Valid models 0<m≤MXDFMD;
-            # a blank/≤0 weight defaults to 1; weights normalized to sum 1 (fmin.f:1767). No valid model ⇒
-            # auto-selection (no override stored).
+            # field 1 = date, fields 2-7 = (model, weight) pairs 1-3, and a SUPPLEMENTAL record (2F10.0) = pair 4 (fmin.f:1751-1752).
+            # A pair is valid while 0 < model ≤ MXDFMD (256); the first invalid one ends the list. A blank/≤0 weight is 1; the
+            # weights are scaled to sum to 1. No valid pair ⇒ the activity unsets any forced list (FMUSRFM: NPRM ≤ 0 ⇒ LUSRFM off).
             v = r.values
-            date = r.present[1] ? nint(v[1]) : Int32(1)
-            pairs = Tuple{Int32,Float32}[]
-            for p in 0:2
-                mi = 2 + 2p; wi = 3 + 2p
-                r.present[mi] || continue
-                m = Int(trunc(v[mi]))
-                (m > 0 && m <= 53) || continue            # MXDFMD ≈ 53 standard models
-                w = (r.present[wi] && v[wi] > 0f0) ? Float32(v[wi]) : 1f0
-                push!(pairs, (Int32(m), w))
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = zeros(Float32, 8)
+            for i in 1:6; prm[i] = r.present[i + 1] ? Float32(v[i + 1]) : 0f0; end
+            line = read_raw_line!(kr)
+            for j in 0:1                                                      # READ(IREAD,'(2F10.0)') PRMS(7),PRMS(8)
+                lo = j * 10 + 1; hi = min((j + 1) * 10, length(line))
+                (lo <= hi && (x = tryparse(Float32, strip(line[lo:hi]))) !== nothing) && (prm[7 + j] = x)
             end
-            if !isempty(pairs)
-                tot = sum(p[2] for p in pairs)
-                tot > 0f0 && (pairs = [(p[1], p[2] / tot) for p in pairs])
-                push!(fs.fuelmodl, (date, pairs))
+            np = 0
+            for i in 1:2:7
+                if prm[i] > 0f0 && prm[i] <= 256f0
+                    np += 2
+                    prm[i + 1] <= 0f0 && (prm[i + 1] = 1f0)
+                else
+                    break
+                end
             end
+            if np > 0
+                x = 0f0; for i in 2:2:np; x += prm[i]; end
+                x = 1f0 / x
+                for i in 2:2:np; prm[i] = prm[i] * x; end
+            end
+            ffe_schedule!(s, 2538, idt, prm[1:np])
         elseif k == "PILEBURN"                             # jackpot/pile burn (fmin.f:1161, opt 23, act 2523)
             # field 1 = date, 2 = type, 3 = AFFECT %, 4 = ATREAT %, 5 = FULCON %, 6 = TRMORT %.
             # Type-1 defaults (fmin.f:1196): 70 / 10 / 80 / 0.
@@ -2772,27 +2810,31 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             push!(s.control.schedule,
                   ScheduledActivity(date, Int32(2501), (Float32(sel), mode, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "FUELTRET"                             # fuel-treatment depth adjustment (fmin.f:1264, opt 25, act 2525)
-            # field 1 = date, 2 = treatment type (0-2), 3 = harvest type (1-3), 4 = depth mult (−1 = use the
-            # DPMULT table). DPMULT(HARTYP, FTREAT+1): FTREAT 0 → 1.0/1.3/1.6 by harvest, FTREAT 1 → 0.83, 2 → 0.75.
             v = r.values
-            date = r.present[1] ? nint(v[1]) : Int32(1)
-            ftreat = r.present[2] ? clamp(Int(trunc(v[2])), 0, 2) : 0
-            hartyp = r.present[3] ? clamp(Int(trunc(v[3])), 1, 3) : 1
-            dpmod = (r.present[4] && v[4] >= 0f0) ? Float32(v[4]) :
-                    (ftreat == 0 ? (1f0, 1.3f0, 1.6f0)[hartyp] : ftreat == 1 ? 0.83f0 : 0.75f0)
-            push!(fs.fueltret, (date, dpmod))
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[0f0, 1f0, -1f0]
+            r.present[2] && (prm[1] = Float32(v[2])); r.present[3] && (prm[2] = Float32(v[3])); r.present[4] && (prm[3] = Float32(v[4]))
+            prm[1] < 0f0 && (prm[1] = 0f0); prm[1] > 2f0 && (prm[1] = 2f0)
+            prm[2] < 1f0 && (prm[2] = 1f0); prm[2] > 3f0 && (prm[2] = 3f0)
+            ffe_schedule!(s, 2525, idt, prm)
         elseif k == "FIRECALC"                             # fire-calc method (fmin.f:2293, opt 49, act 2549)
-            # SN default IFLOGIC=0 (OLD FM logic, fminit.f:824) — exactly jl's FMCFMD path. The USAV/UBD/heat
-            # overrides (fields 4-9) apply ONLY to method 1 (new FM logic) / 2 (modelled loads → FM89), which
-            # are alternative fire-behavior models not ported. So method 0 is a faithful no-op; warn otherwise.
-            (r.present[2] && Int(trunc(r.values[2])) != 0) &&
-                @warn "FIRECALC method 1/2 (new FM logic / modelled loads) not ported — defaulting to the faithful old-FM-logic (method 0) path"
-        elseif k == "DROUGHT"
-            # SN no-op: DROUGHT sets IDRYB/IDRYE (drought years), but those affect the fuel model only in the
-            # UT/CR/LS variants — "not used in OZ-FFE" (the Southern FFE; fmvinit.f:1113). Recognized.
-        elseif k == "CANCALC"
-            # SN no-op: CANCALC sets canopy base-height / bulk-density options for the CROWN-fire model
-            # (FMCFIR), which the SN variant does not run (potential_fire/fmburn skip crown fire). Recognized.
+            _firecalc!(s, r)
+        elseif k == "DROUGHT"                              # fmin.f:1475 (opt 33, act 2529): years of drought / dormancy
+            v = r.values
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            dur = (r.present[2] && v[2] > 0f0) ? Float32(v[2]) : 1f0
+            ffe_schedule!(s, 2529, idt, Float32[dur])
+        elseif k == "STATFUEL"                             # fmin.f:1323: disable the dynamic fuel model (LDYNFM=.FALSE.)
+            fs.user.ldynfm = false
+        elseif k == "MORTCLAS"                             # fmin.f:1458: lower DBH bound of each FVS_Mortality class (LOWDBH)
+            for i in 1:7; r.present[i] && (fs.user.lowdbh[i] = Float32(r.values[i])); end
+        elseif k == "CANCALC"                              # fmin.f:1972 (opt 40): canopy base height / bulk density options
+            u = fs.user
+            r.present[1] && (u.icbhmt = Int32(trunc(r.values[1])))
+            r.present[2] && (u.canmht = Float32(r.values[2]))
+            r.present[3] && (u.icansp = Int32(trunc(r.values[3])))
+            r.present[4] && (u.cbhcut = Float32(r.values[4]))
+            r.present[5] && (u.folmc = Float32(r.values[5]))
         elseif k == "SOILHEAT"
             # report-only: SOILHEAT requests the soil-heating report when a fire occurs; jl emits no
             # soil-heating report, so this is a recognized no-op (like the other FFE report keywords).
@@ -2856,14 +2898,14 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "POTFPAB"                              # PotFire % area burned (fmin.f:2012, opt 42)
             r.present[1] && (fs.params.potf[1].pab = Float32(r.values[1]))
             r.present[2] && (fs.params.potf[2].pab = Float32(r.values[2]))
-        elseif k == "MOISTURE"                             # fuel-moisture override (fmin.f:237, opt 5)
+        elseif k == "MOISTURE"                             # fuel-moisture override (fmin.f:237, opt 5, act 2505)
             v = r.values
-            idt = r.present[1] ? Int32(trunc(v[1])) : Int32(1)            # IDT = date/cycle (default 1)
+            idt = r.present[1] ? Int(trunc(v[1])) : 1                     # IDT = date/cycle (default 1)
             # 7 fuel-moisture % (1hr/10hr/100hr/3+/duff/live-woody/live-herb); blank → 0, except a blank
             # live-herb (field 8) defaults to the live-woody value (fmin.f:277-279).
-            pr = ntuple(i -> r.present[i+1] ? Float32(v[i+1]) : 0f0, 7)
-            (!r.present[8]) && (pr = (pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[6]))
-            push!(fs.moisture_ovr, (idt, pr))
+            pr = Float32[r.present[i+1] ? Float32(v[i+1]) : 0f0 for i in 1:7]
+            (!r.present[8]) && (pr[7] = pr[6])
+            ffe_schedule!(s, 2505, idt, pr)
         elseif k == "SNAGPBN"                              # post-burn snag-fall params (fmin.f:1233, opt 24)
             v = r.values; p = fs.params
             r.present[1] && (p.pb_soft = clamp(Float32(v[1]), 0f0, 1f0))   # PBSOFT, clamp [0,1]

@@ -33,35 +33,23 @@ dryness model (1–4), `psburn` percent of the stand burned, `mortcode` 1=FFE mo
 record is in the burned portion; burned records lose `PMORT·TPA` (plus the crown-fire
 share). No-op unless FFE is active.
 """
-# MOISTURE keyword (fmin.f opt 5): the (date, 7-%) override active for a fire in calendar `year`.
-# Date semantics match the activity schedule (apply_compress!): a date ≥ 1000 is a calendar year, a
-# date < 1000 is a 1-based cycle number (cycle index + 1). The most-recently-listed match wins (FVS
-# OPGET loops the due activities; the last sets MOIS). Returns the 7-tuple of % or nothing.
-function _active_moisture_override(s::StandState, year::Int)
+# MOISTURE keyword (fmin.f opt 5, act 2505): fmburn.f:367-385 OPFINDs the activities of THIS cycle (a fire in the cycle a MOISTURE is
+# scheduled for burns on those explicit fuel moistures, FMOIS=0, instead of the FMMOIS dryness-model table), the last in date order
+# wins, each is OPDONE. Returns the 7-tuple of % or nothing.
+function _active_moisture_override(s::StandState, year::Int; consume::Bool = true)
     fs = s.fire
-    (fs === nothing || isempty(fs.moisture_ovr)) && return nothing
-    fvscyc = Int(s.control.cycle) + 1
+    fs === nothing && return nothing
     hit = nothing
-    @inbounds for (date, pr) in fs.moisture_ovr
-        d = Int(date)
-        (d == year || (0 < d < 1000 && d == fvscyc)) && (hit = pr)
+    for a in ffe_find(s, 2505)
+        p = a.params; hit = ntuple(i -> p[i], 7); consume && ffe_done!(s, a)
     end
     return hit
 end
 
-# FUELTRET (fmusrfm.f): the fuel-bed DEPTH multiplier active for calendar `year` — applied for 5 years after
-# the treatment date (date ≥ 1000 = year; < 1000 = cycle, resolved via the cycle length). 1.0 when none.
-function _fueltret_dpmod(s::StandState, year::Int)::Float32
-    fs = s.fire
-    (fs === nothing || isempty(fs.fueltret)) && return 1f0
-    dp = 1f0
-    @inbounds for (date, d) in fs.fueltret
-        dy = Int(date) >= 1000 ? Int(date) :
-             Int(s.control.cycle_year[1]) + (Int(date) - 1) * max(1, round(Int, s.control.year))
-        (dy <= year <= dy + 5) && (dp = d)
-    end
-    return dp
-end
+# FUELTRET (fmusrfm.f): DPMOD, the fuel-bed DEPTH multiplier of the treatment, set by `_fmusrfm_update!` for the cycle it is
+# scheduled in and reset once more than 5 years (IYR−IFTYR, cycle-start years) have passed — so it is in force for the fires of
+# that cycle only. 1.0 when none.
+_fueltret_dpmod(s::StandState, year::Int)::Float32 = (s.fire === nothing ? 1f0 : s.fire.user.dpmod)
 
 # Build the 2×5 fuel-moisture matrix (dead 1hr/10hr/100hr/1000hr/duff in row 1; live woody/herb in row 2)
 # from the 7 MOISTURE % values, converting % → fraction (fmburn.f:373-380 MOIS(i,j)=MPRMS·.01).
@@ -75,10 +63,12 @@ end
 
 # FVS_Mortality DBH class lower bounds (LOWDBH, fmvinit.f:53-59): 7 NON-cumulative bins
 # [0,5) [5,10) [10,20) [20,30) [30,40) [40,50) [50,∞). A tree falls in the class whose lower bound it meets.
+# MORTCLAS (fmin.f:1455) replaces the bounds: `lowdbh` = fs.user.lowdbh (default these seven). fmfout.f:317-322: the class is the one
+# before the first lower bound the DBH is below; a DBH below LOWDBH(1) is in no class (0).
 const _FM_LOWDBH = (0f0, 5f0, 10f0, 20f0, 30f0, 40f0, 50f0)
-@inline function _fm_mort_class(d::Float32)::Int
+@inline function _fm_mort_class(lowdbh::AbstractVector{Float32}, d::Float32)::Int
     @inbounds for c in 1:7
-        d < _FM_LOWDBH[c] && return c - 1
+        d < lowdbh[c] && return c - 1
     end
     return 7
 end
@@ -86,7 +76,8 @@ end
 function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmois::Integer = 1,
                  psburn::Float32 = 100f0, mortcode::Integer = 1, burnseas::Integer = 1,
                  flmult::Float32 = 1f0, crburn::Float32 = 0f0, year::Integer = 0,
-                 cyclen::Real = 5f0)::FireResult
+                 cyclen::Real = 5f0, flame_user::Float32 = -1f0, sch_user::Float32 = -1f0,
+                 flameadj::Bool = false)::FireResult
     fs = s.fire
     (fs === nothing || !fs.active) && return FireResult(0f0, 0f0, 0f0, 0f0, 0f0)
     fmcba!(s)                                            # fuel pools, cover, percent cover
@@ -119,9 +110,25 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # multiplier to flame, then back-compute Byram from the modified flame so scorch tracks it.
     flame = byram > 0f0 ? 0.45f0 * fpow(byram / 60f0, 0.46f0) : 0f0     # ^0.46 via gfortran companion (doctrine #8)
     oldfl = flame
-    flmult != 1f0 && (flame = oldfl * flmult)
+    # fmburn.f:424-448: a user FLAME (FLAMEADJ field 3 > 0, USRFL) replaces the computed flame length (OLDFL=0 then, so BYRAM is
+    # re-derived from it); otherwise the FLMULT multiplier scales the computed one.
+    usrfl = flame_user > 0f0
+    if usrfl
+        oldfl = 0f0; flame = flame_user
+    else
+        flmult != 1f0 && (flame = oldfl * flmult)
+    end
     flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
+    # fmburn.f:407-421: the user gave SCH, FLAME and CRBURN ⇒ skip the fire-behaviour calculation (GOTO 490): flame = FLAME, scorch =
+    # SCH, the fire always carries, and CRBURN is the user's (FIRTYPE passive for any CRBURN > 0, fmburn.f:411-416). In SN/CS every
+    # other fire is a SURFACE fire with CRBURN forced to 0 (fmburn.f:471-476), so their FLAMEADJ crown % only counts here.
+    user3 = sch_user > -1f0 && flame_user > -1f0 && crburn > -1f0
+    if user3
+        flame = flame_user; sch = sch_user; fire_carries = true
+    elseif s.variant isa Union{CentralStates,Southern}
+        crburn = 0f0
+    end
     fire_type = "SURFACE"                    # FVS_BurnReport Fire_Type (fmcfir.f CFTMP); crown-fire branch overwrites
     # Effective crown-fraction-burned fed to the FMEFF crowning-kill term (fmeff.f:547-551, CURKIL = PMORT·FMPROB
     # + CRBURN·(FMPROB−PMORT·FMPROB)). FVS passes FMEFF the RESOLVED common CRBURN — the FMCFIR crown fraction
@@ -142,7 +149,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
     # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
     # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
+    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && !user3 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
             # FMBURN → FMCFIR(IYR,1,WMULT,INT(SWIND),…) (fmburn.f:510; base fmcfir.f is the same file in every variant)
@@ -154,6 +161,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             fb = _pofl_fmfint(s, models, mois, fwind, dpmod)
             cr = _pofl_fmcfir(s, models, mois, fb, unsafe_trunc(Int, wind), fire_wind_reduction(fs.percov),
                               cf2.cbd, cf2.actcbh, dpmod)
+            # fmburn.f:488: FMCFIR is called when CRBURN is unset OR the user gave no flame length; with a user flame AND a user CRBURN
+            # only FIRTYPE is set from CRBURN (RFINAL/HPA are then the last FMCFIR/FMFINT values — recomputed here).
             crb, rfinal, hpa, fire_type = cr.crburn, cr.rfinal, fb.hpa, cr.cftype
             # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
             # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
@@ -166,7 +175,32 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                 crfrac = crb                                                # FMEFF crowning-kill fraction (fmeff.f CRBURN)
                 byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN
                 finten = byram / 60f0
-                flame = 0.45f0 * fpow(finten, 0.46f0) + crb * (0.2f0 * fpow(finten, 0.667f0) - 0.45f0 * fpow(finten, 0.46f0))
+                if !usrfl                                                   # fmburn.f:538-543 the user did not set the flame
+                    flb = 0.45f0 * fpow(finten, 0.46f0); flt = 0.2f0 * fpow(finten, 0.667f0)
+                    flame = flb + crb * (flt - flb)
+                    flmult != 1f0 && (flame = flame * flmult)
+                end
+                if usrfl || flmult != 1f0
+                    # fmburn.f:545-571: the intensity that reproduces the (user / multiplied) flame length — bisection on the crown+surface
+                    # flame, ±1% tolerance, 200 steps
+                    e1 = 1f0 / 0.667f0; e2 = 1f0 / 0.46f0
+                    tmpint = crb * fpow(flame / 0.2f0, e1) + (1f0 - crb) * fpow(flame / 0.45f0, e2)
+                    a1 = fpow(flame / 0.21f0, e1); a2 = fpow(flame / 0.45f0, e2)
+                    maxint = max(a1, a2); minint = min(a1, a2)
+                    for it in 1:200
+                        flb = 0.45f0 * fpow(tmpint, 0.46f0); flt = 0.2f0 * fpow(tmpint, 0.667f0)
+                        tmpflame = flb + crb * (flt - flb)
+                        if tmpflame >= flame * 0.99f0 && tmpflame <= flame * 1.01f0
+                            finten = tmpint; break
+                        elseif tmpflame < flame
+                            minint = tmpint; tmpint = 0.5f0 * tmpint + 0.5f0 * maxint
+                        else
+                            maxint = tmpint; tmpint = 0.5f0 * tmpint + 0.5f0 * minint
+                        end
+                        it == 200 && (finten = tmpint)
+                    end
+                end
+                byram = finten * 60f0
                 sch = scorch_height(byram, atemp, fwind)
             end
         end
@@ -185,7 +219,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     sp_bak = Dict{Int,Float32}(); sp_vol = Dict{Int,Float32}()
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        c = _fm_mort_class(t.dbh[i]); c >= 1 || continue
+        c = _fm_mort_class(fs.user.lowdbh, t.dbh[i]); c >= 1 || continue
         totcls[c] += t.tpa[i]
         get!(() -> zeros(Float32, 7), sp_tot, Int(t.species[i]))[c] += t.tpa[i]
     end
@@ -276,7 +310,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # fmfout.f:304-308: CS/LS/NE/SN report merch cubic (MCFV) killed, every other variant TOTAL cubic (CFV)
             vk = _fm_volkill_merch(s.variant) ? t.merch_cuft_vol[i] : t.cuft_vol[i]
             killed_vol += curkil * vk
-            c = _fm_mort_class(d)
+            c = _fm_mort_class(fs.user.lowdbh, d)
             if c >= 1
                 clskil[c] += curkil
                 get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += curkil
@@ -338,7 +372,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             ck = fs.firkil[i]; d = t.dbh[i]
             totbak[sp] = totbak[sp] + (ck * d * d * 0.005454154f0)
             totvolk[sp] = totvolk[sp] + (ck * (_fm_volkill_merch(s.variant) ? t.merch_cuft_vol[i] : t.cuft_vol[i]))
-            c = _fm_mort_class(d); c >= 1 || continue
+            c = _fm_mort_class(fs.user.lowdbh, d); c >= 1 || continue
             fp = t.tpa[i]
             haskey(sp_tot, sp) || continue                       # species present at the fire (same row set as before)
             get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += ck
@@ -365,7 +399,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
     # FLAMEADJ (fmburn.f:348,413): a user-forced CRBURN (crburn≥0; the default UCRBURN sentinel is -1) or FLMULT
     # (flmult≠1) makes the fire USER-DEFINED — CFTMP='USER_DEF' overrides the computed crown-fire type.
-    (crburn >= 0f0 || flmult != 1f0) && (fire_type = "USER_DEF")
+    # fmburn.f:348,413: any FLAMEADJ found for this fire sets CFTMP='USER_DEF' (restored after FMCFIR); SN/CS then reset it to SURFACE
+    # unless the fire was fully user-defined (user3).
+    flameadj && (fire_type = (s.variant isa Union{CentralStates,Southern} && !user3) ? "SURFACE" : "USER_DEF")
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
           slope = s.plot.slope, scorch = sch, fire_type = fire_type, models = collect(models), killed = killed, killed_ba = killed_ba,
           killed_vol = killed_vol, released = carbon_released, totcon = cons.totcon, carried = fire_carries,
@@ -548,9 +584,9 @@ function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vec
         pr > 0f0 || continue
         # Tree-inclusion filter (fmpocr.f:78-80): canopy-softwood species (LSW; hardwoods excluded), crown
         # ratio > 0 (FMICR), and height > CANMHT.
-        h = t.height[i]; h > _FM_CANMHT || continue
+        h = t.height[i]; h > fs.user.canmht || continue                          # CANMHT (CANCALC field 2; fminit.f:147 6.0)
         sp = Int(t.species[i])
-        fm_canopy_lsw(sp, s.variant) || continue
+        (fm_canopy_lsw(sp, s.variant) || fs.user.icansp == 1) || continue       # LSW or ICANSP=1 (all species count)
         icr = Float32((fmicr !== nothing && i <= length(fmicr)) ? fmicr[i] : t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
         xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(t.crown_pct[i]))
@@ -616,7 +652,7 @@ function canopy_bulk_density(s::StandState; vtrip::Bool = false, fmicr = nothing
             for k in max(j - 1, j1):min(j + 1, j2); b += crfill[k]; nb += 1; end
             b /= nb
             b > abotmx + 0.1f0 && (abotmx = b; mxj = j)
-            b >= 30f0 && actcbh == -1 && (actcbh = j)
+            b >= fs.user.cbhcut && actcbh == -1 && (actcbh = j)         # CBHCUT (CANCALC field 4; fminit.f:149 30)
         end
         actcbh == -1 && abotmx > 5f0 && (actcbh = mxj)
     end

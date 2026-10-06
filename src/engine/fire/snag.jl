@@ -931,7 +931,7 @@ function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
         hsee = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : h       # cratet.f:482-488 FMSSEE HS (top-killed ⇒ ITRUNC·.01)
         push!(items, (sp, d, hsee, h, hd, den, t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : -1f0))
         _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
+        fs.bioroot += rbio * den * (fs.user.crdcay > 0f0 ? fpowi(1f0 - fs.user.crdcay, 10) : 1f0)   # fmsadd.f:316 REAL**10 ⇒ libgcc __powisf2
     end
     return fmsadd_bin!(s, items, yr; ityp = 3, bolefn = _r6_snag_bolefn(s))
 end
@@ -1025,7 +1025,7 @@ function ffe_add_snaginit!(s::StandState)
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc, slot = slot)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         # fmsadd.f:386-390: XDCAY=(1-CRDCAY)**PRMS(5) — a REAL exponent (libm powf), 1 when PRMS(5)<=0
-        xd = agef > 0f0 ? fpow(1f0 - _FM_CRDCAY, Float32(agef)) : 1f0
+        xd = (fs.user.crdcay > 0f0 && agef > 0f0) ? fpow(1f0 - fs.user.crdcay, Float32(agef)) : 1f0   # fmsadd.f:387
         fs.bioroot += rbio * den * xd
     end
     return s
@@ -1045,7 +1045,7 @@ function _fmsalv!(s::StandState)::Bool
     fired = false
     for a in s.control.schedule
         a.icflag == Int32(2501) || continue
-        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        act_due(s, a.year) || continue          # OPFIND: the activities of the CURRENT cycle (ffe_acts.jl)
         fs.salv_isalvs = Int32(round(a.params[1])); fs.salv_isalvc = Int32(round(a.params[2]))
     end
     isalvs = Int(fs.salv_isalvs); isalvc = Int(fs.salv_isalvc)
@@ -1062,7 +1062,7 @@ function _fmsalv!(s::StandState)::Bool
     cutvol = 0f0
     for a in s.control.schedule
         a.icflag == Int32(2520) || continue
-        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        act_due(s, a.year) || continue          # OPFIND: the activities of the CURRENT cycle (ffe_acts.jl)
         mindb, maxdb, maxag, oksft, prop, proplv = a.params
         mindb = max(0f0, mindb); maxdb = min(999f0, maxdb); maxag = max(0f0, maxag)
         (oksft > 2f0 || oksft < 0f0) && (oksft = 0f0)

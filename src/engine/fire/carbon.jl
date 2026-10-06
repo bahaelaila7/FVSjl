@@ -291,7 +291,7 @@ function accrue_harvest_carbon!(s::StandState, sp::Integer, dbh::Float32,
     fs = s.fire
     (fs === nothing || !fs.active || merch_biomass <= 0f0) && return
     grp = Int(coef_col(s.coef, :biogrp)[sp]) > 5 ? 2 : 1     # 1 = softwood, 2 = hardwood
-    cdbrk = grp == 1 ? 9f0 : 11f0                            # pulp/saw DBH break (fminit.f:919-920)
+    cdbrk = fs.user.cdbrk[grp]                               # pulp/saw DBH break (fminit.f:919-920 9/11; CARBCALC 4/5)
     prod = dbh > cdbrk ? 2 : 1                               # 1 = pulpwood, 2 = sawtimber
     key = (Int(year), prod, grp)
     fs.hwp_fate[key] = get(fs.hwp_fate, key, 0f0) + merch_biomass
@@ -465,7 +465,7 @@ function stand_carbon_report(s::StandState; vtrip::Bool = false)
         v1 *= _TITOTM; v2 *= _TITOTM; v3 *= _TITOTM; v4 *= _TITOTM; v5 *= _TITOTM; v6 *= _TITOTM; v7 *= _TITOTM; v8 *= _TITOTM
     end
     total = v1 + v3 + v5 + v6 + v7 + v8
-    _FM_CRDCAY > 0f0 && (total = total + v4)               # LDCAY (dead-root decay on)
+    (s.fire !== nothing ? s.fire.user.crdcay : _FM_CRDCAY) > 0f0 && (total = total + v4)   # LDCAY (dead-root decay on, CRDCAY>0)
     return (; aboveground = v1, merch = v2, belowground = v3, belowground_dead = v4,
             standing_dead = v5, down_wood = v6, forest_floor = v7, shrub_herb = v8, total = total)
 end
