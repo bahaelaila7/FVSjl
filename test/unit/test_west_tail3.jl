@@ -95,6 +95,19 @@ end
     @test isempty(c.ms)
 end
 
+# dgdriv.f:186-205: `IF(I1.EQ.0) GO TO 50` precedes the COR/HCOR attenuation, so a species with no records at a DGDRIV is not
+# advanced; its COR keeps the value the last present cycle left and DGF uses that stale value when the species returns.
+# jl re-evaluated the elapsed-time curve every cycle for the present species: WS 7689398010901 thinbba species 29 (all thinned at
+# the cycle-2 CUTS, back as sprouts): live DGF CONSPP -1.485131 (COR -0.05918458, instrumented dgdriv.f COR0/COR1 relink) vs jl -1.4789,
+# 126 sp-29 records' DBH 1e-3 off => QMD/ATQMD/StrClass (WS 12 cells on thinbba + econ).
+@testset "COR is advanced only for species present at the previous DGDRIV (dgdriv.f:186-205)" begin
+    for r in ("thinbba", "econ")
+        c = _w3_case("WS", "7689398010901", r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 # crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
 # the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
 # n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.

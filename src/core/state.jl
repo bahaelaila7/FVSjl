@@ -760,6 +760,10 @@ mutable struct Calibration
     # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
     # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
     cur_rmsqd::Float32
+    # Species that had records at the PREVIOUS cycle's DGDRIV: dgdriv.f:186-205 `IF(I1.EQ.0) GO TO 50` precedes the COR/HCOR
+    # attenuation, so COR is advanced (for the NEXT cycle's DGF) only for species present in that cycle. A species absent for
+    # a cycle keeps the COR it had; when it reappears (sprouts, regen) DGF uses that stale value, not the elapsed-time curve.
+    dg_cor_present::Vector{Bool}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -787,7 +791,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
     Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
     Float32[],                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
-    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    -1f0,                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    fill(false, MAXSP))                                              # dg_cor_present (species present at the previous DGDRIV)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
