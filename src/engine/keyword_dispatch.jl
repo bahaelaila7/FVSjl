@@ -2490,6 +2490,19 @@ function _fueldcay!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# FUELFOTO (fmin.f:2137-2290, opt 48): PRMS(1)=NINT(ARRAY(1)) photo-series reference (1..32 except 4 and 10, else -1), PRMS(2)=NINT(ARRAY(2)) photo code (< 1 or past the
+# reference's last photo ⇒ -1); IDT = 1 (no date field); OPNEW(2548, 2 parms). FMCBA reads the LAST one of the first cycle (fmcba.f:222-244).
+function _fuelfoto!(s::StandState, rec::KeywordRecord)
+    s.fire === nothing && return
+    ref = rec.present[1] ? Int(round(Float32(rec.values[1]), RoundNearestTiesAway)) : -1
+    (ref == 4 || ref == 10 || ref < 1 || ref > 32) && (ref = -1)
+    code = rec.present[2] ? Int(round(Float32(rec.values[2]), RoundNearestTiesAway)) : -1
+    code < 1 && (code = -1)
+    (ref > 0 && code > 0 && !haskey(_PHOTO, (ref, code))) && (code = -1)      # the per-reference CASE(n) `IF (NINT(PRMS(2)) .GT. max)` tests
+    ffe_schedule!(s, 2548, 1, Float32[ref, code])
+    return
+end
+
 # FUELINIT (fmin.f:1066, opt 21): initial HARD surface-fuel loadings (tons/ac), 12 params → STFUEL size
 # classes (fmcba.f:321-342). −1 / blank = keep default. The PRMS(1) "<1"" field fills sizes 1+2 unless
 # they are given explicitly. Stored in FFEParams.stfuel_hard (size 1:11, −1 = no override); fmcba! applies.
@@ -2891,6 +2904,8 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                     end
                 end
             end
+        elseif k == "FUELFOTO"                             # initial fuels from a photo series (fmin.f:2137-2290, opt 48, act 2548)
+            _fuelfoto!(s, r)
         elseif k == "FUELINIT"                             # initial hard fuel loadings (fmin.f:1066, opt 21)
             _fuelinit!(s, r)
         elseif k == "FUELSOFT"                             # initial soft fuel loadings (fmin.f:2459, opt 53)

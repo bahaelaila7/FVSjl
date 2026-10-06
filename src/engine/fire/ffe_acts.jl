@@ -183,3 +183,19 @@ function _east_afwt!(s::StandState, eqwt::AbstractVector{Float32})::Float32
     u.latfuel || (afwt = 0f0)
     return afwt
 end
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# FUELFOTO photo series (fmphotoval.f, byte-identical in every FVS build): FOTOVAL(1:11) hard + FOTOVALS(1:9) soft tons/ac per (reference, code),
+# -1 = not listed in the guide. Data generated from the oracle source (data/fire/photo_series.csv, test/harness/fmphoto/README.txt).
+function _load_photo(path::AbstractString)
+    d = Dict{Tuple{Int,Int},Tuple{NTuple{11,Float32},NTuple{9,Float32}}}()
+    for line in eachline(path)
+        (isempty(line) || line[1] == '#' || startswith(line, "ref,")) && continue
+        f = split(strip(line), ',')
+        length(f) >= 22 || continue
+        v = Float32[parse(Float32, f[i]) for i in 3:22]
+        d[(parse(Int, f[1]), parse(Int, f[2]))] = (ntuple(i -> v[i], 11), ntuple(i -> v[11 + i], 9))
+    end
+    d
+end
+const _PHOTO = _load_photo(joinpath(@__DIR__, "..", "..", "..", "data", "fire", "photo_series.csv"))

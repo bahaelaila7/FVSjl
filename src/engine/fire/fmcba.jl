@@ -385,11 +385,22 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         isempty(fs.params.stfuel_hard) && !isempty(s.plot.ffe_fuel_hard) && (fs.params.stfuel_hard = copy(s.plot.ffe_fuel_hard))
         isempty(fs.params.stfuel_soft) && !isempty(s.plot.ffe_fuel_soft) && (fs.params.stfuel_soft = copy(s.plot.ffe_fuel_soft))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
+        # FUELFOTO (fmcba.f:222-244): the last photo activity of the first cycle replaces STFUEL(I,2) with FOTOVAL(I) where ≥ 0 and STFUEL(I,1)=FOTOVALS(I)
+        # (I ≤ 9); FUELINIT / FUELSOFT then override (fmcba.f:246+). A ref/code pair that is not both valid is a warning and changes nothing.
+        photo = nothing
+        let fa = ffe_find(s, 2548)
+            if !isempty(fa)
+                p = fa[end].params
+                (p[1] >= 0f0 && p[2] >= 0f0) && (photo = get(_PHOTO, (Int(p[1]), Int(p[2])), nothing))
+            end
+        end
         # CWD(1,ISZ,J,IDC) = CWD + ADD (fmcba.f:597-613): the initial load ADDS to whatever the cut phase already
         # booked this year (FMSCUT crown slash, YARDLOSS downed boles — cuts.f precedes FMMAIN), it does not reset.
         @inbounds for isz in 1:11
-            sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : deffuel[isz]   # FUELINIT hard
-            ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : 0f0            # FUELSOFT soft
+            dh = (photo !== nothing && photo[1][isz] >= 0f0) ? photo[1][isz] : deffuel[isz]
+            ds = (photo !== nothing && isz <= 9) ? photo[2][isz] : 0f0
+            sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : dh              # FUELINIT hard
+            ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : ds              # FUELSOFT soft
             if totba > 0f0
                 for ksp in 1:nsp
                     tba[ksp] > 0f0 || continue
