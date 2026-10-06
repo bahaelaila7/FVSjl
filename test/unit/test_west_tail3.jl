@@ -85,6 +85,16 @@ end
     end
 end
 
+# grincr.f:305-320 saves ATAVH/ATBA/ATCCF right after CUTS (and its thin-only DENSE), BEFORE COMCUP (grincr.f:391) whose DENSE
+# (NDEL>0) refreshes AVH/BA/RELDEN. ESTAB's REGENT(LESTB) reads that saved trio (TEMAHT/TEMCCF -> DELMAX -> DADJ -> the birth DBH).
+# jl captured it after COMCUP: KT 196396140020004 simfire cycle 3 ATAVH 4.3966694 vs live 4.3969569 (56 PROB<=1E-5 stubs deleted),
+# DADJ 0.86324865 vs 0.86326247, every birth-cohort DBH 1.38e-5 low => QMD/ATQMD, FVS_Carbon, FVS_PotFire (14 KT cells).
+@testset "ATAVH/ATBA/ATCCF are saved before COMCUP (grincr.f:316-320 vs :391)" begin
+    c = _w3_case("KT", "196396140020004", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 # crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
 # the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
 # n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.

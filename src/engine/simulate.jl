@@ -942,6 +942,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    # grincr.f:305-320: CUTS, then DENSE only if a thin removed trees (ONTREM(7)>0), THEN ATAVH=AVH / ATBA=BA / ATCCF=RELDEN are
+    # saved — all BEFORE COMCUP (grincr.f:391), whose DENSE (NDEL>0, comcup.f:103-140) refreshes the common AVH/BA/RELDEN. ESTAB's
+    # REGENT(LESTB) reads the saved trio (TEMAHT/TEMBA/TEMCCF). MEASURED FVSkt_g16 196396140020004 simfire cycle 3: ATAVH 4.3969569 /
+    # ATCCF 0.31797519 (the 517-record list) vs jl 4.3966694 / 0.3178981 (the 461 records left after COMCUP dropped 56 PROB<=1E-5 stubs).
+    rem.tpa > 0f0 && compute_density!(s)
+    es_at_avh = s.plot.avg_height; es_at_ba = s.plot.basal_area; es_at_relden = s.plot.relative_density
+    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba
     # comcup.f:103-140 (identical in every variant build, called from the shared grincr.f:391): when COMCUP deletes
     # records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads fresh density for the moved records (TREMOV
     # does not carry PTBALT/PCT). AK FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into
@@ -1103,10 +1110,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # of the pre-growth all-seedling relh=1 ⇒ DADJ=0.65−DELMAX≈0.77: every crossing seedling's dubbed DBH ~0.12"
     # too small, halving the birth-cohort BA — the dominant plant-regime residual). Same #194 ATAVH class CI
     # already fixed. IE-only (only ie_esgent! consumes this trio; every other variant path is unchanged).
-    es_at_avh = s.plot.avg_height
-    es_at_ba = s.plot.basal_area
-    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba   # grincr.f:318-319 ATAVH=AVH, ATBA=BA (post-thin, pre-growth)
-    es_at_relden = s.plot.relative_density
+    # (es_at_avh / es_at_ba / es_at_relden = grincr.f:316-320 ATAVH/ATBA/ATCCF, captured right after CUTS above)
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     # IE htgf.f (317-347) recomputes each TRIPLED large-tree copy's HTG from the copy's spread DG (the
     # NI-section species); height_growth! only computed the central record's HTG, leaving the copies flat.
