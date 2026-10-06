@@ -1168,11 +1168,16 @@ mutable struct FFEParams
     # EMPTY ⇒ HTX=0 = no height loss (the SN default, fmvinit.f:1089) ⇒ snag bole stays frozen at death height.
     # When set, FMSNGHT shrinks the snag height each year (snag.jl) and the bole volume is recomputed from it.
     snag_htx::Dict{Int32,NTuple{4,Float32}}
+    # SETDECAY(11,4) (fminit.f:84-89 = -1; fmin.f:831-860): the decay rate FUELDCAY set for each [size, class] element (a
+    # value ≥ 0 marks it user-set). The first-FFE-year habitat/site decay multipliers (fmcba.f DCYMLT/DKRADJ) scale ONLY the
+    # elements still < 0. Empty (0×0) ⇒ every element is -1.
+    setdecay::Matrix{Float32}
 end
 FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(), Dict{Int32,Float32}(),
                         Matrix{Float32}(undef, 0, 0), Float32[], Float32[], Matrix{Float32}(undef, 0, 0),
                         Dict{Int32,Int32}(), (PotFireCond(), PotFireCond()), Dict{Int32,Float32}(),
-                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}())
+                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}(),
+                        Matrix{Float32}(undef, 0, 0))
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
