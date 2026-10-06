@@ -71,7 +71,10 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
     isort = crown_isort(s; lstart = lstart)
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
+        # op/crown.f DO 60 I3=I1,I2 visits EVERY record of ITRN (SPESRT lists them all), including one whose PROB MORTS/UPDATE just
+        # took to 0 this cycle — its crown still changes and prints in FVS_TreeList. MEASURED FVSop_tiered 30194263010497 TIMEINT 10:
+        # WH 336/338 (TPA 99.95 → 0) PctCr 12/21 live vs 10/20 when skipped.
+        (lstart && t.tpa[i] <= 0f0) && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 39) && continue
         (lstart && t.crown_pct[i] > 0) && continue          # op/crown.f:226 keep inventory crown

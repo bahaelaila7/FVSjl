@@ -62,7 +62,10 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
     org_ran = length(c.op_iorg) >= 1   # slot-indexed IORG (stale beyond the last DGDRIV ITRN, see organon_hook.jl)
     # oc/crown.f DO 70 ISPC … I=IND1(I3): species-major (the RANN d≤0 draw follows this order).
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
+        # oc/crown.f DO 60 I3=I1,I2 visits EVERY record of ITRN, including one whose PROB MORTS/UPDATE just took to 0 this cycle — its crown
+        # still changes and prints in FVS_TreeList. MEASURED FVSoc_tiered 645182389126144 plant_cal TIMEINT 10: planted RC ES020066-75
+        # (TPA → 0 in 2038-48) PctCr 68-73 live vs the unchanged 75-81 when skipped.
+        (lstart && t.tpa[i] <= 0f0) && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 50) && continue
         (lstart && t.crown_pct[i] > 0) && continue        # oc/crown.f:228 keep the inventory crown
         iorg = org_ran && i <= length(c.op_iorg) && c.op_iorg[i] == 1
