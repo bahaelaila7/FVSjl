@@ -70,8 +70,8 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # per-tree crown widths (CRWDTH) — same load-time BAREA=1 cyc1 clamp as NC/WS (Crookston uses BAREA)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
     el = s.plot.elevation; hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = ca_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), ba, el, hi)
     end

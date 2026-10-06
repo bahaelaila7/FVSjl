@@ -97,8 +97,8 @@ function ws_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 15)              # WS ICLSS = 15 positions (models 1-13, 25, 26)
 
     # per-tree crown widths (CRWDTH) via R5CRWD (fn of sp/D/H only)
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = ws_r5crwd(Int(t.species[i]), t.dbh[i], t.height[i])
     end

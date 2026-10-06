@@ -67,6 +67,13 @@ end
 nc_cwhr(s::StandState, cws::Vector{Float32}) =
     _ca_cwhr(s, cws, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
 
+# FMCFMD's CWHR call reads the common-block CRWDTH(I) (ca/fmcfmd.f:230, nc/ws likewise) — the very values FMCBA used
+# (fs.cwrec, filled in fmcba!). Falls back to the caller's recomputation when the list changed since FMCBA.
+@inline function _fm_cwrec(s::StandState)
+    fs = s.fire
+    (fs !== nothing && length(fs.cwrec) == s.trees.n) ? fs.cwrec : nothing
+end
+
 function _ca_cwhr(s::StandState, cws::Vector{Float32}, _NC_DBHBP, _NC_CCBP, _NC_CWXPTS, _NC_CWHR_IPTR)
     t = s.trees
     ht  = zeros(Float32, 6)   # [1]=HT(0) total, [2..6]=HT(1..5) by DBH class
@@ -205,8 +212,8 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 13)              # NC ICLSS = 13 fuel models (nc/fmcfmd.f)
     # per-tree crown widths (CRWDTH) — same load-time BAREA clamp as fmcba (cwcalc.f:859)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
-    cws = zeros(Float32, t.n)
-    @inbounds for i in 1:t.n
+    cws = something(_fm_cwrec(s), zeros(Float32, t.n))
+    _fm_cwrec(s) === nothing && @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         cws[i] = _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i];
                                 barea = ba)   # CRWDTH (nc/cwcalc.f: R5CRWD on the R5 forests, NCMAP+BF on the rest)

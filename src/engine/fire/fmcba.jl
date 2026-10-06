@@ -207,6 +207,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         (_nc_fm || _wc_fm || _pn_fm || _ec_fm) && (cw = clamp(cw, 0.5f0, 99.9f0))
         cwrec[i] = cw
     end
+    fs.cwrec = cwrec     # FMCFMD's CWHR reads this same CRWDTH(I) (ca/fmcfmd.f:230)
     # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
     # after TRIPLE, so in a tripling cycle the walk is the tripled list (originals ×.60, then each record's ×.25/×.15 copies,
     # same DBH/CRWDTH) — jl's list is still untripled here (MEASURED FVSsn private FMCBA trace, 200267456010854 2002: sp74

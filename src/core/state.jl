@@ -1258,6 +1258,8 @@ mutable struct FireState
     slchng::Float32                    # SLCHNG (fmtret.f:395-400): % change of SMALL+LARGE since the previous FMTRET
     latfuel::Bool                      # LATFUEL (fminit.f:82): the ≤5-yr post-activity fuel-model window is open (fmcfmd.f)
     fmtret_year::Int32                 # the year FMTRET last computed SLCHNG (once per FMMAIN)
+    cwrec::Vector{Float32}             # CRWDTH(I) as FMCBA last read it (cwidth/fmcba.f CWIDTH=CRWDTH(I)); FMCFMD's CWHR call
+                                       # reads the same common-block CRWDTH (ca/fmcfmd.f:230), so the NC/WS/CA selects reuse it
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1269,7 +1271,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
                         Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), -1f0, -1f0, false, Int32(-1),
-                        0f0, 0f0, 0f0, false, Int32(-1))
+                        0f0, 0f0, 0f0, false, Int32(-1), Float32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
