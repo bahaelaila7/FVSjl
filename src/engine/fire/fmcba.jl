@@ -219,6 +219,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         totcra += 3.1415927f0 * cwrec[i] * cwrec[i] / 4f0 * pr
     end
 
+    fs.fmtba = copy(tba)     # FMTBA (FMCOM) persists until the next FMCBA — FMCFMD's LPPDOM reads it (cr/tt/ut fmcfmd.f:805-820)
     # cover type = the species with the most basal area; total BA for the decay split
     bamost = 0f0; covtyp = Int32(0); totba = 0f0
     @inbounds for ksp in 1:nsp

@@ -802,9 +802,11 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     fs.covtyp_ict = Int32(ict)                                      # fmcfmd.f label 10: OLDICT = ICT
     # LPPDOM: is ponderosa the single highest-BA species? (fmcfmd.f:811-822; CR J=13, UT/TT J=10)
     pp_sp = _fm_ppct_sp(s.variant)
+    # FMTBA is the FMCOM array FMCBA filled (stale after a fire kill: CTBA is rebuilt from the now-zero FMPROB, FMTBA is not).
+    fmtba_c = length(fs.fmtba) >= NSP ? fs.fmtba : fmtba
     lppdom = true
     @inbounds for i in 1:NSP
-        (i != pp_sp && fmtba[i] > fmtba[pp_sp]) && (lppdom = false)
+        (i != pp_sp && fmtba_c[i] > fmtba_c[pp_sp]) && (lppdom = false)
     end
     # IFMST structure class = FMSSTAGE (sstage.f) — already ported + validated bit-exact vs the SSTAGE
     # "Structural statistics" report as `structure_class`. Called with the CR fmcfmd params

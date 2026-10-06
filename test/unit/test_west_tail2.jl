@@ -81,4 +81,13 @@ end
     @test !c.crashed
     @test isempty(c.ms)
 end
+
+# CR/UT/TT FMCFMD LPPDOM reads FMTBA — the FMCOM array FMCBA filled — not a per-call recomputation (cr/fmcfmd.f:805-820). After a
+# SIMFIRE kill FMPROB is 0 (CTBA rebuilt empty) but FMTBA still holds the pre-fire stand, so a non-ponderosa mixed-conifer stand is
+# "not LPPDOM" (IFMST 0 -> model 2); jl's recomputed zeros made every species a tie -> LPPDOM -> model 9 (CR 31673493010690 2013).
+@testset "CR LPPDOM uses the stale FMCBA FMTBA after the fire kill (fmcfmd.f:805-820)" begin
+    c = _wt2_case("CR", "31673493010690", "simfire")
+    @test !c.crashed
+    @test isempty(_wt2_in(c.ms, ["FVS_PotFire", "FVS_BurnReport", "FVS_Carbon"]))
+end
 end
