@@ -159,14 +159,14 @@ estimate, blended in for 2 < D < XMAX via XWT. Returns the final HTG.
 """
 @inline function oc_regent_htg(sp::Int, d::Float32, h::Float32, crown_pct::Integer, pct::Float32,
                                ba::Float32, avh::Float32, si::Float32, hcor::Float32,
-                               htg_large::Float32)::Float32
+                               htg_large::Float32, scale::Float32 = 1f0)::Float32
     cr_regent = Float32(crown_pct)/10f0                 # regent CR = ICR/10
     bal = (1f0 - pct/100f0)*ba                          # stand BAL (jl pct = t.crown_ratio)
     relht = avh > 0f0 ? h/avh : 1f0
     relht > 1.05f0 && (relht = 1.05f0)
     htgrr = oc_smhtgf(sp, d, h, cr_regent, ba, bal, si, relht)
     con = fexp(hcor)                                    # RHCON=1 (no small-tree-DG calib) · exp(HCOR)
-    htgr = htgrr*con                                    # ·XRHGRO(1)·SCALE(1); ZZRAN=0 for DGSD=0
+    htgr = (htgrr*con)*scale                            # (HTGR+ZZRAN*0.1)*XRHGRO*SCALE (regent.f:243), SCALE=FNT/REGYR; ZZRAN=0 for DGSD=0
     xmn = OC_REG_XMIN[sp]; xmx = OC_REG_XMAX[sp]
     xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
     htg = if sp == 23 || sp == 50

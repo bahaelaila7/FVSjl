@@ -1142,7 +1142,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Fire cycles triple inside mortality_and_fire! and keep the previous order.
     mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
-        _base_mistoe_on(s) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff + BC
+        # MISTOE (gradd.f:96) runs on the pre-UPDATE stand: OC's ORGANON hook has already grown HT/DBH/ICR inline, and the spread compares
+        # DMTALL*0.7 against HT(I) (mistoe.f:402) — MEASURED FVSoc_tiered 645182389126144 TIMEINT 10: tree 52 takes the 2nd RANN (+3 ⇒ DMR 6)
+        # on the pre-growth heights, jl (post-growth) took the else branch and desynced the stream.
+        _base_mistoe_on(s) && _oc_with_pre_dims(() -> ie_mistoe!(s; fint = fint), s)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff + BC
         s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
