@@ -394,6 +394,7 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             b = _snag_bole_tons(s, i)
             v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
         end
+        haskey(ENV, "DBGCARB") && println(stderr, "JLSN ", i, " ", sn.sp[i], " ", sn.dbh[i], " ", sn.height[i], " ", sn.den_hard[i], " ", sn.htcur[i], " v=", v)
         sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
     end
     c2 = fs.cwd2b; c22 = fs.cwd2b2; tfm = size(c2, 3)
@@ -436,7 +437,7 @@ V(4..8)=BIOROOT/BIOSNAG/BIODDW/BIOFLR/BIOSHRB (`fmdout_bio`); ×0.5 (×0.37 for 
 2 ⇒ ×TItoTM; V(9)=V(1)+V(3)+V(5)+V(6)+V(7)+V(8) (+V(4) when LDCAY).
 """
 # fmcrbout.f:127 LMERCH=.TRUE. when LVWEST; fire/base/fmsvol.f:146-153 then returns VOL2HT=MCF (no MAX(X,·) cone floor) for every
-# non-{CS,LS,NE,SN} variant. OC/OP (ORGANON volume path, not on the `_ffe_west_vol` layer) kept the CS/LS/NE/SN-style MAX(X,MCF).
+# non-{CS,LS,NE,SN} variant.
 _ffe_oc_merch_carbon(s::StandState) = s.variant isa OregonCoast || s.variant isa Olympic
 
 function stand_carbon_report(s::StandState; vtrip::Bool = false)

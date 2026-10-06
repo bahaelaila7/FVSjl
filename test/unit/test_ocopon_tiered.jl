@@ -228,4 +228,16 @@ end
     @test _n(c.ms; file = "FVS_PotFire", year = 2002) == 0
 end
 
+# FMSVOL/FMSVL2 for OC/OP (fire/base/fmsvol.f:98-142): NATCRS on the stand's volume equation — a Region-6 forest (KODFOR 6xx) runs
+# R6_EQN (westside FW2 / INGY FW2 / 616BEHW), a BLM forest BLMVOL — at (D,H) with BARK=BRATIO(JS,D,H), then CFTOPK at INT(XHT*100) on
+# every snag report (CTKFLG=T). jl valued FFE snags (and the live-stem carbon) with the BLM total cubic on every forest: OP 24164991010900
+# (forest 609 R6) snag D5.2/H28 LP TCF 2.9802 live vs 1.82; DF D7.09/H48.06 5.1 vs 7.29 ⇒ Standing_Dead 12.705 vs 12.473 after the fire.
+@testset "OC/OP FFE snag + live-stem volume = FMSVOL on the stand's NATCRS equation (fmsvol.f:98-142)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Standing_Dead", year = 2007) == 0
+    @test _n(c.ms; file = "FVS_Carbon", year = 2007) == 0
+    @test _n(c.ms; file = "FVS_BurnReport") == 0
+    @test _n(c.ms; file = "FVS_Mortality") == 0
+end
+
 end # module
