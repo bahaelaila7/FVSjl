@@ -29,8 +29,8 @@ Priority set by the user on 2026-10-05: **eastern variants first** (CS, LS, NE, 
 | ✔ | CS, LS, NE | **0** / 1.28M | done 2026-10-05 (on integ-1006a; lands with its merge) | — |
 | ✔ | ON | **2** / 358k | one 1-ULP volume cell OPEN; eastern extension/keyword coverage round in progress (FFE keywords, ON keyword suite, stub parity, 4 old kwcov corners) | 1–2 days |
 | 2 | OC, OP | 955 / 193k, 2,092 / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
-| 3 | Western tail (WS, CA, AK, CI, CR, KT, UT, SO, WC, EC, NC, PN) | 2,679 / 6.0M | Mostly FFE salvage/simfire down-wood/flame cells; CR mistletoe DMR | 1–2 days |
-| 3 | BC | 55 / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
+| 3 | Western tail (WS, CA, AK, KT, UT, SO, WC, EC, PN; CI/CR/NC done) | 253 / 6.0M | 1-ULP QMD after regeneration, UT/SO FFE ULPs, WS HtG; FUELDCAY/SVSTART guard completeness (CI/NC); all-dead crown dub for KT/AK/BC/BM/EM | 1 day |
+| 3 | BC | 8 / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
 
 Shared items found during phase 3, owned by the western-tail round: FVS_Carbon `Total_Removed_Carbon` never written
 (BIOREM(2) harvest terms); FLAMEADJ with FLMULT≠1 skipped the crown-fire path; SO activity-fuel consumption; EC/NC/WC
