@@ -19,7 +19,16 @@ const CASES = [
     ("OC", "645182389126144", "thinbba"),
     ("OP", "15072502010497", "none"),
     ("OP", "24164991010900", "none"),
-    ("OP", "30194263010497", "none")
+    ("OP", "30194263010497", "none"),
+    ("OC", "15148784010497", "plant_cyc"),
+    ("OC", "41133570010497", "plant_cyc"),
+    ("OP", "15072502010497", "plant_cyc"),
+    ("OP", "24164991010900", "plant_cyc"),
+    ("OP", "30194263010497", "plant_cyc"),
+    ("OP", "15072502010497", "plant_cal"),
+    ("OP", "15072502010497", "thinbba"),
+    ("OP", "24164991010900", "thinbba"),
+    ("OC", "645182389126144", "plant_cal")
 ]
 
 @testset "OC/OP TIMEINT 10 vs live: $v $cn $r" for (v, cn, r) in CASES
