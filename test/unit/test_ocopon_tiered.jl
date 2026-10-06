@@ -314,4 +314,13 @@ end
     @test isempty(c.ms)
 end
 
+# OC CROWN for a valid-ORGANON (IORG=1) tree (oc/crown.f:281-288 → stmt 41 → 9052 → CRMAX cap :368-380 → :426-433): CRNEW=ANINT(CR2·100) then the
+# same CRMAX cap as every tree, CRMAX=(HT·ICR/100+HTG)/(HT+HTG)·100 on the UPDATEd HT, ICRI ≤ 95, ≥ 1. jl wrote ANINT(CR2·100) straight in the growth
+# hook: OC 645182389126144 econ (post-thin MA seedlings) 2033 PctCr 3 jl vs 2 live (ICR 1, CR2 0.02507, HT 7.954158, HTG 0.12111 ⇒ CRMAX 2.4846).
+@testset "OC IORG=1 crown takes the CRMAX cap (oc/crown.f:368-380)" begin
+    c = _case("OC", "645182389126144", "econ")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module

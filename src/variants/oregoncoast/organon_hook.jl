@@ -123,9 +123,10 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         # otherwise; then ×MISHGF for every record (htgf.f:266). CROWN: ANINT(CR2·100) for IORG=1 (oc/crown.f:282).
         mhg = mis_hg_mult(s, i)
         h_old = t.height[i]
+        crnew_org = 0f0                  # ANINT(CR2·100) of a valid-ORGANON tree, finished after the height is known (below)
         if iorg && g !== nothing
             htg = g.hgro[i] * mhg
-            t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))
+            crnew_org = round(g.cr2[i]*100f0, RoundNearestTiesAway)
         else
             pt = Int(t.plot_id[i])
             pccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
@@ -152,6 +153,21 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         end
         t.ht_growth[i] = htg
         t.height[i] = h_old + htg
+        if iorg && g !== nothing
+            # oc/crown.f:281-288,368-380,426-433 for an IORG=1 tree: CRNEW=ANINT(CR2·100), CHG=CRNEW-ICR, CRNEW=ICR+CHG, ICRI=INT(CRNEW+.5), then
+            # (ICR>0) the CRMAX cap CRMAX=(HT·ICR/100+HTG)/(HT+HTG)·100 on the UPDATEd HT, ICRI>CRMAX ⇒ INT(CRMAX+.5) — ORGANON trees included —
+            # then ICRI ≤ 95 and ≥ 1 (LORGANON=.TRUE. ⇒ no <10 bump). MEASURED FVSoc_tiered 645182389126144 econ MA 2033: ICR 1,
+            # CR2 0.02507 ⇒ ICRI 3, HT 7.954158, HTG 0.12111 ⇒ CRMAX 2.4846 ⇒ ICRI 2 live (jl wrote 3).
+            icr_old = Int(t.crown_pct[i])
+            icri = trunc(Int, (Float32(icr_old) + (crnew_org - Float32(icr_old))) + 0.5f0)
+            if icr_old != 0
+                crln = t.height[i] * Float32(icr_old) / 100f0
+                crmax = (crln + htg) / (t.height[i] + htg) * 100f0
+                Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+            end
+            icri > 95 && (icri = 95); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+        end
         t.diam_growth[i] = dg
         t.dbh[i] = dbh_direct === nothing ? d0 + dg/bark : dbh_direct     # update.f:115 DBH=DBH+DG/BRATIO
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
