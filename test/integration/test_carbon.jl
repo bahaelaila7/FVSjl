@@ -579,12 +579,10 @@ end
     @test r0.products > 0f0
     @test r0.stored == r0.products + r0.landfill              # stored = in-use + landfill
     @test r0.removed == r0.energy + r0.emissions + r0.stored  # removed = energy+emissions+stored
-    # FVS-FAITHFUL Float32 floor (verified 2026-07-05iii): `removed` = energy+emissions+stored = FVS's V(6)
-    # (carbon.jl:314) — a re-SUM of the fate-curve pools, NOT a stored harvest total. FVS computes V(6) the same
-    # way, so its removed ALSO drifts ~ULP across fate-years (the fraction-redistribution isn't Float32-exact);
-    # storing `removed` separately to force conservation would make jl DIVERGE from FVS. So this is a genuine
-    # non-associative Float32 SUM-order (Δ2.4e-7), correctly @test_broken and NOT closable without breaking fidelity.
-    @test_broken r30.removed == r0.removed
+    # `removed` = energy+emissions+stored = FVS's V(6) (fmchrvout.f:55-110), a re-SUM of the fate-curve pools in FVS's own REAL*4
+    # order (cut cycle / pulp,saw / sw,hw, then V(5)=V(1)+V(2), V(6)=V(3)+V(4)+V(5), ×0.5). Now that harvested_carbon_report sums in that
+    # Float32 order (the Float64 accumulation it replaced drifted ~2.4e-7 across fate-years), the conservation holds exactly.
+    @test r30.removed == r0.removed
     @test r30.products < r0.products                         # in-use wood decays over time
     @test r30.landfill >= r0.landfill                        # landfill accumulates
     # DBS round-trip

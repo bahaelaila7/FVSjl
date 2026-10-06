@@ -450,7 +450,9 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
     # — so `ifert_date = yr` here is correct (full-cycle effect from the cycle start). Boundary dates unchanged.
     ce = cycle_year_at(c, Int(c.cycle) + 1); ce <= yr && (ce = yr + 1)
     @inbounds for ev in c.fertilize_events           # a fert scheduled this cycle becomes active (OPDONE)
-        (yr <= Int(ev.year) < ce) && (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
+        # an OPFIND date < 1000 is a CYCLE NUMBER (FERTILIZ with a blank date is IDT=1, ffin.f:9-10): it fires in the cycle whose 1-based index it is
+        ((yr <= Int(ev.year) < ce) || (0 < Int(ev.year) < 1000 && Int(ev.year) == Int(c.cycle) + 1)) &&
+            (c.ifert_date = Int32(yr); c.ifert_eff = ev.params[1])
     end
     c.ifert_date < 0 && return s
     ifint  = round(Int, fint)
@@ -465,7 +467,7 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
         d = t.dbh[i]; d <= 0f0 && continue
         dib = d * bark_ratio(ba_a, ba_b, t.species[i], d)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba   # basal area in larger trees (PCT in crown_ratio)
-        rdds = exp(0.1108f0 * log(d) + 0.003004f0 * bal / log(d + 1f0))
+        rdds = fexp(0.1108f0 * flog(d) + 0.003004f0 * bal / flog(d + 1f0))   # ffert.f EXP/ALOG = glibc expf/logf (fmath.jl)
         rdds > 2.6f0 && (rdds = 2.6f0)
         dg  = t.diam_growth[i]
         dds = 2f0 * dib * dg + dg * dg                # squared-diameter change this cycle
@@ -522,7 +524,7 @@ end
 # mineral-soil exposure for the AUTOES BurnPrep seam. Row 1 col 5 = duff (fmburn.f:373-380).
 function _fire_duff_moisture(s::StandState, year::Int)::Float32
     (s.fire === nothing) && return 0f0
-    movr = _active_moisture_override(s, year)
+    movr = _active_moisture_override(s, year; consume = false)
     mois = movr === nothing ? fuel_moisture(Int(s.fire.fmois), s.variant) : _moisture_matrix(movr)
     return Float32(mois[1, 5])
 end
@@ -548,9 +550,20 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     t = s.trees
     pre_tpa = Float32[t.tpa[i] for i in 1:t.n]
     pre_cfv = Float32[t.cuft_vol[i] for i in 1:t.n]
+    # FLAMEADJ (fmburn.f:331-358): the activities scheduled for THIS cycle, in date order — the last one wins; blank/absent ⇒
+    # FLAME=−1, FLMULT=1, CRBURN=−1, SCH=−1 (CRBURN is stored as a fraction once set, fmburn.f:345)
+    fa_mult = 1f0; fa_flame = -1f0; fa_crb = -1f0; fa_sch = -1f0; fa_any = false
+    for a in ffe_find(s, 2507)
+        p = a.params
+        fa_flame = p[2]; fa_mult = p[1]; fa_crb = p[3]
+        fa_sch = length(p) >= 4 ? p[4] : -1f0
+        fa_crb > -1f0 && (fa_crb = fa_crb * 0.01f0)
+        fa_any = true; ffe_done!(s, a)
+    end
     fmburn!(s; atemp = s.fire.atemp, wind = s.fire.swind, fmois = Int(s.fire.fmois),
             psburn = s.fire.psburn, mortcode = Int(s.fire.mortcode),
-            burnseas = Int(s.fire.burnseas), flmult = s.fire.flmult, crburn = s.fire.crburn,
+            burnseas = Int(s.fire.burnseas), flmult = fa_mult, crburn = fa_crb,
+            flame_user = fa_flame, sch_user = fa_sch, flameadj = fa_any,
             year = yr, cyclen = fint)
     fm = 0f0
     @inbounds for i in 1:length(pre_tpa)
@@ -947,10 +960,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _trim_crown_bypass!(s)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
+        ffe_cycle_acts!(s)                                 # FMBURN/FMUSRFM activities of this cycle (DROUGHT, DEFULMOD, FUELMODL, FUELTRET, FIRECALC)
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
         apply_pileburn!(s)                                 # PILEBURN (act 2523) — pile/jackpot burn (FMTRET, fmmain.f:158)
-        fmtret_slchng!(s)                                  # FMTRET's SMALL/LARGE + SLCHNG (fmtret.f:372-400)
-        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — FMFMOV, after FMTRET (fmmain.f:162)
+        apply_fuelmove!(s)                                 # FUELMOVE (act 2530) — transfer fuel between pools (FMFMOV, fmmain.f:162)
+        fmfmov_slchng!(s)                                  # end of FMFMOV: SMALL/LARGE + SLCHNG (the post-activity fuel-model trigger)
         # FVS runs the cut-phase FFE activities (FMSALV/FMTRET, in cuts.f) BEFORE FMMAIN's FMBURN, so the
         # salvaged snags' released CWD2B crown debris (and any fuel moved) is part of the down-wood the fire
         # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between
@@ -1851,6 +1865,7 @@ function run_keyfile(keypath::AbstractString;
                 push!(tl_cycles, treelist_snapshot(st, yr, pl_eff; cycle = cy))
             end
         end : nothing
+        invref_snap = has_db && !(s.variant isa BritishColumbia) ? invref_rows(s) : nothing   # dbsreference.f: at stand init
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
@@ -1877,7 +1892,7 @@ function run_keyfile(keypath::AbstractString;
                              run_datetime = strip(string(date, " ", time)))
             # FVS_InvReference (dbsreference.f) is not in the BC build's source list; the ON oracle (build_g16_on.sh) compiles
             # the upstream vdbsqlite/dbsreference.f (LocationCode upgrade) and writes it (live tiered ON goldens).
-            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            s.variant isa BritishColumbia || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s; rows = invref_snap)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
@@ -1931,20 +1946,22 @@ function run_keyfile(keypath::AbstractString;
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
-            _fuels_db && carb_rows !== nothing &&
+            # metric/fire/vbase/fmin.f FUELOUT sets IFLALB = IY(1) > 0 ⇒ fmdout.f:366 `IF (.NOT. LPRINT) GOTO 750` (LPRINT =
+            # IFLALB ≤ 0) precedes DBSFUELS ⇒ BC/ON never write FVS_Fuels_Metric (MEASURED FVSon_tiered kwcov_on: absent).
+            _fuels_db && !met && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             if carb_rows !== nothing
                 ctl1 = s.control
                 ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
                     write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
-                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
-                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef)
+                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef; metric = met)
                 (ctl1.dbs_dwdvol && ctl1.ffe_dwdvlout) &&                # fmdout.f LPRINT2 + dbsfmdwvol.f IDWDVOL
-                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_dwdcov && ctl1.ffe_dwdcvout) &&                # fmdout.f LPRINT3 + dbsfmdwcov.f IDWDCOV
-                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
             end
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
@@ -1958,7 +1975,7 @@ function run_keyfile(keypath::AbstractString;
                 (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
                     write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
-                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
+                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
             end
             # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
             # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.

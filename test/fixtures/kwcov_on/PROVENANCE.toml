@@ -1,0 +1,5 @@
+# kwcov_on goldens — LIVE oracle: stock-flag private rebuild (ORACLE_SOURCE_AUDIT §9)
+date = "2026-10-06"
+oracle_on = "/workspace/.onwork/tiered/FVSon_tiered"
+sha256_on = "f96b841103424efafa48ee6ac83551130210f4d929b8dea840237f0606142fd5"
+command = "cd <dir> && FVSon_tiered --keywordfile=<stem>.key  (generator: test/harness/kwcov_on/make_cases.jl; stands from test/fixtures/tiered/on/stands.db)"

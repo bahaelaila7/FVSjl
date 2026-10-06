@@ -126,10 +126,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # Needs the SN-style biomass coefficients (:v2t, decay class); variants whose coefficients omit them
     # (e.g. OC ORGANON, no FFE/biomass port) skip the FFE carbon/fuels accounting (inert for the .sum).
     if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
-        mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
-        accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
-        # Dead coarse roots of the cut trees (FMSCUT BIOROOT += RBIO·(WK3−SSNG), FMSADD RBIO·SNGNEW): booked in record
-        # order by fmscut_removal! at the end of CUTS.
+        # FMSCUT (fmscut.f:106-145) books the removal's FATE accrual, the dead coarse roots (BIOROOT += RBIO·(WK3−SSNG), plus
+        # FMSADD's RBIO·SNGNEW) and TONRMH/BIOREM(1) per RECORD in record order from the per-record pools below — done once at
+        # the end of CUTS by fmscut_removal! (cuts.f:1823).
         # ACTIVITY FUELS (FMSCUT, fmscut.f:88-96): the cut tree's CROWN slash → the surface fuel bed, for ANY
         # cut (not just YARDLOSS). Foliage (xv[1]) → litter cwd[10]; branch classes 1-5 (xv[2:6]) → woody
         # cwd[1:5]; all category 2, species decay class IDC. Scale = removed-TPA `prem` × P2T (cwd is TONS,
@@ -189,8 +188,12 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # no :is_sprouting column (e.g. OC ORGANON — hardwood sprouting is not ported) have no sprouters.
     (s.control.lsprut && (s.variant isa Ontario ? (sp in ON_SPROUT_SPP) :
                           (haskey(s.coef.species, :is_sprouting) && coef_col(s.coef, :is_sprouting)[sp] == 1f0))) || return
+    # cuts.f:1713 `CALL ESTUMP(IS,D,AMAX1(0.0,PREM-SSNG(IT)),ITRE(IT),ISHAG)`: the stump list carries the removal MINUS the standing yarding-loss
+    # snags (SSNG = PREM·PRLOST·(1−PRDSNG), cuts.f:1383-1385; LYARD is the YARDLOSS keyword, not FFE) — those trees were left standing.
+    _pl = s.control.yardloss_prlost
+    _stump = _pl > 0f0 ? max(0f0, prem - (prem * _pl) * (1f0 - s.control.yardloss_prdsng)) : prem
     push!(s.control.cut_log,
-          (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
+          (species = Int32(sp), dstmp = t.dbh[i], prem = _stump,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
     return
 end
@@ -248,11 +251,20 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             _compute_due(Int(cd), s, Int(yr), fvscyc) && (s.control.compute_vars[nm] = eval_event(ast, ctx))
         end
         for c in conds
+            if s.variant isa Ontario && _ev_has_cmp(c.cond)
+                # ON (metric build) ALGEVL: a comparison/logical IF condition reports FVS21 twice per cycle (EVMON phases 1+2) and the
+                # event never fires (see _ev_has_cmp); recorded once per IF block on the first look of each cycle.
+                if s.control.evmon_err_cycle != Int32(fvscyc)
+                    errgro!(s, 21); errgro!(s, 21)
+                end
+                continue
+            end
             eval_event(c.cond, ctx) != 0f0 || continue
             for a in c.acts
                 push!(acts, ScheduledActivity(yr, a.icflag, a.params))
             end
         end
+        s.variant isa Ontario && (s.control.evmon_err_cycle = Int32(fvscyc))
     end
     isempty(acts) && return _NO_REMOVAL
     # SALVAGE/SALVSP/PILEBURN/FUELMOVE are FFE activities (fmsalv.f/fmtret.f/fmfmov.f), not cuts: a cycle whose only due
@@ -537,7 +549,6 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     cuteff = min(eff_cap, remove / cstock)
 
     # removed totals (per-acre, gross): Σ prem·{1, CFV, MCFV, SCFV, BFV}
-    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
     @inbounds for i in 1:n
         _cut_eligible(s, i, ispcut, dlo, dhi, hlo, hhi, grps) || continue
@@ -553,15 +564,8 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa += prem; rcuft += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
     end
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]                               # residual replaces PROB
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, 1:n, wk4)                # cuts.f DO 1700 (LSPECL ⇒ IND2 = identity): residual rule + ESTUMP + totals
 end
 
 # THINPRSC (cuts.f label_300 → label_550 lspecl path, ICFLAG 7): "prescription" thin.
@@ -743,14 +747,10 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
     cuteff = remove / sdic
     cuteff > 1f0 && (cuteff = 1f0)
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _remove!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -774,6 +774,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -793,10 +794,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINRDEN (cuts.f label_400, ICFLAG 14): thin to a residual Curtis relative density.
@@ -845,14 +843,10 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
     cuteff = remove / crd
     cuteff > 1f0 && (cuteff = 1f0)
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _rm!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -873,6 +867,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -893,10 +888,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINAUTO (cuts.f label_150, ICFLAG 1): automatic thinning to a normal-stocking target.
@@ -1025,19 +1017,31 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
     end
-    area <= csdi && return _NO_REMOVAL
-    remove = area - csdi
-    cuteff = remove / area
-    cuteff > 1f0 && (cuteff = 1f0)
+    # cuts.f:846-884: CCC = CCCOEF (CCCOEF2 when set) — 1 by default (grinit.f), but canada/on/grinit.f never sets it, so ON runs with CCC=0:
+    # CCCSDI = ALOG(1-CCT/100)/(CCC/100)*(-1) = +Inf, CRADIF = Inf, `SDIC+CRADIF > CSDI` holds, ICFLAG=11 with CCC<1 ⇒ RSTOCK = CSDI+CRADIF = Inf,
+    # REMOVE = SDIC-Inf = -Inf ⇒ no tree is ever cut (MEASURED FVSon_tiered DEBUG CUTS kwcov_on thincc: CCCOEF 0, CRADIF Infinity, RTPA 0).
+    if csdi > 0f0
+        ccc = 1f0
+        s.control.cc_coef != 1f0 && (ccc = s.control.cc_coef)
+        s.control.cc_coef2 != 1f0 && (ccc = s.control.cc_coef2)
+        cct = 100f0 * (1f0 - exp(-0.01f0 * (100f0 * csdi * 0.785398f0 / 43560f0)))
+        cccsdi = (log(1f0 + (-cct / 100f0)) / (ccc / 100f0)) * (-1f0)
+        cradif = abs((((cccsdi / 100f0) / 0.785398f0) * 43560f0) - csdi)
+        (area + cradif) > csdi || return _NO_REMOVAL
+        rstock = ccc < 1f0 ? csdi + cradif : ccc > 1f0 ? csdi - cradif : csdi
+        remove = area - rstock
+        remove > 0f0 || return _NO_REMOVAL
+        cuteff = remove / area
+        cuteff > 1f0 && (cuteff = 1f0)
+    else                                                # cuts.f:911-933 CSDI ≤ 0: REMOVE = SDIC, CUTEFF = 1
+        area > 0f0 || return _NO_REMOVAL
+        remove = area; cuteff = 1f0
+    end
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _rmc!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -1058,6 +1062,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -1078,10 +1083,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINQFA (cuts.f label_350, ICFLAG 17): Q-factor diameter-distribution thin. Ported from
@@ -1244,7 +1246,6 @@ function _thin_pt_linear!(s::StandState, act::ScheduledActivity, pt_point::Int32
     end
     elig(i, jp) = t.plot_id[i] == jp && _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)
     wk4 = Float32[t.tpa[i] for i in 1:n]
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
     for jp in points
         sdic = 0f0
         @inbounds for i in sorder
@@ -1292,16 +1293,9 @@ function _thin_pt_linear!(s::StandState, act::ScheduledActivity, pt_point::Int32
             end
             totcut += cut
             wk4[it] -= prem
-            _log_cut!(s, t, it, prem)                    # ESTUMP
-            rtpa  += prem;                          rcuft  += prem * t.cuft_vol[it]
-            rmcuft += prem * t.merch_cuft_vol[it];  rscuft += prem * t.saw_cuft_vol[it]
-            rbdft += prem * t.bdft_vol[it]
         end
     end
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, order, wk4)               # cuts.f DO 1700 over IND2 (`order`: identity for LSPECL, else the sorted list)
 end
 
 function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnpa::Int32)
@@ -1353,14 +1347,9 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         gorder = Vector{Int32}(undef, n); _rdpsrt!(gkey, gorder)
         econ_cut_order!(s, gorder)
     end
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
     @inline function _rmp!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -1421,10 +1410,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, dir != 0 ? gorder : Int32.(1:n), wk4)   # cuts.f DO 1700 over IND2 (the full-list RDPSRT order when ICUT>0)
 end
 
 

@@ -263,8 +263,7 @@ const _TONAC_TO_MTHA = 0.90718474f0 / 0.40468564f0
 # FAPROP — harvested-wood-products fate fractions [habitat 1:2, year-since-harvest 1:101, fate 1:3
 # (in-use/landfill/energy), product 1:2 (pulp/saw), group 1:2 (sw/hw)] (fmcblk.f, Smith et al.). Loaded
 # once from data/southern/fire_hwp_fate.csv. Const lookup table (not mutable state).
-const _FAPROP = let
-    path = joinpath(@__DIR__, "..", "..", "..", "data", "southern", "fire_hwp_fate.csv")
+function _load_faprop(path::AbstractString)
     a = zeros(Float32, 2, 101, 3, 2, 2)
     fate_i = Dict("in_use" => 1, "landfill" => 2, "energy" => 3)
     prod_i = Dict("pulpwood" => 1, "sawtimber" => 2)
@@ -277,6 +276,15 @@ const _FAPROP = let
     end
     a
 end
+_faprop_path(dir) = joinpath(@__DIR__, "..", "..", "..", "data", dir, "fire_hwp_fate.csv")
+const _FAPROP = _load_faprop(_faprop_path("southern"))                    # SN (and, until each is checked, every other variant)
+# fmcblk.f carries its own FAPROP DATA per variant: CS == LS (== ON, fire/ls), NE differs from both and from SN's 24 sets
+# (generated from the buildDir fmcblk.f DATA statements; the habitat-1 sets are the ones ICHABT=1 reads).
+const _FAPROP_CS = _load_faprop(_faprop_path("centralstates"))
+const _FAPROP_NE = _load_faprop(_faprop_path("northeast"))
+_faprop(::AbstractVariant) = _FAPROP
+_faprop(::Union{CentralStates,LakeStates,Ontario}) = _FAPROP_CS
+_faprop(::Northeast) = _FAPROP_NE
 
 """
     accrue_harvest_carbon!(s, sp, dbh, removed_tpa, merch_biomass, year)
@@ -291,7 +299,7 @@ function accrue_harvest_carbon!(s::StandState, sp::Integer, dbh::Float32,
     fs = s.fire
     (fs === nothing || !fs.active || merch_biomass <= 0f0) && return
     grp = Int(coef_col(s.coef, :biogrp)[sp]) > 5 ? 2 : 1     # 1 = softwood, 2 = hardwood
-    cdbrk = grp == 1 ? 9f0 : 11f0                            # pulp/saw DBH break (fminit.f:919-920)
+    cdbrk = fs.user.cdbrk[grp]                               # pulp/saw DBH break (fminit.f:919-920 9/11; CARBCALC 4/5)
     prod = dbh > cdbrk ? 2 : 1                               # 1 = pulpwood, 2 = sawtimber
     key = (Int(year), prod, grp)
     fs.hwp_fate[key] = get(fs.hwp_fate, key, 0f0) + merch_biomass
@@ -311,24 +319,36 @@ function harvested_carbon_report(s::StandState, year::Integer, habitat::Integer)
     (fs === nothing || !fs.active) && return (; products = 0f0, landfill = 0f0, energy = 0f0,
                                               emissions = 0f0, stored = 0f0, removed = 0f0)
     h = clamp(Int(habitat), 1, 2)
-    v = zeros(Float64, 4)                                    # in-use, landfill, energy, emissions
-    for ((cyr, prod, grp), bio) in fs.hwp_fate
+    # fmchrvout.f:55-110 in its own REAL*4 order: DO JCYC (cut cycles, oldest first) / IPL (pulp, saw) / IHW (softwood, hardwood),
+    # V(IFATE) += FATE·FAPROP, V(4) += FATE·(1−ΣFAPROP); then V(5)=V(1)+V(2), V(6)=V(3)+V(4)+V(5), ×0.5, and the CARBCALC unit factors
+    # (ICMETRC 1 ⇒ ×TItoTM/ACRtoHA, 2 ⇒ ×TItoTM — the default 0 is tons/acre).
+    fap = _faprop(s.variant)
+    v1 = 0f0; v2 = 0f0; v3 = 0f0; v4 = 0f0
+    cyrs = sort!(unique!([k[1] for k in keys(fs.hwp_fate)]))
+    for cyr in cyrs
         kyr = year - cyr + 1; kyr < 1 && continue
         kyr > 101 && (kyr = 101)
-        xtmp = 0.0
-        for fate in 1:3
-            f = _FAPROP[h, kyr, fate, prod, grp]
-            xtmp += f
-            v[fate] += bio * f
+        for prod in 1:2, grp in 1:2
+            bio = get(fs.hwp_fate, (cyr, prod, grp), 0f0)
+            bio == 0f0 && continue
+            xtmp = 0f0
+            for fate in 1:3
+                f = fap[h, kyr, fate, prod, grp]
+                xtmp += f
+                fate == 1 ? (v1 += bio * f) : fate == 2 ? (v2 += bio * f) : (v3 += bio * f)
+            end
+            v4 += bio * (1f0 - xtmp)                        # emissions = the un-accounted residual
         end
-        v[4] += bio * (1.0 - xtmp)                           # emissions = the un-accounted residual
     end
-    k = 0.5f0 * _TONAC_TO_MTHA                               # biomass → carbon → metric t/ha
-    products = Float32(v[1]) * k; landfill = Float32(v[2]) * k
-    energy = Float32(v[3]) * k; emissions = Float32(v[4]) * k
-    stored = products + landfill                             # V(5) = in-use + landfill
-    removed = energy + emissions + stored                   # V(6) = energy + emissions + stored
-    return (; products, landfill, energy, emissions, stored, removed)
+    v5 = v1 + v2; v6 = v3 + v4 + v5
+    v1 *= 0.5f0; v2 *= 0.5f0; v3 *= 0.5f0; v4 *= 0.5f0; v5 *= 0.5f0; v6 *= 0.5f0
+    if s.control.carbon_units == 1
+        cv(x) = x * _TITOTM / _ACRTOHA
+        v1 = cv(v1); v2 = cv(v2); v3 = cv(v3); v4 = cv(v4); v5 = cv(v5); v6 = cv(v6)
+    elseif s.control.carbon_units == 2
+        v1 *= _TITOTM; v2 *= _TITOTM; v3 *= _TITOTM; v4 *= _TITOTM; v5 *= _TITOTM; v6 *= _TITOTM
+    end
+    return (; products = v1, landfill = v2, energy = v3, emissions = v4, stored = v5, removed = v6)
 end
 
 # FMMAIN (gradd.f:118) runs after grincr.f:543's TRIPLE, so in a tripling cycle FMDOUT/FMCRBOUT loop over the tripled list:
@@ -379,20 +399,17 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             # fmdout.f:139-155: SNVIH = FMSVOL(I,HTIH)·DENIH, SNVIS = FMSVOL(I,HTIS)·DENIS — the TOTAL cubic of (DBHS,HTDEAD)
             # with CFTOPK at the current height on every snag (XHT>−1 ⇒ LTKIL), fresh each report — then (SNVIS+SNVIH)·V2T
             sp = Int(sn.sp[i])
-            vv = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
-            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
-            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            snvih = sn.den_hard[i] > 0f0 ? ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true) * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur_soft[i]; always = true) * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
         elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
             # same FMSVOL(I,HTIx)·DENIx, (SNVIS+SNVIH)·V2T with V2T pre-divided by 2000 (fmvinit.f:1094) — CS/LS/NE/SN
             sp = Int(sn.sp[i])
-            vv = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i])
-            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
-            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            snvih = sn.den_hard[i] > 0f0 ? ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur_soft[i]) * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
         else
-            b = _snag_bole_tons(s, i)
-            v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
+            v = _snag_bole_tons(s, i; soft = true) * sn.den_soft[i] + _snag_bole_tons(s, i) * sn.den_hard[i]   # (SNVIS+SNVIH)·V2T, bole in tons/stem at each pool's height
         end
         sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
     end
@@ -465,6 +482,14 @@ function fmscut_removal!(s::StandState)
         abio, _, rbio = jenkins_biomass(s.coef, sp, d; dbhmin = _jenkins_dbhmin(s, sp))
         fs.bioroot = fs.bioroot + rbio * (wk3 - ssng)                 # fmscut.f:119
         biorem1 = biorem1 + abio * ((wk3 - ssng) - dsng)
+        # FATE (fmscut.f:127-145, ICMETH=0): HRVTRE = WK3−SSNG−DSNG; X = FMSVL2(…'L', LMERCH)·V2T·HRVTRE, LMERCH = LVWEST —
+        # the western builds' MERCH volume (the tree's stored MCFV), the eastern/ON builds' total (MAX(cone floor, MCF/TCF),
+        # `_fmsvl2_live_total`, no top-kill) — into the pulp/saw × sw/hw bucket by DBH vs CDBRK.
+        hrvtre = (wk3 - ssng) - dsng
+        if hrvtre > 0f0
+            xf = (_ffe_west_vol(s.variant) && _ffe_lvwest(s.variant)) ? t.merch_cuft_vol[i] : x
+            accrue_harvest_carbon!(s, sp, d, xf * (v2t[sp] / 2000f0) * hrvtre, Int(current_cycle_year(s)))
+        end
     end
     # FMSADD(IY(ICYC),2) (fmscut.f:157): the standing yarding-loss snags' roots, RBIO·SNGNEW·XDCAY(=1) (fmsadd.f:313-320)
     @inbounds for i in recs
@@ -535,7 +560,7 @@ function stand_carbon_report(s::StandState; vtrip::Bool = false)
         v1 *= _TITOTM; v2 *= _TITOTM; v3 *= _TITOTM; v4 *= _TITOTM; v5 *= _TITOTM; v6 *= _TITOTM; v7 *= _TITOTM; v8 *= _TITOTM
     end
     total = v1 + v3 + v5 + v6 + v7 + v8
-    _FM_CRDCAY > 0f0 && (total = total + v4)               # LDCAY (dead-root decay on)
+    (s.fire !== nothing ? s.fire.user.crdcay : _FM_CRDCAY) > 0f0 && (total = total + v4)   # LDCAY (dead-root decay on, CRDCAY>0)
     return (; aboveground = v1, merch = v2, belowground = v3, belowground_dead = v4,
             standing_dead = v5, down_wood = v6, forest_floor = v7, shrub_herb = v8, total = total)
 end

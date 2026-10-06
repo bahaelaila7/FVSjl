@@ -748,6 +748,7 @@ end
 
 "Assign `val` to the merch array for species `isp`: 0=all, >0=that species, <0=SPGROUP −N."
 @inline function _set_merch_sp!(c, arr::Vector{Float32}, isp::Integer, val::Float32)
+    isnan(val) && return          # blank field of an UNDATED card (initre.f LNOTBK): leave the standard alone
     if isp == 0
         @inbounds for j in 1:length(arr); arr[j] = val; end
     elseif isp > 0

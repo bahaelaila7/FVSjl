@@ -148,7 +148,7 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     _cr_el = (_cr_ss || _so_ss || _oc_ss) ? p.elevation : 0f0
     _cr_hi = (_cr_ss || _so_ss || _oc_ss) ? _cr_hopkins(p.latitude, p.longitude, p.elevation) : 0f0
     @inbounds for i in 1:t.n
-        t.height[i] > 0f0 && t.tpa[i] > 0f0 || continue
+        t.height[i] > 0f0 && t.tpa[i] > 0.00001f0 || continue    # sstage.f:223 `IF (TMPPRB(I) .GT. 0.00001)` loads INDEX
         cw = _stored_crwdth(s.variant) ? stored_crwdth(s, i) :   # WK6=CRWDTH(I) (sstage.f:238/276), the last CWIDTH value
              _cr_ss ? cr_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _so_ss ? so_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :

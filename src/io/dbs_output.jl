@@ -363,6 +363,20 @@ function write_dbs_fuels!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+
+# metric/dbsqlite FFE tables (BC/ON): the same layouts under *_Metric names with the inch bins renamed to mm
+# (3/6/12/20/35/50 in -> 76/152/305/508/889/1270 mm). The callers (metric/fire/vbase fmfout/fmdout/fmssum/fmsout) hand the
+# DBS routines values already converted in REAL*4 (CONV = TItoTM/ACRtoHA, FT3pACRtoM3pHA, INtoCM, FTtoM, FT3toM3, /ACRtoHA).
+const _MET_BINS = ("ge_50" => "ge_1270", "35to50" => "889to1270", "20to35" => "508to889", "12to20" => "305to508",
+                   "6to12" => "152to305", "3to6" => "76to152", "0to3" => "0to76")
+function _metric_ddl(ddl::AbstractString, tbl::AbstractString; extra = ())
+    out = replace(ddl, tbl * "(" => tbl * "_Metric(")
+    for (a, b) in _MET_BINS; out = replace(out, a => b); end
+    for (a, b) in extra; out = replace(out, a => b); end
+    out
+end
+const _CONV_TONS = 0.90718f0 / 0.4046945f0          # CONV = TItoTM/ACRtoHA (REAL*4 PARAMETER quotient)
+
 # FVS_SnagSum schema (dbsfmssnag.f:103-121) — standing-snag density (stems/ac) by hard/soft × DBH class.
 const _FVS_SNAGSUM_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_SnagSum(
@@ -381,18 +395,22 @@ Write the FFE snag-summary densities to the `FVS_SnagSum` DBS table (dbsfmssnag.
 `(year, …, snags)` collection from the main simulation, where `snags` is a `snag_summary` named tuple.
 """
 function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
-                            standid::AbstractString, rows::AbstractVector)
+                            standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_SNAGSUM_CREATE)
-        ins = "INSERT INTO FVS_SnagSum VALUES (" * join(fill("?", 18), ",") * ")"
+        # metric/fire/vbase/fmssum.f:55-59: every THD/TSF density is divided by ACRtoHA, THDSF = THD(7)+TSF(7) afterwards
+        tbl = metric ? "FVS_SnagSum_Metric" : "FVS_SnagSum"
+        _ensure_table!(db, metric ? _metric_ddl(_FVS_SNAGSUM_CREATE, "FVS_SnagSum") : _FVS_SNAGSUM_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", 18), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
+        cv(x) = metric ? Float32(x) / 0.4046945f0 : x
         for row in rows
             yr = row[1]; sg = row[4]
+            h = map(cv, sg.hard); f = map(cv, sg.soft)
             DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                Float64.(sg.hard[1:6])..., Float64(sg.hard[7]),
-                Float64.(sg.soft[1:6])..., Float64(sg.soft[7]),
-                Float64(sg.hard[7] + sg.soft[7])))
+                Float64.(h[1:6])..., Float64(h[7]),
+                Float64.(f[1:6])..., Float64(f[7]),
+                Float64(h[7] + f[7])))
         end
     finally
         SQLite.close(db)
@@ -418,7 +436,7 @@ Write the detailed snag report to the `FVS_SnagDet` DBS table (dbsfmdsnag.f). `r
 cohort). `coef` supplies the FVS/PLANTS/FIA species-code triplet (as `write_dbs_strclass!` does).
 """
 function write_dbs_snagdet!(dbpath::AbstractString, caseid::AbstractString,
-                            standid::AbstractString, rows::AbstractVector, coef)
+                            standid::AbstractString, rows::AbstractVector, coef; metric::Bool = false)
     isempty(rows) && return dbpath
     fia3(x)   = lpad(strip(string(x)), 3, '0')
     fvs(i)    = String(strip(coef.code_alpha[i]))
@@ -426,15 +444,28 @@ function write_dbs_snagdet!(dbpath::AbstractString, caseid::AbstractString,
     fia(i)    = String(fia3(coef.code_fia[i]))
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_SNAGDET_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_SnagDet VALUES (" * join(fill("?", 17), ",") * ")")
+        tbl = metric ? "FVS_SnagDet_Metric" : "FVS_SnagDet"
+        _ensure_table!(db, metric ? _metric_ddl(_FVS_SNAGDET_CREATE, "FVS_SnagDet") : _FVS_SNAGDET_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 17), ",") * ")")
         for (yr, detail) in rows
             for r in detail
-                DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                    fvs(r.sp), plants(r.sp), fia(r.sp), Int(r.jcl),
-                    Float64(r.death_dbh), Float64(r.hth), Float64(r.hts),
-                    Float64(r.vh), Float64(r.vs), Float64(r.tv), Int(r.yrdied),
-                    Float64(r.dh), Float64(r.ds), Float64(r.dt)))
+                if metric
+                    # metric/fire/vbase/fmsout.f:227-239: DBH*INtoCM, HT*FTtoM, VOL*FT3toM3, DEN/ACRtoHA (REAL*4) before DBSFMDSNAG,
+                    # which forms SVLTB = SVLH+SVLS (double) and SDTB = SDH+SDS (REAL*4 sum widened)
+                    vh = Float32(r.vh) * 0.028317f0; vs = Float32(r.vs) * 0.028317f0
+                    dh = Float32(r.dh) / 0.4046945f0; ds = Float32(r.ds) / 0.4046945f0
+                    DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                        fvs(r.sp), plants(r.sp), fia(r.sp), Int(r.jcl),
+                        Float64(Float32(r.death_dbh) * 2.54f0), Float64(Float32(r.hth) * 0.3048f0), Float64(Float32(r.hts) * 0.3048f0),
+                        Float64(vh), Float64(vs), Float64(vh) + Float64(vs), Int(r.yrdied),
+                        Float64(dh), Float64(ds), Float64(dh + ds)))
+                else
+                    DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                        fvs(r.sp), plants(r.sp), fia(r.sp), Int(r.jcl),
+                        Float64(r.death_dbh), Float64(r.hth), Float64(r.hts),
+                        Float64(r.vh), Float64(r.vs), Float64(r.tv), Int(r.yrdied),
+                        Float64(r.dh), Float64(r.ds), Float64(r.dt)))
+                end
             end
         end
     finally
@@ -983,12 +1014,14 @@ function write_dbs_canprofile!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_CANPROFILE_CREATE)
         ins = "INSERT INTO FVS_CanProfile VALUES (" * join(fill("?", 7), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        conv = 0.45359237 / (4046.856422 * 0.3048)
+        # dbsfmcanpr.f:127-131: CRFILLKG = CRFILL(I)*0.45359237/(4046.856422*0.3048) and HTM = I*0.3048 are REAL*4 expressions (REAL
+        # literals, REAL CRFILL, INTEGER I) widened to the DOUBLE PRECISION destinations — not a double-precision computation.
+        kgden = 4046.856422f0 * 0.3048f0
         for (yr, crfill) in rows
             for i in eachindex(crfill)
                 crfill[i] > 0f0 || continue
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                    i * 0.3048, Float64(crfill[i]) * conv, Float64(i), Float64(crfill[i])))
+                    Float64(Float32(i) * 0.3048f0), Float64(crfill[i] * 0.45359237f0 / kgden), Float64(i), Float64(crfill[i])))
             end
         end
     finally
@@ -1020,15 +1053,18 @@ CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Cov(
   DWD_Cover_Total_Soft real null)"""
 
 "Write the FFE down-wood VOLUME (cuft/ac) to FVS_Down_Wood_Vol (dbsfmdwvol.f). `rows[i][5]` = `ffe_down_wood`."
-function write_dbs_dwd_vol!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+function write_dbs_dwd_vol!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_DWDVOL_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Vol VALUES (" * join(fill("?", 19), ",") * ")")
+        tbl = metric ? "FVS_Down_Wood_Vol_Metric" : "FVS_Down_Wood_Vol"
+        _ensure_table!(db, metric ? _metric_ddl(_FVS_DWDVOL_CREATE, "FVS_Down_Wood_Vol") : _FVS_DWDVOL_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 19), ",") * ")")
+        # metric/fire/vbase/fmdout.f:442-465: V1(I) = CWDVOL·FT3pACRtoM3pHA (REAL*4)
+        cv(x) = metric ? Float32(x) * 0.0699713f0 : x
         for row in rows
             dw = row[5]
             DBInterface.execute(stmt, (caseid, standid, Int(row[1]),
-                Float64.(dw.vol_hard)..., Float64.(dw.vol_soft)...))
+                Float64.(map(cv, dw.vol_hard))..., Float64.(map(cv, dw.vol_soft))...))
         end
     finally
         SQLite.close(db)
@@ -1037,11 +1073,12 @@ function write_dbs_dwd_vol!(dbpath, caseid::AbstractString, standid::AbstractStr
 end
 
 "Write the FFE down-wood percent COVER to FVS_Down_Wood_Cov (dbsfmdwcov.f). `rows[i][5]` = `ffe_down_wood`."
-function write_dbs_dwd_cov!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+function write_dbs_dwd_cov!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector; metric::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_DWDCOV_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Down_Wood_Cov VALUES (" * join(fill("?", 17), ",") * ")")
+        tbl = metric ? "FVS_Down_Wood_Cov_Metric" : "FVS_Down_Wood_Cov"      # cover is a percent: no unit conversion (fmdout.f:527)
+        _ensure_table!(db, metric ? _metric_ddl(_FVS_DWDCOV_CREATE, "FVS_Down_Wood_Cov") : _FVS_DWDCOV_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 17), ",") * ")")
         for row in rows
             dw = row[5]
             DBInterface.execute(stmt, (caseid, standid, Int(row[1]),
@@ -1158,19 +1195,24 @@ CREATE TABLE IF NOT EXISTS FVS_Consumption(
   Smoke_Production_25 real null, Smoke_Production_10 real null)"""
 
 "Write one FVS_Consumption row per fire (dbsfmfuel.f): the FMFOUT consumption values, REAL bound as double."
-function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
+function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector;
+                                metric::Bool = false)
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_CONSUMPTION_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Consumption VALUES (" * join(fill("?", 19), ",") * ")")
+        tbl = metric ? "FVS_Consumption_Metric" : "FVS_Consumption"
+        _ensure_table!(db, metric ? _metric_ddl(_FVS_CONSUMPTION_CREATE, "FVS_Consumption";
+                                                extra = ("lt3" => "lt76", "ge3" => "ge76", "ge12" => "ge305")) : _FVS_CONSUMPTION_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 19), ",") * ")")
+        # metric/fire/vbase/fmfout.f:226-231: the tons/ac loads × CONV (= TItoTM/ACRtoHA); EXPOSR, PDUFF, PGR3, ICRB unchanged
+        cv(x) = metric ? Float32(x) * _CONV_TONS : x
         for b in burns
             c = b.consumption
             DBInterface.execute(stmt, (caseid, standid, Int(b.year), Float64(c.min_soil_exp),
-                Float64(c.litter), Float64(c.duff), Float64(c.lt3), Float64(c.ge3),
-                Float64(c.s3to6), Float64(c.s6to12), Float64(c.ge12), Float64(c.herb_shrub), Float64(c.crowns),
-                Float64(c.total), Float64(c.pct_duff), Float64(c.pct_ge3), Int(c.pct_crowning),
-                Float64(c.smoke25), Float64(c.smoke10)))
+                Float64(cv(c.litter)), Float64(cv(c.duff)), Float64(cv(c.lt3)), Float64(cv(c.ge3)),
+                Float64(cv(c.s3to6)), Float64(cv(c.s6to12)), Float64(cv(c.ge12)), Float64(cv(c.herb_shrub)), Float64(cv(c.crowns)),
+                Float64(cv(c.total)), Float64(c.pct_duff), Float64(c.pct_ge3), Int(c.pct_crowning),
+                Float64(cv(c.smoke25)), Float64(cv(c.smoke10))))
         end
     finally
         SQLite.close(db)
@@ -1619,34 +1661,50 @@ function _invref_bf_voleq(s::StandState, sp::Int)
     return invref_voleq(s, sp)
 end
 
-function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
-                           standid::AbstractString, s::StandState)
+"""
+    invref_rows(s) -> Vector{Tuple}
+
+The per-species FVS_InvReference rows (without CaseID/StandID/LocationCode) as `s` stands NOW. dbsreference.f runs once at
+stand initialisation (before any cycle), so a dated VOLUME/BFVOLUME/SETSITE/SDIMAX activity that fires later must not
+show in the table: the driver snapshots the rows before the projection (MEASURED FVSon_tiered kwcov_on volume/setsite).
+"""
+function invref_rows(s::StandState)
     # dbsreference.f prints DBHMIN/TOPD/… as SITSET left them — fill the per-stand standards even when no volume
     # call has touched them yet (a bare or all-seedling stand never reaches the lazy AK/NVEL initialisation).
     s.control.merch_init || init_merch_standards!(s)
-    c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
+    c = s.control; co = s.coef; p = s.plot
     nsp = nspecies(s.variant)   # the variant's real species count (code arrays are padded to MAXSP capacity)
     fia3(x) = s.variant isa CentralRockies ? lpad(strip(x), 3, '0') : strip(x)   # 3-char FIAJSP (CR western codes)
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
+    rows = Tuple[]
+    for sp in 1:nsp
+        # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
+        # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
+        _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
+        push!(rows, (sp,
+            String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
+            String(fia3(co.code_fia[sp])), sditype,
+            trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
+            "FVS", invref_voleq(s, sp),
+            Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
+            Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
+            _invref_bf_voleq(s, sp),
+            Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
+    end
+    return rows
+end
+
+function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, s::StandState; rows = nothing)
+    rows === nothing && (rows = invref_rows(s))
     db = SQLite.DB(dbpath)
     try
         loc = _invref_loccode(s.variant)
         _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        for sp in 1:nsp
-            # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
-            # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
-            _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, (loc ? (_invref_kodfor(s),) : ())..., sp,
-                String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
-                String(fia3(co.code_fia[sp])), sditype,
-                trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
-                "FVS", invref_voleq(s, sp),
-                Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
-                Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
-                _invref_bf_voleq(s, sp),
-                Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (_invref_kodfor(s),) : ())..., r...))
         end
     finally
         SQLite.close(db)

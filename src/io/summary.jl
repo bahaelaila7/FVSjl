@@ -393,6 +393,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     br.year == Int(r.year) && (rel = br.released; tcon = get(br, :totcon, 0f0)::Float32)
                 end
             end
+            # PILEBURN (fmtret.f → FMCONS BTYPE=1) adds to the same BURNED(3,·) the fire's consumption goes to; FMDOUT/FMCRBOUT read the sums
+            # (BIOCON(1) = litter+duff, BIOCON(2) = TOTCON − BIOCON(1), V(11) = BIOCON(1)·.37 + BIOCON(2)·.50) and BURNED(3,·) is zeroed after.
+            if st.fire !== nothing
+                pb = st.fire.user.pburned
+                if any(!iszero, pb)
+                    b1 = pb[10] + pb[11]; tp = 0f0
+                    for j in 1:11; tp = tp + pb[j]; end
+                    rel = rel + (b1 * 0.37f0 + (tp - b1) * 0.50f0); tcon = tcon + tp
+                    fill!(pb, 0f0)
+                end
+            end
             uf = st.control.carbon_units == 1 ? 0.90718f0 / 0.4046945f0 :     # METRIC.F77 TItoTM / ACRtoHA
                  st.control.carbon_units == 2 ? 0.90718f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
@@ -451,7 +462,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
-        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active
+        # FMPOCR(ICALL=2) is an FMMAIN call: every cycle START, never the terminal projection row (live FVS_CanProfile has no row for it)
+        # A SIMFIRE cycle reports the POST-fire profile (FMPOCR follows FMBURN in FMMAIN, fire-killed FMPROB and the scorch-shortened FMICR):
+        # deferred to the post-fire hook below, like the carbon / PotFire reports.
+        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             seam || compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
@@ -555,8 +569,6 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             end
             # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
-            hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
-                push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
             # FFE annual fuel loop BEFORE growth (report→fuel→grow). FVS interleaves the annual fuel steps
             # with FMBURN, so a fire fires on the cycle-start + fire-year's single annual step — NOT the
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
@@ -600,9 +612,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # vs 0.175: the fire-thinned hardwood/pine read as pine/hardwood). EM's fire-year FLIVE is likewise the pre-fire
             # load (live 196378260020004 2022 Shrub_Herb 0.263; a post-fire FMCBA gave 0.392).
             pf_fire = potfire_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
-            chook = (fire_cycle || pf_fire) ? (st -> begin
+            cp_fire = canprof_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
+            chook = (fire_cycle || pf_fire || cp_fire) ? (st -> begin
                         compute_density!(st)
                         fire_cycle && _carb_push(st)
+                        cp_fire && push!(canprof_collect, (Int(r.year), canopy_crfill(st; fmicr = st.fire.fmicr)))
                         if pf_fire                                   # FMPOFL after FMBURN (fmmain.f:177-194)
                             pfr = fmpofl_report(st, Int(r.year); cyclen = per, fire_basis = true)
                             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
@@ -632,6 +646,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = ffe_pass, pofl_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
+            # FMCHRVOUT (fmmain.f:206, right after FMCRBOUT): the harvested-products report of THIS cycle's FMMAIN — after CUTS and FMSALV, which
+            # both run inside grow_cycle! (a salvage books its FATE there), so the row is taken once grow_cycle! has returned.
+            hrvcarbon_collect === nothing || s.fire === nothing || !s.fire.active ||
+                push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))
             r.accretion = _acc_mort(gr.accretion)
             r.mortality = _acc_mort(gr.mortality)
             # Climate-FVS report (clauestb.f/DBSCLSUM): collected POST-growth, labeled with the cycle-START year,
