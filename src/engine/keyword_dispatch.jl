@@ -1016,21 +1016,28 @@ end
 """
     active_fmort_mult(control, sp, year, dbh) -> Float32
 
-The FMORTMLT fire-caused-mortality multiplier in effect for species `sp` at cycle `year`, applied only
-when the tree's `dbh` is in the keyword's half-open DBH window [d1, d2) (fmin.f:2506; fmeff.f:340
-`PMORT = PMORT*FMORTMLT(I)`). 1.0 when none applies. Same most-recent / species-specific precedence.
+The FMORTMLT fire-caused-mortality multiplier for a tree of species `sp` and `dbh` in the cycle containing `year`
+(fmin.f:2506 → FMMAIN fmmain.f:74-93; fmeff.f:340 `PMORT = PMORT*FMORTMLT(I)`). FMMAIN resets FMORTMLT=1 at EVERY
+cycle and applies only the FMORTMLT activities OPFIND returns for THIS cycle (date inside [IY(ICYC), IY(ICYC+1)); a
+cycle-number date maps to that cycle), in date order, each one overwriting the multiplier of every tree whose species
+matches and whose DBH is in [d1, d2). So a multiplier does NOT persist into later cycles, and a later activity whose
+window excludes a tree leaves the earlier one in force. 1.0 when none applies.
 """
 function active_fmort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
     isempty(c.multipliers) && return 1f0
-    val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
+    cyc = Int(c.cycle); cs = cycle_year_at(c, cyc); ce = cycle_year_at(c, cyc + 1)
+    ce <= cs && (ce = cs + 1)
+    val = 1f0; lastdate = typemin(Int)
     @inbounds for m in c.multipliers
-        (m.kind === :fmort && sp_field_matches(c, m.species, sp) && m.year <= year) || continue
-        spec = m.species != 0
-        if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
-            val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
-        end
+        m.kind === :fmort || continue
+        my = Int(m.year)
+        d = (0 < my < 1000) ? cycle_year_at(c, my - 1) : my          # OPNEW IDT ≤ MAXCYC ⇒ that cycle's start year
+        (cs <= d < ce) || continue
+        sp_field_matches(c, m.species, sp) || continue
+        (m.d1 <= dbh < m.d2) || continue
+        d >= lastdate && (val = m.value; lastdate = d)                # date order, ties in keyword order
     end
-    return (d1 <= dbh < d2) ? val : 1f0
+    return val
 end
 
 """
