@@ -1312,10 +1312,20 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # skipped WH ⇒ HCOR 0.00339259 (cycle 1) for the new WH seedlings; jl attenuated to 0.0059646 ⇒ HtG +0.26%).
     species_sort!(s)
     isct = s.control.sp_count_tab
+    # jl applies dgdriv's attenuation lazily at the START of the next cycle (the COR a cycle's DGF uses is the one the previous
+    # cycle's DGDRIV left). dgdriv.f:186-205 updates COR only for a species with records at THAT DGDRIV, so the update for
+    # this cycle is applied iff the species was present at the previous one — even when it is absent now (the value then waits
+    # for the species' return): MEASURED FVSws_g16 7689398010901 thinbba, species 29 (all thinned at the cycle-2 CUTS, back
+    # as sprouts in cycle 3): COR0/COR1 trace -0.0673 (cycle 1) -> -0.05918458 (the cycle-1 update, no update in cycle 2),
+    # DGF CONSPP -1.485131 in cycle 3; jl re-curved it to -0.0530 (CONSPP -1.4789) every cycle. The HCOR update is the
+    # same-cycle one (ESTAB/REGENT read it after DGDRIV) and needs the species present now.
     @inbounds for sp in 1:MAXSP
-        (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
-        c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
-        c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
+        present = !(sp <= size(isct, 1) && isct[sp, 1] == 0)
+        if elapsed == 0f0 ? present : c.dg_cor_present[sp]
+            c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+        end
+        present && (c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp]))
+        c.dg_cor_present[sp] = present
     end
 
     dgf!(s, s.variant)

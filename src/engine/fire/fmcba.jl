@@ -429,23 +429,25 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         # BM decay-rate habitat adjustment (bm/fmcba.f:333-368): applied ONCE at the first FFE year, and only
         # when the user has not set the decay rates with FuelDcay/FuelMult (fs.params.dkr still empty). Store
         # the adjusted matrix into params.dkr so every subsequent fmcwd! reads it (mirrors the persisted DKR).
-        if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
+        if s.variant isa BlueMountains
+            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)), _ffe_dkr_current(s, fs), fs.params.setdecay)   # habtyp.f ITYPE (79 if unmatched)
         end
         # CI habitat-moisture DCYMLT on every DKR(I,J) (ci/fmcba.f:407-445; MAPDRY(ICINDX)), once, unless FUELDCAY set it.
-        if s.variant isa CentralIdaho && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input))
+        # (jl has no SVSTART FMCBA(IY(1),1) call, whose ISWTCH=1 skips this block and is wiped before the real call, so the
+        # ISWTCH≠1 guard holds by construction.) SETDECAY<0 elements only, on the keyword-edited DKR.
+        if s.variant isa CentralIdaho
+            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
-        if s.variant isa Klamath && size(fs.params.dkr, 1) != 11
+        if s.variant isa Klamath
             _ss = Int(s.plot.site_species)
             _si = (1 <= _ss <= length(s.plot.sp_site_index)) ? s.plot.sp_site_index[_ss] : 0f0
-            fs.params.dkr = nc_adjusted_dkr(_si)
+            fs.params.dkr = nc_adjusted_dkr(_si, _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # WS / CA first-FFE-year decay rates (ws/fmcba.f:541-581 DCYMLT; ca/fmcba.f:579-745 R5/R6 tables + DCYMLT).
-        if s.variant isa WestSierra && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ws_adjusted_dkr(s.plot.sp_site_index, Int(s.plot.site_species))
+        if s.variant isa WestSierra
+            fs.params.dkr = ws_adjusted_dkr(s.plot.sp_site_index, Int(s.plot.site_species), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         if s.variant isa CentralCalifornia && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_code),
@@ -461,20 +463,19 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         end
         # EC decay-rate habitat adjustment (ec/fmcba.f:457-491): scale the EC base DKR by DKRADJ(TEMP,MOIST,K)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
-        if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input))
+        if s.variant isa EastCascades
+            fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # WC / PN / OP decay-rate habitat adjustment (wc/fmcba.f:488-521; pn,op/fmcba.f:462-495): WCWMC/WCWMD or
         # PNWMC/PNWMD (the FMR6SDCY tables) by ITYPE.
-        if (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic) &&
-           size(fs.params.dkr, 1) != 11
+        if s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic
             _it = Int(s.plot.habitat_input)
             if s.variant isa WestCascades
                 _it = clamp(_it, 1, 139); _t = _R6SD_WCWMC[_it]; _m = _R6SD_WCWMD[_it]
             else
                 _it = clamp(_it, 1, 75); _t = _R6SD_PNWMC[_it]; _m = _R6SD_PNWMD[_it]
             end
-            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m;
+            fs.params.dkr = r6_adjusted_dkr(_ffe_dkr_current(s, fs), _t, _m; sd = fs.params.setdecay,
                                             adj = s.variant isa WestCascades ? _FM_DKRADJ_WC : _FM_DKRADJ_PN)
         end
         # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)

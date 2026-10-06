@@ -115,7 +115,12 @@ end
 function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 10.0f0,
                              lstart::Bool = false, crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n
+    if n == 0
+        # ak/crown.f:113 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        lstart && t.ndead > 0 && _ak_dead_crown_dub!(s)
+        return s
+    end
     xmaxpt, zrd, _ = point_zeide!(s)
     npt = length(xmaxpt)
     pb = s.density.point_ba; ptpa = s.density.point_tpa
@@ -178,21 +183,26 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
-    # so/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
-    if lstart && t.ndead > 0
-        prd, _, _ = point_crown_inputs(s)
-        # ak/crown.f DO 79: BAPLT/TPAPLT = the same CRATET PTBAA/PTPA the live dub read (dead-inclusive point BA).
-        pbl = isempty(s.calib.cratet_ptbaa) ? pb : s.calib.cratet_ptbaa
-        function qmdplt_ak(pt)
-            baplt = (1 <= pt <= length(pbl)) ? pbl[pt] : 0f0
-            tpaplt = (1 <= pt <= length(ptpa)) ? ptpa[pt] : 0f0
-            q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
-            q <= 1f0 ? 1f0 : q
-        end
-        dub_dead_crowns!(s) do i
-            pt = Int(t.plot_id[i])
-            icri_round(ak_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prd(pt), qmdplt_ak(pt)))
-        end
+    lstart && t.ndead > 0 && _ak_dead_crown_dub!(s)
+    return s
+end
+
+# ak/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
+function _ak_dead_crown_dub!(s::StandState)
+    t = s.trees
+    pb = s.density.point_ba; ptpa = s.density.point_tpa
+    prd, _, _ = point_crown_inputs(s)
+    # ak/crown.f DO 79: BAPLT/TPAPLT = the same CRATET PTBAA/PTPA the live dub read (dead-inclusive point BA).
+    pbl = isempty(s.calib.cratet_ptbaa) ? pb : s.calib.cratet_ptbaa
+    function qmdplt_ak(pt)
+        baplt = (1 <= pt <= length(pbl)) ? pbl[pt] : 0f0
+        tpaplt = (1 <= pt <= length(ptpa)) ? ptpa[pt] : 0f0
+        q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+        q <= 1f0 ? 1f0 : q
+    end
+    dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        icri_round(ak_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prd(pt), qmdplt_ak(pt)))
     end
     return s
 end

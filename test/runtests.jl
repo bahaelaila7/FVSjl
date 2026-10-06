@@ -289,6 +289,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_kwcov_on.jl")       # ON (metric) keyword-isolation vs the stock-flag live oracle (kwcov_on fixtures)
     include("integration/test_kwcov_ext.jl")      # CS/LS/NE/ON extension-stub parity vs the stock-flag live oracles (kwcov_ext fixtures)
     include("integration/test_fia_reader.jl") # FIA "FVS-ready" DATABASE/DSNIN reader: cycle-0 bit-exact vs live
+    include("unit/test_west_tail3.jl")      # west-tail round 3: live-fixture regressions (FUELDCAY SETDECAY semantics, all-dead crown dub, ...) vs FVS{v}_g16 goldens
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end

@@ -162,13 +162,29 @@ const _CI_MAPDRY = Int8[
     2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 0, 1, 1, 1, 1, 0, 1,  1, 1, 0, 0, 0, 0, 0, 0, 1, 1,
     1, 1, 1, 1, 1, 0, 0, 1, 0, 1]
-function ci_adjusted_dkr(icindx::Int)::Matrix{Float32}
+# SETDECAY(I,J) .LT. 0 (fminit.f:84-89; FUELDCAY sets the elements it touched): the first-FFE-year decay multipliers of
+# ci/nc/ws fmcba.f (DO I=1,MXFLCL; DO J=1,4) scale ONLY those elements, in place on the CURRENT DKR (the variant's fmvinit.f
+# table as edited by FUELMULT/FUELDCAY). An empty `sd` means no FUELDCAY ran, i.e. every element is -1. (The TODUFF update
+# those loops carry is inert: fmcwd.f:91-107 uses DKR·PRDUFF directly, TODUFF is only ever written.)
+# the DKR in force: the keyword-edited matrix, else the variant's fmvinit.f table (not copied; adjusters copy it)
+@inline _ffe_dkr_current(s::StandState, fs)::Matrix{Float32} =
+    size(fs.params.dkr, 1) == 11 ? fs.params.dkr : _fm_dkr_default(s.variant)
+@inline _sd_unset(sd::Matrix{Float32}, i::Int, j::Int)::Bool = size(sd, 1) != 11 || sd[i, j] < 0f0
+function _dkr_scale_unset(base::Matrix{Float32}, sd::Matrix{Float32}, m::Float32)::Matrix{Float32}
+    dkr = copy(base)
+    @inbounds for j in 1:4, i in 1:11
+        _sd_unset(sd, i, j) && (dkr[i, j] = dkr[i, j] * m)
+    end
+    return dkr
+end
+function ci_adjusted_dkr(icindx::Int, base::Matrix{Float32} = _FM_DKR_NR,
+                         sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32}
     dcymlt = 1f0
     if 1 <= icindx <= length(_CI_MAPDRY)
         m = _CI_MAPDRY[icindx]
         dcymlt = m == 0 ? 0.66f0 : m == 1 ? 1f0 : m == 2 ? 1.33f0 : 1f0
     end
-    return _FM_DKR_NR .* dcymlt
+    return _dkr_scale_unset(base, sd, dcymlt)
 end
 # canada/fire/bc/fmvinit.f:66-93: DKR(1:3,1) 0.12/0.12/0.09, the 3"+ woody classes 0.03 (Klenner 2021, vs the N-Rockies
 # 0.015), DKR(I,J)=DKR(I,1); litter DKR(10,J)=0.355 and duff DKR(11,J)=0.0033 (Kurz et al. 2009) — no ×0.45.
@@ -217,16 +233,19 @@ const _NC_DCY_YD   = Float32[1.5, 1.5, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5]
     dun = _ffe_algslp(si, _NC_DUNN_XSR, _NC_DUNN_YSR)
     return _ffe_algslp(dun, _NC_DCY_XD, _NC_DCY_YD)
 end
-# NC decay table scaled by DCYMLT (all classes; nct01 has no FUELDCAY ⇒ every SETDECAY<0 ⇒ all scaled).
-@inline nc_adjusted_dkr(si::Float32)::Matrix{Float32} = _FM_DKR_NC .* nc_dcymlt(si)
+# NC decay table scaled by DCYMLT on the SETDECAY<0 elements (nc/fmcba.f:407-414; all of them when FUELDCAY was not used).
+@inline nc_adjusted_dkr(si::Float32, base::Matrix{Float32} = _FM_DKR_NC,
+                        sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32} =
+    _dkr_scale_unset(base, sd, nc_dcymlt(si))
 
 # WS (ws/fmvinit.f:120-150): the NC table (0.025 / 0.0125 woody, litter 0.5, duff 0.002, PRDUFF 0.02), scaled at the
 # first FFE year by the same Dunning DCYMLT (ws/fmcba.f:541-581; ws/dunn.f GETDUNN = DUNN50) on SITEAR(ISISP) — RF's
 # SITEAR(7) when the site species is GB(21)/MC(41), whose site indices are 100-year Dunning values.
 _fm_dkr_default(::WestSierra) = _FM_DKR_NC
-function ws_adjusted_dkr(sitear::AbstractVector{Float32}, isisp::Int)::Matrix{Float32}
+function ws_adjusted_dkr(sitear::AbstractVector{Float32}, isisp::Int, base::Matrix{Float32} = _FM_DKR_NC,
+                         sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32}
     si = (isisp == 21 || isisp == 41) ? sitear[7] : ((1 <= isisp <= length(sitear)) ? sitear[isisp] : 0f0)
-    return _FM_DKR_NC .* nc_dcymlt(si)
+    return _dkr_scale_unset(base, sd, nc_dcymlt(si))
 end
 
 # CA (ca/fmcba.f:579-745, the decay rates CA sets at the first FFE year instead of fmvinit.f): KODFOR 500-599 (R5) the
@@ -337,19 +356,22 @@ DKRADJ(TEMP,MOIST,K) (K = 1 for sizes 1-3, 2 for 4-5, 3 for 6-9) capped at 1, th
 decaying slower than the next larger one is bumped up to it. Litter/duff keep the base.
 """
 function r6_adjusted_dkr(base::Matrix{Float32}, temp::Integer, moist::Integer;
-                         adj::Array{Float32,3} = _FM_DKRADJ)::Matrix{Float32}
+                         adj::Array{Float32,3} = _FM_DKRADJ,
+                         sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32}
     dkrtab = adj
     dkr = copy(base)
+    # only the elements FUELDCAY did not set (SETDECAY<0) — bm|ec|wc|pn|op fmcba.f `(SETDECAY(I,J).LT.0).AND.(ISWTCH.NE.1)`
     @inbounds for i in 1:9
         k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
         adj = dkrtab[temp, moist, k]
         for j in 1:4
+            _sd_unset(sd, i, j) || continue
             v = dkr[i, j] * adj
             dkr[i, j] = v > 1f0 ? 1f0 : v
         end
     end
     @inbounds for i in 9:-1:2, j in 1:4
-        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
+        ((dkr[i, j] - dkr[i-1, j]) > 0f0 && _sd_unset(sd, i - 1, j)) && (dkr[i-1, j] = dkr[i, j])
     end
     return dkr
 end
@@ -455,22 +477,11 @@ EC habitat-conditioned decay rates (ec/fmcba.f:457-491): the EC base DKR scaled 
 (size 9→2) bumps any size class decaying slower than the next-larger class up to the larger's rate. Only
 woody classes 1-9; litter (10)/duff (11) keep the base. Applied once at the first FFE year (no FuelDcay).
 """
-function ec_adjusted_dkr(itype::Integer)::Matrix{Float32}
-    dkr = copy(_FM_DKR_EC)
-    (itype < 1 || itype > length(_FM_ECHMC)) && return dkr
+function ec_adjusted_dkr(itype::Integer, base::Matrix{Float32} = _FM_DKR_EC,
+                         sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32}
+    (itype < 1 || itype > length(_FM_ECHMC)) && return copy(base)
     temp = Int(_FM_ECHMC[itype]); moist = Int(_FM_ECWMD[itype])
-    @inbounds for i in 1:9
-        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
-        adj = _FM_DKRADJ[temp, moist, k]
-        for j in 1:4
-            v = dkr[i, j] * adj
-            dkr[i, j] = v > 1f0 ? 1f0 : v
-        end
-    end
-    @inbounds for i in 9:-1:2, j in 1:4
-        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
-    end
-    return dkr
+    return r6_adjusted_dkr(base, temp, moist; sd)
 end
 const _FM_PRDUFF = 0.02f0   # proportion of decayed woody material that becomes duff (fmvinit.f:112)
 
@@ -514,23 +525,11 @@ would decay slower than the next-larger class up to the larger class's rate. Onl
 adjusted; litter (10) and duff (11) keep the CR default. Applied once, at the first FFE year, when the user
 has not overridden decay with FuelDcay.
 """
-function bm_adjusted_dkr(itype::Integer)::Matrix{Float32}
-    dkr = copy(_FM_DKR_BM)
-    (itype < 1 || itype > length(_FM_BMHMC)) && return dkr
+function bm_adjusted_dkr(itype::Integer, base::Matrix{Float32} = _FM_DKR_BM,
+                         sd::Matrix{Float32} = Matrix{Float32}(undef, 0, 0))::Matrix{Float32}
+    (itype < 1 || itype > length(_FM_BMHMC)) && return copy(base)
     temp = Int(_FM_BMHMC[itype]); moist = Int(_FM_BMWMD[itype])
-    @inbounds for i in 1:9
-        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
-        adj = _FM_DKRADJ[temp, moist, k]
-        for j in 1:4
-            v = dkr[i, j] * adj
-            dkr[i, j] = v > 1f0 ? 1f0 : v
-        end
-    end
-    # bump smaller wood up to larger wood's rate where it would otherwise decay more slowly (fmcba.f:359-368)
-    @inbounds for i in 9:-1:2, j in 1:4
-        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
-    end
-    return dkr
+    return r6_adjusted_dkr(base, temp, moist; sd)
 end
 
 """

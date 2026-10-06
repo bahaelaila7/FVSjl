@@ -2453,6 +2453,11 @@ function _ensure_dkr!(s::StandState, p::FFEParams)
     size(p.dkr, 1) == 11 || (p.dkr = copy(_fm_dkr_default(s.variant)))
     return p.dkr
 end
+# SETDECAY (fminit.f:84-89): -1 everywhere until FUELDCAY records the rate it set.
+function _ensure_setdecay!(p::FFEParams)
+    size(p.setdecay, 1) == 11 || (p.setdecay = fill(-1f0, 11, 4))
+    return p.setdecay
+end
 
 # FUELMULT (fmin.f:1368, opt 29): multiply the total fuel decay rate of every size class by a per-decay-
 # class multiplier (fields 1-4 = decay classes 1-4), capped at 1.0. A blank field leaves that class as-is.
@@ -2475,16 +2480,26 @@ function _fueldcay!(s::StandState, rec::KeywordRecord)
     rec.present[1] || return                         # no decay class specified ⇒ keyword ignored
     dkr = _ensure_dkr!(s, fs.params); v = rec.values
     id = Int(trunc(v[1])); idec = clamp(id, 1, 4)
+    sd = _ensure_setdecay!(fs.params)
     rec.present[2] && (dkr[10, idec] = Float32(v[2]))
     rec.present[3] && (dkr[11, idec] = Float32(v[3]))
     rec.present[4] && (dkr[1, idec]  = Float32(v[4]))
     rec.present[5] && (dkr[2, idec]  = Float32(v[5]))
     rec.present[6] && (dkr[3, idec]  = Float32(v[6]))
     rec.present[7] && (@inbounds for j in 4:9; dkr[j, idec] = Float32(v[7]); end)
+    # SETDECAY marks the elements the user set (fmin.f:831-844) so the first-year multipliers skip them
+    rec.present[2] && (sd[10, idec] = Float32(v[2]))
+    rec.present[3] && (sd[11, idec] = Float32(v[3]))
+    rec.present[4] && (sd[1, idec]  = Float32(v[4]))
+    rec.present[5] && (sd[2, idec]  = Float32(v[5]))
+    rec.present[6] && (sd[3, idec]  = Float32(v[6]))
+    rec.present[7] && (@inbounds for j in 4:9; sd[j, idec] = Float32(v[7]); end)
     if id < 5
         @inbounds for i in 1:10; dkr[i, idec] = min(dkr[i, idec], 1f0); end
-    else                                             # ID≥5: copy class-4 rates to all decay classes
-        @inbounds for d2 in 1:4, j in 1:11; dkr[j, d2] = dkr[j, 4]; end
+    else                                             # ID≥5: copy class-4 rates to all decay classes (fmin.f:853-863)
+        @inbounds for d2 in 1:4, j in 1:11
+            dkr[j, d2] = dkr[j, 4]; sd[j, d2] = min(sd[j, 4], 1f0)
+        end
         @inbounds for d2 in 1:4, i in 1:10; dkr[i, d2] = min(dkr[i, d2], 1f0); end
     end
     return

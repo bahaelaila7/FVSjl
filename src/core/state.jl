@@ -761,6 +761,10 @@ mutable struct Calibration
     # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
     # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
     cur_rmsqd::Float32
+    # Species that had records at the PREVIOUS cycle's DGDRIV: dgdriv.f:186-205 `IF(I1.EQ.0) GO TO 50` precedes the COR/HCOR
+    # attenuation, so COR is advanced (for the NEXT cycle's DGF) only for species present in that cycle. A species absent for
+    # a cycle keeps the COR it had; when it reappears (sprouts, regen) DGF uses that stale value, not the elapsed-time curve.
+    dg_cor_present::Vector{Bool}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -788,7 +792,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
     Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
     Float32[],                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
-    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    -1f0,                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    fill(false, MAXSP))                                              # dg_cor_present (species present at the previous DGDRIV)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -805,9 +810,15 @@ mutable struct Density
     mort_ibasp::Int32            # ON only: persisted index of the species with the most BA (IBASP,
                                  # canada/on/morts.f) — resets the ON self-thinning line when the
                                  # dominant species changes. Default 0 (inert for all other variants).
+    # PTBALT of the last DENSE, by SLOT, saved when the .sum driver's CUTS-entry TREDEL compacts the list ahead of
+    # grow_cycle! (see `cuts_entry_tredel!`): FVS's TREMOV does not move PTBALT and no DENSE follows a removal-free CUTS
+    # (grincr.f:305-312 DENSE only when ONTREM(7)>0), so the cycle's DGDRIV/MORTS read the old value of each SLOT.
+    ptbal_stale::Vector{Float32}
+    ptbal_stale_n::Int           # 0 = none saved
 end
 Density(maxtre::Int = MAXTRE) = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, maxtre),
-                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
+                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0),
+                    zeros(Float32, maxtre), 0)
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls
@@ -1172,11 +1183,16 @@ mutable struct FFEParams
     # EMPTY ⇒ HTX=0 = no height loss (the SN default, fmvinit.f:1089) ⇒ snag bole stays frozen at death height.
     # When set, FMSNGHT shrinks the snag height each year (snag.jl) and the bole volume is recomputed from it.
     snag_htx::Dict{Int32,NTuple{4,Float32}}
+    # SETDECAY(11,4) (fminit.f:84-89 = -1; fmin.f:831-860): the decay rate FUELDCAY set for each [size, class] element (a
+    # value ≥ 0 marks it user-set). The first-FFE-year habitat/site decay multipliers (fmcba.f DCYMLT/DKRADJ) scale ONLY the
+    # elements still < 0. Empty (0×0) ⇒ every element is -1.
+    setdecay::Matrix{Float32}
 end
 FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(), Dict{Int32,Float32}(),
                         Matrix{Float32}(undef, 0, 0), Float32[], Float32[], Matrix{Float32}(undef, 0, 0),
                         Dict{Int32,Int32}(), (PotFireCond(), PotFireCond()), Dict{Int32,Float32}(),
-                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}())
+                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}(),
+                        Matrix{Float32}(undef, 0, 0))
 
 """
 One scheduled FFE activity (fmin.f OPNEW codes 2505 MOISTURE, 2507 FLAMEADJ, 2525 FUELTRET, 2529 DROUGHT, 2538 FUELMODL,

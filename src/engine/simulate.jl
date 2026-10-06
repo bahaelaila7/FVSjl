@@ -877,6 +877,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _rd_nodense ? (s.root_disease.skip_dense = false) :
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
                                       s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
+    # The driver's CUTS-entry TREDEL (cuts!, activities due) compacted the list without a following DENSE: FVS's cycle then reads
+    # the last DENSE's PTBALT by slot (TREMOV does not move it), not this fresh recomputation over the compacted records.
+    let d = s.density
+        if d.ptbal_stale_n > 0
+            copyto!(d.point_bal, 1, d.ptbal_stale, 1, d.ptbal_stale_n); d.ptbal_stale_n = 0
+        end
+    end
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
     econ_cycle_start!(s)
@@ -952,6 +959,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    # grincr.f:305-320: CUTS, then DENSE only if a thin removed trees (ONTREM(7)>0), THEN ATAVH=AVH / ATBA=BA / ATCCF=RELDEN are
+    # saved — all BEFORE COMCUP (grincr.f:391), whose DENSE (NDEL>0, comcup.f:103-140) refreshes the common AVH/BA/RELDEN. ESTAB's
+    # REGENT(LESTB) reads the saved trio (TEMAHT/TEMBA/TEMCCF). MEASURED FVSkt_g16 196396140020004 simfire cycle 3: ATAVH 4.3969569 /
+    # ATCCF 0.31797519 (the 517-record list) vs jl 4.3966694 / 0.3178981 (the 461 records left after COMCUP dropped 56 PROB<=1E-5 stubs).
+    rem.tpa > 0f0 && compute_density!(s)
+    es_at_avh = s.plot.avg_height; es_at_ba = s.plot.basal_area; es_at_relden = s.plot.relative_density
+    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba
     # comcup.f:103-140 (identical in every variant build, called from the shared grincr.f:391): when COMCUP deletes
     # records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads fresh density for the moved records (TREMOV
     # does not carry PTBALT/PCT). AK FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into
@@ -1114,10 +1128,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # of the pre-growth all-seedling relh=1 ⇒ DADJ=0.65−DELMAX≈0.77: every crossing seedling's dubbed DBH ~0.12"
     # too small, halving the birth-cohort BA — the dominant plant-regime residual). Same #194 ATAVH class CI
     # already fixed. IE-only (only ie_esgent! consumes this trio; every other variant path is unchanged).
-    es_at_avh = s.plot.avg_height
-    es_at_ba = s.plot.basal_area
-    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba   # grincr.f:318-319 ATAVH=AVH, ATBA=BA (post-thin, pre-growth)
-    es_at_relden = s.plot.relative_density
+    # (es_at_avh / es_at_ba / es_at_relden = grincr.f:316-320 ATAVH/ATBA/ATCCF, captured right after CUTS above)
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     # IE htgf.f (317-347) recomputes each TRIPLED large-tree copy's HTG from the copy's spread DG (the
     # NI-section species); height_growth! only computed the central record's HTG, leaving the copies flat.
@@ -1613,7 +1624,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                                                     (0f0, 0f0, 0f0)
     # AK ESTAB reads BAAA/PTPAA/PRDA of the gradd.f:192 DENSE — they do not hold ESUCKR's sprouts (FVSak_g16 10709344010497
     # simfire: DENSE ITRN 396 / PTPAA 200.54 vs 432 / 210.06 at ESTAB entry; ESTOCK XTPA 200.54).
-    s.variant isa SoutheastAlaska && (_ak_es_state(s).dense_n = s.trees.n)
+    if s.variant isa SoutheastAlaska
+        ak_st = _ak_es_state(s); ak_st.dense_n = s.trees.n
+        ak_st.dense_ind1 = Int32.(_ind1_order(s))
+    end
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
