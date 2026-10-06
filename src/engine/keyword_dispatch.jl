@@ -904,6 +904,14 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     # multiplier), whereas MORTMULT etc. are (date, species, multiplier). It is also DBH-windowed.
     windowed = kind === :mort || kind === :fixdg || kind === :fixhtg || kind === :crn || kind === :fmort
     spfield, valfield = kind === :fmort ? (3, 2) : (2, 3)
+    if kind === :fmort && s.variant isa Ontario
+        # canada fire/vbase fmin.f:2549-2586 (METRIC FMORTMLT): `PRMS(1) = 1.0` is hard-wired — the multiplier field is only echoed —
+        # so the activity can never change a kill; `IF (ARRAY(4) .GE. ARRAY(5))` rejects the card (ERRGRO 4, nothing scheduled)
+        # when the DBH limits are blank/inverted (a blank upper limit is 0 there). MEASURED FVSon_tiered kwcov_on ffe_fmortmlt.
+        (Float32(v[4]) >= Float32(v[5])) && (errgro!(s, 4); return)
+        push!(s.control.multipliers, GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[3])), 1f0, 0f0, 99999f0, false))
+        return
+    end
     d1 = (windowed && pr[4]) ? Float32(v[4]) : 0f0
     # CRNMULT's upper-DBH default is 99.0, NOT "no limit": initre.f:3439 (option 96) does
     # `IF (ARRAY(5) .LE. 0.0) ARRAY(5)=99.0` before OPNEW stores it, so a blank or non-positive
