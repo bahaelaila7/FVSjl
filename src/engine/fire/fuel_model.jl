@@ -1074,7 +1074,13 @@ AFWT/SLCHNG/LATFUEL) are DEFERRED — natural stands take LATFUEL=false ⇒ AFWT
 function ie_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
     percov = s.fire.percov
     eqwt = zeros(Float32, _FMD_ICLSS)
-    idry = get(_IE_MAPDRY, Int(s.plot.habitat_code), 0)          # FMKOD → IDRY (fmcba.f MAPDRY)
+    # FMKOD = KODTYP at FMSDIT (fmsdit.f:70), and ie/kt habtyp.f end with KODTYP = MTYPE(ITYPE) (ie:147, kt:121) — the
+    # representative habitat code of the stand's ITYPE group, NOT the input code (jl kept the KT KKTYPE index 41 where the
+    # live FMKOD is 310: KT 4718785010690 fuel model 8 vs live 9). BC's KODTYP is IBEC (becset.f:1100).
+    it = Int(s.plot.habitat_input)
+    fmkod = s.variant isa Kootenai && 1 <= it <= length(KT_MTYPE) ? Int(KT_MTYPE[it]) :
+            s.variant isa InlandEmpire && 1 <= it <= length(IE_MTYPE) ? Int(IE_MTYPE[it]) : Int(s.plot.habitat_code)
+    idry = get(_IE_MAPDRY, fmkod, 0)                             # FMKOD → IDRY (fmcba.f MAPDRY)
     # Canopy-cover split: ALGSLP(PERCOV, X=[30,50], Y=[0,1]) — high-cover weight → model 9 (fmcfmd.f:61-77).
     wt9 = _fm_algslp2(percov, 30f0, 50f0, 0f0, 1f0)   # ALGSLP: Y1+((Y2-Y1)/(X2-X1))*(XX-X1) = (1/20)·(PERCOV−30), not /20
     wt_lo = 1f0 - wt9

@@ -41,4 +41,14 @@ end
     @test FVSjl.ci_adjusted_dkr(15)[10, 1] == 0.5f0             # MAPDRY(15) = 1 mesic
     @test FVSjl.ci_adjusted_dkr(57)[11, 4] == 0.002f0 * 1.33f0  # MAPDRY(57) = 2 moist
 end
+
+# KT/IE FMKOD = KODTYP = MTYPE(ITYPE) (kt/habtyp.f:121, ie/habtyp.f:147; fmsdit.f:70) feeds NIFMHAB's MAPDRY. jl passed the KT
+# KKTYPE index (41) instead of 310, so IDRY stayed 0 (model 8) where live blends 9 (PSME/SYAL, dry shrubby).
+@testset "KT/IE FMKOD = MTYPE(ITYPE) for the MAPDRY fuel-model class (kt/habtyp.f:121)" begin
+    for r in ("salvage", "simfire")
+        c = _wt2_case("KT", "4718785010690", r)
+        @test !c.crashed
+        @test isempty(_wt2_in(c.ms, ["FVS_PotFire", "FVS_BurnReport"]))
+    end
+end
 end
