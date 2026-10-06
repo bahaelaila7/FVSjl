@@ -239,11 +239,20 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             _compute_due(Int(cd), s, Int(yr), fvscyc) && (s.control.compute_vars[nm] = eval_event(ast, ctx))
         end
         for c in conds
+            if s.variant isa Ontario && _ev_has_cmp(c.cond)
+                # ON (metric build) ALGEVL: a comparison/logical IF condition reports FVS21 twice per cycle (EVMON phases 1+2) and the
+                # event never fires (see _ev_has_cmp); recorded once per IF block on the first look of each cycle.
+                if s.control.evmon_err_cycle != Int32(fvscyc)
+                    errgro!(s, 21); errgro!(s, 21)
+                end
+                continue
+            end
             eval_event(c.cond, ctx) != 0f0 || continue
             for a in c.acts
                 push!(acts, ScheduledActivity(yr, a.icflag, a.params))
             end
         end
+        s.variant isa Ontario && (s.control.evmon_err_cycle = Int32(fvscyc))
     end
     isempty(acts) && return _NO_REMOVAL
     # cuts.f:255-275 — CUTS ENTRY deletes the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"

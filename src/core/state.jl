@@ -406,6 +406,7 @@ mutable struct Control
     ext_stub_strict::Bool
     dm_block_open::Bool
     habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
+    evmon_err_cycle::Int32     # ON: the last cycle whose IF-condition ALGEVL errors (FVS21) were recorded (one pair per IF block per cycle)
     # grincr.f:74 LTRIP tests ITRN at GRINCR entry, BEFORE CUTS TREDELs the previous cycle's zero-PROB records (cuts.f:
     # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
     itrn_grincr::Int32
@@ -498,7 +499,7 @@ function Control()
         0f0,                                                     # sdical_bamax
         false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
-        String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
+        String[], false, false, false, Int32(-1),                # error_msgs, ext_stub_strict, dm_block_open, habtyp_done, evmon_err_cycle
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
         false, false,                                            # iptinv_set, nonstk_set
         true,                                                    # misflg (misin0.f:83)
