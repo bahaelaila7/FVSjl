@@ -113,7 +113,11 @@ end
 function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    t.n == 0 && return s
+    if t.n == 0
+        # em/crown.f:138 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        lstart && _em_dead_crown_dub!(s, p.basal_area, _em_rmai(s), s.control.dg_sd)
+        return s
+    end
     itype = Int(p.habitat_input); it = (1 <= itype <= 30) ? itype : 1
     crcon = EM_CRHAB[clamp(EM_CR_MAPHAB[it], 1, 14)]
     ba = p.basal_area; relden = p.relative_density
@@ -278,9 +282,15 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         icri > 95 && (icri = 95); (cmult == 1f0 && icri < 5) && (icri = 5)   # stmt 59 NIVAR, crown.f:528
         t.crown_pct[i] = Int32(icri)
     end
-    # em/crown.f:545-598 DO 79 — cycle-0 dead records: CRVAR (11,13-16,19) and LPIJU (6) take the crown-LENGTH
-    # forms with ICRI=INT(CR*100.) (truncated); everything else DUBSCR at the record's point, ICRI=INT(CR*100+.5).
-    lstart && dub_dead_crowns!(s) do i
+    lstart && _em_dead_crown_dub!(s, ba, rmai_v, dgsd)
+    return s
+end
+
+# em/crown.f:545-598 DO 79 — cycle-0 dead records: CRVAR (11,13-16,19) and LPIJU (6) take the crown-LENGTH
+# forms with ICRI=INT(CR*100.) (truncated); everything else DUBSCR at the record's point, ICRI=INT(CR*100+.5).
+function _em_dead_crown_dub!(s::StandState, ba::Float32, rmai_v::Float32, dgsd::Float32)
+    p, t = s.plot, s.trees
+    dub_dead_crowns!(s) do i
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         crvar = sp == 11 || (13 <= sp <= 16) || sp == 19
         lpiju = sp == 6

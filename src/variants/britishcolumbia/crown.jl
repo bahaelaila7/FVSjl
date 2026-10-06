@@ -57,8 +57,16 @@ SBS/SBPS) + LSTART DUBSCR (missing-crown dubbing, RNG-cornered) deferred — all
 function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0.0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    t.n == 0 && return s
     zone, series = bc_stand_zone(s)
+    if t.n == 0
+        # canada/bc/crown.f:285 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead
+        # records' crowns (DO 79, V3 CRNMD form). The V2 (LV2ATV) DUBSCR form is not ported (V2 has no crown dub at all).
+        if lstart && t.ndead > 0 && !bc_lv2atv(zone)
+            crcon, crhtdbh, crht, crdbh2, crbal, crlnccf, _ = bc_crcons!(s)
+            bc_dead_crown_dub!(s, crcon, crhtdbh, crht, crdbh2, crbal, crlnccf)
+        end
+        return s
+    end
     bc_lv2atv(zone) && return bc_v2_crown_ratio_update!(s; fint = fint, lstart = lstart)
     crcon, crhtdbh, crht, crdbh2, crbal, crlnccf, crsd = bc_crcons!(s)
     ba = p.basal_area; relden = p.relative_density

@@ -121,7 +121,11 @@ stochastic BACHLO (DGSD≥1) — RNG-cornered. Backdate P uses the current PCT (
 """
 function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, lstart::Bool = false, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    t.n == 0 && return s
+    if t.n == 0
+        # kt/crown.f:143 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        lstart && _kt_dead_crown_dub!(s)
+        return s
+    end
     itype = Int(p.habitat_input); it = (1 <= itype <= 30) ? itype : 1
     ba = p.basal_area; relden = p.relative_density
     lnba = ba > 0f0 ? flog(ba) : 0f0; lnrd = relden > 0f0 ? flog(relden) : 0f0
@@ -195,8 +199,14 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
         icri > 95 && (icri = 95); (icri < 5 && cmult == 1f0) && (icri = 5)   # label 59
         t.crown_pct[i] = Int32(icri)
     end
-    # kt/crown.f:390-406 DO 79 — cycle-0 dead-record DUBSCR(ISPC,D,H,BA,CR); kt_dubscr returns INT(CR*100+.5).
-    lstart && dub_dead_crowns!(s) do i
+    lstart && _kt_dead_crown_dub!(s)
+    return s
+end
+
+# kt/crown.f:390-406 DO 79 — cycle-0 dead-record DUBSCR(ISPC,D,H,BA,CR); kt_dubscr returns INT(CR*100+.5).
+function _kt_dead_crown_dub!(s::StandState)
+    t = s.trees
+    dub_dead_crowns!(s) do i
         kt_dubscr(Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area, s.control.dg_sd, s.rng)
     end
     return s

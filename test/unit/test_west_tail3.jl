@@ -52,3 +52,32 @@ end
         end
     end
 end
+
+# crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
+# the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
+# n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.
+# dead_<v>: the variant's busiest tiered FIA/local stand with every record HISTORY 6, crown blank, no-HT/<1" records dropped
+# (an all-dead FVSkt cwcalc SIGFPEs on a zero-height record: ALOG(H)); goldens = live oracle FVS_TreeList (before: PctCr
+# mismatches BC 1540/1540, AK 43/43, KT 527/528, BM 55/55, EM 803/814, SN 20/20, CS 59/59, LS 55/55, NE 37/37, OC 73/73, OP 71/71).
+const _W3_ALLVAR = merge(_W3_VAR, Dict("bc" => FVSjl.BritishColumbia(), "ak" => FVSjl.SoutheastAlaska(), "kt" => FVSjl.Kootenai(),
+    "bm" => FVSjl.BlueMountains(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(), "cs" => FVSjl.CentralStates(),
+    "ls" => FVSjl.LakeStates(), "ne" => FVSjl.Northeast(), "oc" => FVSjl.OregonCoast(), "op" => FVSjl.Olympic()))
+
+@testset "all-dead inventory dubs the dead crowns (crown.f GO TO 74 / DO 79)" begin
+    for v in ("bc", "ak", "kt", "bm", "em", "sn", "cs", "ls", "ne", "oc", "op")
+        dir = mktempdir(); cp(joinpath(_W3_FX, "dead_$(v).stands.db"), joinpath(dir, "stands.db"))
+        key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+               for l in readlines(joinpath(_W3_FX, "dead_$(v).key"))]
+        write(joinpath(dir, "s.key"), join(key, '\n'))
+        FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = _W3_ALLVAR[v])
+        tbl = v == "bc" ? "FVS_TreeList_Metric" : "FVS_TreeList"
+        gl = readlines(joinpath(_W3_FX, "dead_$(v).$(tbl).csv"))[2:end]
+        gold = [(parse(Int, f[1]), f[2], f[3], parse(Float64, f[4]), parse(Int, f[5])) for f in (split(l, ',') for l in gl)]
+        d = SQLite.DB(joinpath(dir, "out.db"))
+        jl = [(Int(r.Year), string(r.TreeId), string(r.SpeciesFVS), Float64(r.DBH), Int(r.PctCr))
+              for r in DBInterface.execute(d, "SELECT Year,TreeId,SpeciesFVS,DBH,PctCr FROM $tbl ORDER BY Year,TreeId,SpeciesFVS,DBH,PctCr")]
+        SQLite.close(d)
+        @test length(jl) == length(gold)
+        @test all(a[1:3] == b[1:3] && a[4] ≈ b[4] && a[5] == b[5] for (a, b) in zip(gold, jl))
+    end
+end

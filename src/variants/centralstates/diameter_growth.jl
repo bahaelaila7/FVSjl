@@ -183,19 +183,18 @@ stays the current dbh, matching crown.f). No-op if every tree already has a crow
 """
 function _cs_init_crowns!(s::StandState)
     t = s.trees; n = t.n
-    n == 0 && return s
+    if n == 0
+        # cs|ls/crown.f IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records'
+        # crowns (DO 79) with the BA = 0 DENSE leaves when ITRN = 0 (see init_crown_ratios!).
+        t.ndead > 0 && _cratet_dead_crown_dub!(s, 0f0)
+        return s
+    end
     # cratet.f:498-520 MISSCR: a missing crown on a live record OR on a cycle-0 dead record (IREC2..MAXTRE) calls CROWN.
     (any(@views t.crown_pct[1:n] .== 0) || any(@views t.crown_pct[(n + 1):(n + Int(t.ndead))] .<= 0)) || return s
     bd_ba = eastern_cratet_ba(s)       # COMMON BA of CRATET's backdated, dead-inclusive DENSE (cratet.f:168-170)
     crown_ratio_update!(s, s.variant; ba_override = bd_ba, lstart = true)
     # crown.f DO 79 (cs/ls crown.f:259-279): the cycle-0 DEAD records with a missing crown get the same TWIGS form against
     # the same COMMON BA, CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))), ICRI = INT(CR+.5) (+ top-kill, [10,95]).
-    sd = s.coef.species
-    dub_dead_crowns!(s) do i
-        sp = t.species[i]
-        den = 1f0 + sd[:crown_bcr2][sp] * bd_ba
-        cr = 10f0 * (sd[:crown_bcr1][sp] / den + sd[:crown_bcr3][sp] * (1f0 - fexp(sd[:crown_bcr4][sp] * t.dbh[i])))
-        trunc(Int, cr + 0.5f0)
-    end
+    _cratet_dead_crown_dub!(s, bd_ba)
     return s
 end
