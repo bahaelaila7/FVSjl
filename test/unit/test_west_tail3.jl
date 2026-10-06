@@ -108,6 +108,16 @@ end
     end
 end
 
+# canada/bc/regent.f:1349 BAL=(1-PCT(I)/100)*BAJ with PCT=0 for ESTAB's new records (the post-ESTAB DENSE sets it later). jl read the
+# new records' stale percentile: BAL 0.98792 vs live 0.99426961 (instrumented regent.f SUB trace), HTGR1 3e-6 low => QMD/ATQMD (BC 4 cells).
+@testset "BC REGENT(LESTB) BAL uses PCT=0 for the new records (canada/bc/regent.f:1349)" begin
+    for r in ("plant_cal", "plant_cyc")
+        c = _w3_case("BC", "SkyRanch-0.3m", r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 # crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` (every variant): a stand whose inventory is ALL dead records still dubs
 # the dead records' crowns (DO 79; the DUBSCR/BACHLO draws are consumed, the projection's RNG stays in step). jl returned early at
 # n == 0 in KT/AK/BC/BM/EM/OC/OP (PctCr 0 on every record) and, for SN/CS/LS/NE, its CRATET init returned at n == 0.
