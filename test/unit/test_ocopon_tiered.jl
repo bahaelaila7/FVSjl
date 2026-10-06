@@ -354,4 +354,12 @@ end
     end
 end
 
+# OP REGENT small-tree DG (op/regent.f:389 then :439): DG(K)=DGR*SCALE*WK4(I) first, THEN DG(K)=DG(K)*BARK*XRDGRO — jl multiplied BARK before the climate
+# WK4 (dg5*bark*wk4): 1 ULP (OP 15072502010497 climate, one regenerated tree DBH 3.8212953 live vs 3.8212955 ⇒ QMD 2020/2025).
+@testset "OP REGENT DG = ((DGR*SCALE)*WK4)*BARK (op/regent.f:389,439)" begin
+    c = _case("OP", "15072502010497", "climate")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module
