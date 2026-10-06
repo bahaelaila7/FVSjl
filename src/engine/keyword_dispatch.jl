@@ -156,7 +156,7 @@ function kw_nohtdreg!(s::StandState, rec::KeywordRecord)
     invoke = length(rec.present) >= 2 && rec.present[2] && Float32(rec.values[2]) > 0f0
     spfield = strip(rec.fields[1]); num = tryparse(Int, spfield)
     setflag(sp) = (1 <= sp <= length(s.control.ht_drag_sp)) && (s.control.ht_drag_sp[sp] = invoke)
-    if isempty(spfield) || spfield == "0"
+    if isempty(spfield) || spfield == "0" || _spf_all(spfield)
         fill!(s.control.ht_drag_sp, invoke)                 # all species
     elseif num !== nothing && num < 0                       # species group −N
         g = -num
@@ -321,7 +321,7 @@ so `calibrate_diameter_growth!` skips the COR fit (the species uses its uncalibr
 """
 function kw_nocalib!(s::StandState, rec::KeywordRecord)
     spfield = strip(rec.fields[1]); num = tryparse(Int, spfield)
-    if isempty(spfield) || spfield == "0"
+    if isempty(spfield) || spfield == "0" || _spf_all(spfield)
         fill!(s.control.dg_calib_sp, false)                 # all species
     elseif num !== nothing && num < 0                       # species group −N
         g = -num
@@ -511,7 +511,7 @@ function kw_sdimax!(s::StandState, rec::KeywordRecord)
         # NOT an FIA/alpha code. Parse as FLOAT (the field is written "19.0") then round — using tryparse(Int)
         # missed "19.0" (⇒ nothing), and resolve_species mis-read "19" as FIA-19→wrong species. Parsing the
         # float value ALSO makes the .key ("27") and yaml-roundtrip ("27.0") paths resolve identically.
-        numf = tryparse(Float64, spfield)
+        numf = _spf_num(spfield)
         num  = numf === nothing ? nothing : round(Int, numf)
         targets = Int[]
         if isempty(spfield) || num == 0
@@ -792,9 +792,15 @@ end
 
 # Decode a species keyword field into the `sp_field_matches` selector: 0 = all, −g = SPGROUP
 # group g, or the resolved 1-based species index. (Mirrors SPDECD's IS for a single field.)
+# SPDECD (spdecd.f:20-60): a species field whose alpha text is "ALL" (or blank/0) means ALL species (ISP=0), exactly like a
+# numeric 0. resolve_species("ALL") instead crosswalks the unknown code to the variant's "other" species, so every
+# per-species keyword handler that fell through to it applied the keyword to ONE unrelated species (or none).
+_spf_all(f::AbstractString) = uppercase(strip(f)) == "ALL"
+_spf_num(f::AbstractString) = _spf_all(f) ? 0.0 : tryparse(Float64, f)
+
 function species_selector(s::StandState, spfield::AbstractString)::Int
     f = strip(spfield)
-    isempty(f) && return 0
+    (isempty(f) || _spf_all(f)) && return 0
     # SPDECD (spdecd.f:34-114): ISP = IFIX(ARRAY(IPOS)) — a NUMERIC species field is decoded by its
     # numeric value, NOT by an alpha/FIA/PLANTS string match: negative = species GROUP code; 0 = ALL
     # (or alpha code in KARD); a positive integer 1..MAXSP is the species SEQUENCE INDEX directly
@@ -983,7 +989,7 @@ function kw_mistpinf!(s::StandState, rec::KeywordRecord)
     yr = pr[1] ? Int32(nint(v[1])) : Int32(1)                         # blank date ⇒ IDT=1
     # --- species field (SPDECD): 0/blank/"ALL"/"0" ⇒ all hosts; numeric ⇒ sequence index; alpha ⇒ resolve.
     spf = length(rec.fields) >= 2 ? strip(rec.fields[2]) : ""
-    numf = tryparse(Float64, spf)
+    numf = _spf_num(spf)
     num  = numf === nothing ? nothing : round(Int, numf)
     sp = if isempty(spf) || uppercase(spf) == "ALL" || num == 0
         Int32(0)
@@ -1450,7 +1456,7 @@ function _set_form!(s::StandState, b0::Vector{Float32}, b1::Vector{Float32}, rec
         (1 <= sp <= length(b0)) || return
         has0 && (b0[sp] = v0); has1 && (b1[sp] = v1)
     end
-    fnum = tryparse(Float64, spfield)        # numeric species field (may be "0." / "-1")
+    fnum = _spf_num(spfield)        # numeric species field (may be "0." / "-1")
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0                          # SPDECD IS=0 ⇒ all species
@@ -2274,7 +2280,7 @@ function _snagfall!(s::StandState, rec::KeywordRecord)
         has_fx && (p.snag_fallx_ovr[Int32(sp)] = fx)
         has_ad && (p.snag_alldwn_ovr[Int32(sp)] = ad)
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0                                    # SPDECD IS=0 ⇒ all species
@@ -2307,7 +2313,7 @@ function _snagdcay!(s::StandState, rec::KeywordRecord)
         (1 <= sp <= length(s.species.class_codes[:, 1])) || return
         p.snag_decayx_ovr[Int32(sp)] = dx
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0
@@ -2352,7 +2358,7 @@ function _snagbrk!(s::StandState, rec::KeywordRecord)
         (1 <= sp <= length(s.species.class_codes[:, 1])) || return
         p.snag_htx[Int32(sp)] = htx
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0
