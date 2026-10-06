@@ -248,7 +248,7 @@ end
 @testset "OC FFE: pre-growth FMOLDC, snag height loss HTX/HTR1, crown TFALL (oc/fmvinit.f, fmoldc.f, fmsdit.f)" begin
     c = _case("OC", "30193600010497", "simfire")
     @test _n(c.ms; file = "FVS_Carbon") == 0
-    @test _n(c.ms; file = "FVS_PotFire", before = 2028) == 0
+    @test isempty(c.ms)                                  # incl. FVS_PotFire 2028 Fuel_Mod1 5 (CWHR on the stored CRWDTH, oc/fmcfmd.f)
     @test FVSjl._fm_tfall_table(FVSjl.OregonCoast())[18, 1:6] == Float32[3, 10, 10, 10, 10, 10]
 end
 
