@@ -982,10 +982,26 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
     end
-    area <= csdi && return _NO_REMOVAL
-    remove = area - csdi
-    cuteff = remove / area
-    cuteff > 1f0 && (cuteff = 1f0)
+    # cuts.f:846-884: CCC = CCCOEF (CCCOEF2 when set) — 1 by default (grinit.f), but canada/on/grinit.f never sets it, so ON runs with CCC=0:
+    # CCCSDI = ALOG(1-CCT/100)/(CCC/100)*(-1) = +Inf, CRADIF = Inf, `SDIC+CRADIF > CSDI` holds, ICFLAG=11 with CCC<1 ⇒ RSTOCK = CSDI+CRADIF = Inf,
+    # REMOVE = SDIC-Inf = -Inf ⇒ no tree is ever cut (MEASURED FVSon_tiered DEBUG CUTS kwcov_on thincc: CCCOEF 0, CRADIF Infinity, RTPA 0).
+    if csdi > 0f0
+        ccc = 1f0
+        s.control.cc_coef != 1f0 && (ccc = s.control.cc_coef)
+        s.control.cc_coef2 != 1f0 && (ccc = s.control.cc_coef2)
+        cct = 100f0 * (1f0 - exp(-0.01f0 * (100f0 * csdi * 0.785398f0 / 43560f0)))
+        cccsdi = (log(1f0 + (-cct / 100f0)) / (ccc / 100f0)) * (-1f0)
+        cradif = abs((((cccsdi / 100f0) / 0.785398f0) * 43560f0) - csdi)
+        (area + cradif) > csdi || return _NO_REMOVAL
+        rstock = ccc < 1f0 ? csdi + cradif : ccc > 1f0 ? csdi - cradif : csdi
+        remove = area - rstock
+        remove > 0f0 || return _NO_REMOVAL
+        cuteff = remove / area
+        cuteff > 1f0 && (cuteff = 1f0)
+    else                                                # cuts.f:911-933 CSDI ≤ 0: REMOVE = SDIC, CUTEFF = 1
+        area > 0f0 || return _NO_REMOVAL
+        remove = area; cuteff = 1f0
+    end
 
     ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _rmc!(i, prem)
@@ -1011,6 +1027,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -1027,7 +1044,6 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
                 cut_v = prem * w
             end
             totcut += cut_v
-        ord = order
             _rmc!(it, prem)
         end
     end
