@@ -466,7 +466,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # DG_MEASURE measurement period (dbsstandin.f:701), else grinit's default — as cover_fint above. BC only for now:
             # its growth_fint carries grinit's FINT=10; most other western variants' growth_fint still defaults to 5.
             # MEASURED FVSbc_dbfix YSM029-250 (DG_Measure 6) mistletoe 2018 Mort_TPH 7 live / 12 jl with the 10-yr cycle.
-            (c == 0 && s.variant isa BritishColumbia) && (perdm = s.control.growth_fint)
+            (c == 0 && (s.variant isa BritishColumbia || s.variant isa OregonCoast || s.variant isa Olympic)) &&
+                (perdm = s.control.growth_fint)   # OC/OP: DG_MEASURE=10 from the FIA stand table (dbsstandin.f:701), MEASURED FVSoc_tiered 645182389126144 MISMRT FINT 10.00 at ICYC 0
             push!(dm_collect, (Int(r.year),
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end

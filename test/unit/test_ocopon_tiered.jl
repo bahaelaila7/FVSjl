@@ -362,4 +362,13 @@ end
     @test isempty(c.ms)
 end
 
+# FVS_DM_* inventory-year row (misprt.f MISPRT at ICYC=0, fvs.f:338): MISMRT(.FALSE.) projects with the COMMON FINT, which at that point is the
+# stand table's DG_MEASURE (dbsstandin.f:701, FIA stands carry 10), not the 5-year cycle length: MEASURED FVSoc_tiered 645182389126144 mistletoe
+# MISMRT `Begin MISMRT: Cycle 0, FINT 10.00`; Mort_TPA 2 / Mort_BA 5 / Mort_Vol 182 live vs 1/2/93 (DMMORT^(FINT/10) with FINT 5). BC did this already.
+@testset "OC/OP DM inventory row projects MISMRT with DG_MEASURE (misprt.f, dbsstandin.f:701)" begin
+    c = _case("OC", "645182389126144", "mistletoe")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module
