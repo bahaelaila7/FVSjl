@@ -14,7 +14,9 @@ FX(v) = joinpath(@__DIR__, "..", "fixtures", "tiered_ti10", lowercase(v))   # st
 const CASES = [
     ("OC", "24061836010900", "none"),
     ("OC", "41133570010497", "none"),
-    ("OC", "645142535126144", "none")
+    ("OC", "645142535126144", "none"),
+    ("OC", "24061836010900", "thinbba"),
+    ("OC", "645182389126144", "thinbba")
 ]
 
 @testset "OC/OP TIMEINT 10 vs live: $v $cn $r" for (v, cn, r) in CASES
