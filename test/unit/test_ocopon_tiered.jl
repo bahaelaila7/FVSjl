@@ -305,4 +305,13 @@ end
     end
 end
 
+# HTGRO2 (minor ORGANON species): `PDBH=DBH-GROWTH(K,2)` is taken from the already-updated DBH, so the "previous" DBH fed to HD_SWO/HD_NWO is
+# (dbh+dg)-dg, 1 ULP off the stored start DBH (OC 645182389126144 CY 2033->2038: PDBH 7.977936745 live vs 7.977937222 jl ⇒ PRDHT1 43.82196045
+# vs 43.82197952 ⇒ HtG 1.0444946 vs 1.0444717). jl passed the stored start DBH.
+@testset "ORGANON HTGRO2 PDBH = DBH - DG (htgrowth.f HTGRO2)" begin
+    c = _case("OC", "645182389126144", "none")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module

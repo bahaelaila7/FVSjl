@@ -515,7 +515,8 @@ htgrowth.f:241-255) takes the H40 increment RAH40(GEARA+5)−RAH40(GEARA), GEARA
         return oc_rah40(geara + 5.0f0, rasi) - oc_rah40(geara, rasi)
     end
     dbh_end = dbh_start + dgro
-    prdht1 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_start) - 4.5f0)
+    pdbh = dbh_end - dgro          # htgrowth.f HTGRO2 `PDBH=DBH-GROWTH(K,2)` on the already-updated DBH (not the stored start DBH)
+    prdht1 = 4.5f0 + calib1*(op_hd_nwo(g, pdbh) - 4.5f0)
     prdht2 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_end) - 4.5f0)
     return (prdht2/prdht1)*ht - ht
 end
