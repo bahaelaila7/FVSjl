@@ -136,4 +136,29 @@ end
         @test isempty(c.ms)
     end
 end
+
+# estab.f GENTIM is a SAVEd local that each plot's PLANT block resets (:1053-1058, FINT-DELAY<5 ? 0 : FINT-DELAY-5) AFTER that
+# plot's natural ESADVH/ESSUBH/ESXCSH section; plot n>1's natural regen reads the value the previous plot left. A mid-cycle PLANT
+# (here 2017 in the 2012-2022 cycle, DELAY 5 => GENTIM 0) therefore gives the NATURAL records WK4=STOMLT=min(TRAGE,0)/1E-4=0
+# (live: Ht 1.2, HtG 0, DBH 0.1012). jl kept FINT-5 for every plot (WK4 0.6): HtG 0.99, DBH 0.102 on 52 records and the stand
+# drifting afterwards. FIA EM 196378260020004, NOAUTOES + PLANT 2017 7 300, goldens = live FVSem_g16 (FVS_TreeList/FVS_Summary).
+@testset "estab.f PLANT-reset GENTIM reaches later plots' natural regen (EM NOAUTOES + mid-cycle PLANT)" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "west_tail")
+    dir = mktempdir(); cp(joinpath(@__DIR__, "..", "fixtures", "tiered", "em", "stands.db"), joinpath(dir, "stands.db"))
+    key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+           for l in readlines(joinpath(fx, "em_noautoes_plant2017.key"))]
+    write(joinpath(dir, "s.key"), join(key, '\n'))
+    FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = FVSjl.EasternMontana())
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    gl = readlines(joinpath(fx, "em_noautoes_plant2017.FVS_TreeList.csv")); hdr = split(gl[1], ',')
+    ix(n) = findfirst(==(n), hdr)
+    f32(x) = Float32(parse(Float64, x))
+    gold = sort([(split(l, ',')[ix("Year")], split(l, ',')[ix("TreeId")], split(l, ',')[ix("SpeciesFVS")],
+                  f32(split(l, ',')[ix("DBH")]), f32(split(l, ',')[ix("Ht")]), f32(split(l, ',')[ix("HtG")]), f32(split(l, ',')[ix("TPA")]))
+                 for l in gl[2:end]])
+    jl = sort([(string(r.Year), string(r.TreeId), string(r.SpeciesFVS), Float32(r.DBH), Float32(r.Ht), Float32(r.HtG), Float32(r.TPA))
+               for r in DBInterface.execute(db, "SELECT Year,TreeId,SpeciesFVS,DBH,Ht,HtG,TPA FROM FVS_TreeList")])
+    SQLite.close(db)
+    @test gold == jl
+end
 end

@@ -845,7 +845,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          ph_dilate_out::Union{Nothing,Vector{Float32}} = nothing, # DILATE of each PLANT tree (plot-major)
                          ph_note_out::Union{Nothing,Vector{Int}} = nothing,      # NBEST NOTE of each PLANT tree (plot-major, estab.f:1386)
                          ph_height = nothing,   # (n, dils) -> this plot's PLANT/NATURAL heights (estab.f DO 322)
-                         ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
+                         ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true, gentim_plot = nothing,
                          point_baa::AbstractVector = Float32[],
                          over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
                          plant_sp::AbstractVector = Int[],
@@ -1033,6 +1033,10 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     _nph = length(_ph_sp)
     _ph_ht = zeros(Float32, _nph)
     for (n, sd) in enumerate(seeds)
+        # GENTIM is a SAVEd estab.f local that each plot's PLANT block (DO 322, :1053-1058) resets AFTER that plot's natural
+        # ESADVH/ESSUBH/ESXCSH section: plot n's natural regen (WK4=STOMLT=min(TRAGE,GENTIM)/(GENTIM+1E-4), AGADSB/AGEXC) sees the
+        # value the previous plot's last PLANT left (0 for a mid-cycle PLANT 5+ yr in), not FINT-5.
+        gentim_plot === nothing || (gtim = Float32(gentim_plot(n)))
         rng = IEEstabRNG(sd)
         if n == 1
             if prep_active                                                   # capture the DUPNPT WK6 site-prep draws
@@ -1777,7 +1781,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
                        over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
                        gentim::Real = 5f0, call_espadv::Bool = true,
-                       plant_sp::AbstractVector = Int[], cont_ppba::Bool = false, ph_height = nothing,
+                       plant_sp::AbstractVector = Int[], cont_ppba::Bool = false, ph_height = nothing, gentim_plot = nothing,
                        time_h::Real = -1,
                        ipprep_in::AbstractVector = Int[],
                        ipprep_out::Union{Nothing,Vector{Int32}} = nothing,
@@ -1972,7 +1976,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
                             prob1_prep = prob1_prep, is_ie = _estb, pasmax = pasmax, prob1_pt = prob1_pt,
                             emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, emit_abirth = emit_abirth, ph_dilate_out = ph_dil, ph_note_out = ph_note, time_h = time_h, ph_height = ph_height,
-                            ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
+                            ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv, gentim_plot = gentim_plot,
                             # Per-point species tables (ESPADV/ESPSUB/ESPXCS run per inventory point with THAT point's
                             # post-growth BAAA(NNID) and OVER(·,NNID), estab.f) — every tally type, like the PROB1.
                             point_baa = point_ba,
@@ -2669,6 +2673,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # fresh disturbance (NTALLY=1) AND the ingrowth path (NTALLY 99→INGRO=1,NTALLY=1, estab.f:256);
                       # false only for a continuation (NTALLY≥2) ⇒ PADV=0 ⇒ all-subsequent.
                       gentim = max(fint - 5f0, 0f0), call_espadv = (is_ingro || _ntally == 1),
+                      gentim_plot = isempty(_plant_acts) ? nothing : (n -> estb_plant_gentim(s, _plant_acts, 1, n, per, year)),
                       plant_sp = _plant_sp,
                       # estab.f:792 TIME=FLOKDT−KDTOLD: a continuation keeps the previous call's KDTOLD=KDT (:1654);
                       # a first/ingrowth tally resets it via label 44 (⇒ the tally time, passed as −1 = `time`).
