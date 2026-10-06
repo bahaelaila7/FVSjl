@@ -514,7 +514,6 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     cuteff = min(eff_cap, remove / cstock)
 
     # removed totals (per-acre, gross): Σ prem·{1, CFV, MCFV, SCFV, BFV}
-    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
     @inbounds for i in 1:n
         _cut_eligible(s, i, ispcut, dlo, dhi, hlo, hhi, grps) || continue
@@ -530,15 +529,8 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa += prem; rcuft += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i]; rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
     end
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]                               # residual replaces PROB
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, 1:n, wk4)                # cuts.f DO 1700 (LSPECL ⇒ IND2 = identity): residual rule + ESTUMP + totals
 end
 
 # THINPRSC (cuts.f label_300 → label_550 lspecl path, ICFLAG 7): "prescription" thin.
@@ -720,14 +712,10 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
     cuteff = remove / sdic
     cuteff > 1f0 && (cuteff = 1f0)
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _remove!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -751,6 +739,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -770,10 +759,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINRDEN (cuts.f label_400, ICFLAG 14): thin to a residual Curtis relative density.
@@ -822,14 +808,10 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
     cuteff = remove / crd
     cuteff > 1f0 && (cuteff = 1f0)
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _rm!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -850,6 +832,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
         econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
+        ord = order
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -870,10 +853,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINAUTO (cuts.f label_150, ICFLAG 1): automatic thinning to a normal-stocking target.
@@ -1007,14 +987,10 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     cuteff = remove / area
     cuteff > 1f0 && (cuteff = 1f0)
 
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    ord = icut == 0 ? Int32.(1:n) : Int32[]            # IND2 of the cuts.f DO 1700 pass: identity (LSPECL) / the sorted order below
     @inline function _rmc!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -1051,14 +1027,12 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
                 cut_v = prem * w
             end
             totcut += cut_v
+        ord = order
             _rmc!(it, prem)
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, ord, wk4)
 end
 
 # THINQFA (cuts.f label_350, ICFLAG 17): Q-factor diameter-distribution thin. Ported from
@@ -1221,7 +1195,6 @@ function _thin_pt_linear!(s::StandState, act::ScheduledActivity, pt_point::Int32
     end
     elig(i, jp) = t.plot_id[i] == jp && _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)
     wk4 = Float32[t.tpa[i] for i in 1:n]
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
     for jp in points
         sdic = 0f0
         @inbounds for i in sorder
@@ -1269,16 +1242,9 @@ function _thin_pt_linear!(s::StandState, act::ScheduledActivity, pt_point::Int32
             end
             totcut += cut
             wk4[it] -= prem
-            _log_cut!(s, t, it, prem)                    # ESTUMP
-            rtpa  += prem;                          rcuft  += prem * t.cuft_vol[it]
-            rmcuft += prem * t.merch_cuft_vol[it];  rscuft += prem * t.saw_cuft_vol[it]
-            rbdft += prem * t.bdft_vol[it]
         end
     end
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, order, wk4)               # cuts.f DO 1700 over IND2 (`order`: identity for LSPECL, else the sorted list)
 end
 
 function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnpa::Int32)
@@ -1330,14 +1296,9 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         gorder = Vector{Int32}(undef, n); _rdpsrt!(gkey, gorder)
         econ_cut_order!(s, gorder)
     end
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
     @inline function _rmp!(i, prem)
         prem <= 0f0 && return
         wk4[i] -= prem
-        _log_cut!(s, t, i, prem)             # ESTUMP
-        rtpa  += prem;                          rcuft  += prem * t.cuft_vol[i]
-        rmcuft += prem * t.merch_cuft_vol[i];   rscuft += prem * t.saw_cuft_vol[i]
-        rbdft += prem * t.bdft_vol[i]
         return
     end
 
@@ -1398,10 +1359,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         end
     end
 
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
-    end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, dir != 0 ? gorder : Int32.(1:n), wk4)   # cuts.f DO 1700 over IND2 (the full-list RDPSRT order when ICUT>0)
 end
 
 
