@@ -356,7 +356,7 @@ const _FM_NZERO = 0.01f0    # NZERO: snag density treated as zero; DZERO = NZERO
 # TVOLI = FMSVL2(…,'D') at (DIAM, HTD), no top-kill (`_fm_tvoli`). One routine for every variant (fmcwd.f is shared).
 function _fm_cwd_split!(s::StandState, sp::Int, dbh::Float32, htd::Float32, dis::Float32, dih::Float32,
                         hiht_s::Float32, hiht_h::Float32, loht_s::Float32, loht_h::Float32;
-                        tvoli::Float32 = max(0.005454154f0 * htd, _fm_tvoli(s, sp, dbh, htd)))
+                        tvoli::Float32 = _fm_tvoli_floor(s, sp, dbh, htd))
     (dis + dih) <= 0f0 && return
     diam = dbh <= 0.1f0 ? 0.1f0 : dbh
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * diam)
@@ -388,6 +388,11 @@ end
 
 # FMSVL2(SP,D,H,-1,VOL,0,'D',.FALSE.) — the fallen/cut stem's volume with no top-kill: the variant's NATCRS TCF on the
 # western layer (AK its NVEL F32/DVE/CUR/DEM, `ak_tree_vol`), else the snag-bole cubic of `_snag_merch_cuft_on`.
+# FMSVL2's tail `VOL2HT = MAX(X, TCF)`, X = 0.005454154·H (fmsvol.f cone floor): the TVOLI of every CWD1/CWD2 split. canada/fire/bc/fmsvol.f
+# has no such floor — FMSVL2('D') of a 0.23" D / 2.07 ft BC snag is 0 live (private FVSbc_dbfix fmcwd.f trace, SkyRanch-2.0m simfire
+# 2029: TVOLI 0, 0, 8.4E-4, 0.1806 for the first four snags; the floor gave 0.0113, 0.0178, 0.0252 cuft/tree of extra down wood).
+_fm_tvoli_floor(s::StandState, sp::Int, d::Float32, h::Float32)::Float32 =
+    s.variant isa BritishColumbia ? _fm_tvoli(s, sp, d, h) : max(0.005454154f0 * h, _fm_tvoli(s, sp, d, h))
 _fm_tvoli(s::StandState, sp::Int, d::Float32, h::Float32)::Float32 =
     s.variant isa SoutheastAlaska ? ak_tree_vol(s, sp, d, h)[1] :
     _ffe_west_vol(s.variant) ? ffe_west_nocut(s, sp, d, h)[1] : _snag_merch_cuft_on(s, sp, d, h)
@@ -546,7 +551,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # FMSVL2('D') recomputed on (DBHS, HTDEAD) as FVS does — for every variant (_fm_tvoli), not the stored fall bole.
             if sn.height[i] > 0f0
                 _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
-                               tvoli = max(0.005454154f0 * sn.height[i], _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])))
+                               tvoli = _fm_tvoli_floor(s, Int(sp), sn.dbh[i], sn.height[i]))
             else    # jl-only: a snag with no recorded height (bare add_snag!) books its bole into the DBH class
                 kd = _cwd_size_class(sn.dbh[i])
                 fs.cwd[kd, 2, idc] += a * dfih; fs.cwd[kd, 1, idc] += a * dfis * 0.80f0
@@ -1048,8 +1053,7 @@ function _fmsalv!(s::StandState)::Bool
             if sn.height[i] > 0f0                                                              # CWD1(I, DIH, DIS)
                 _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
                                sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
-                               tvoli = west ? max(0.005454154f0 * sn.height[i],
-                                                  _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i])) : ihardv + isoftv - (sn.den_soft[i] + cutdis > 0f0 && sn.den_hard[i] + cutdih > 0f0 ? ihardv : 0f0))
+                               tvoli = west ? _fm_tvoli_floor(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i]) : ihardv + isoftv - (sn.den_soft[i] + cutdis > 0f0 && sn.den_hard[i] + cutdih > 0f0 ? ihardv : 0f0))
             end
             fs.tonrms = fs.tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
             fired = true

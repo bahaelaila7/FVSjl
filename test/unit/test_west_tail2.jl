@@ -124,4 +124,16 @@ end
     SQLite.close(db)
     @test gold == jl
 end
+
+# FMSVL2's tail `VOL2HT = MAX(0.005454154·H, TCF)` is absent from canada/fire/bc/fmsvol.f: TVOLI of a tiny BC snag is 0 (private
+# FVSbc_dbfix fmcwd.f trace, SkyRanch-2.0m 2029: 0, 0, 8.4E-4, 0.1806) where jl's floor gave 0.011-0.025 cuft/tree of extra down wood
+# in every CWD1/CWD2 split: post-fire Forest_Down_Dead_Wood 2039 1.379 vs live 0.979.
+@testset "BC FMCWD TVOLI has no cone floor (canada/fire/bc/fmsvol.f)" begin
+    for (cn, r) in (("SkyRanch-2.0m", "simfire"), ("SkyRanch-Control", "simfire"), ("SkyRanch-Control", "salvage"),
+                    ("SkyRanch-2.0m", "salvage"))
+        c = _wt2_case("BC", cn, r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
 end
