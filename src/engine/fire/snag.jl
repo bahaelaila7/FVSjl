@@ -841,7 +841,7 @@ function snag_detail(s::StandState)
         sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d)
         htih = sn.htcur[i]; htis = sn.htcur_soft[i]
         # FMSVOL(II, HTIS|HTIH) (fmsout.f:122-133): each pool at its own current height
-        vol_at(h) = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :
+        vol_at(h) = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h; always = true) :
                     _snag_east_vol(s.variant) ? ffe_east_snag_vol_at(s, sp, d, sn.height[i], h) :
                     _snag_merch_cuft_on(s, sp, d, h)
         ishard = _snag_hard_flag(s, i, iyr)              # HARD(II) (fmsout.f:135; same flip as snag_summary)
