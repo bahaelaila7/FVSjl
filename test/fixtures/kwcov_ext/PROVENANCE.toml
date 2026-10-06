@@ -1,0 +1,11 @@
+# kwcov_ext goldens — LIVE oracles: stock-flag private rebuilds (ORACLE_SOURCE_AUDIT §9)
+date = "2026-10-06"
+oracle_cs = "/workspace/.cswork/tiered/FVScs_tiered"
+sha256_cs = "b87bb3ed543c2325bcc5434063190b319a1fb678aa372fe8a9e19322d64b9741"
+oracle_ls = "/workspace/.lswork/tiered/FVSls_tiered"
+sha256_ls = "76c265f67010dd158854fd0f44d2c5d530f207cebb73d653dac785099fd8a880"
+oracle_ne = "/workspace/.nework/tiered/FVSne_tiered"
+sha256_ne = "11992af80e01e727a75c9bc869757f9fa8df50e408f9227cd51ade3cf7655588"
+oracle_on = "/workspace/.onwork/tiered/FVSon_tiered"
+sha256_on = "f96b841103424efafa48ee6ac83551130210f4d929b8dea840237f0606142fd5"
+command = "cd <dir> && FVS<v>_tiered --keywordfile=<stem>.key  (generator: test/harness/kwcov_ext/make_cases.jl)"

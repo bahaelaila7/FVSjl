@@ -4,7 +4,8 @@
 include(joinpath(@__DIR__, "..", "tiered", "tiered_runner.jl"))
 
 const KCASE_ROOTS = Dict("ffe" => normpath(joinpath(@__DIR__, "..", "..", "fixtures", "kwcov_ffe")),
-                         "on"  => normpath(joinpath(@__DIR__, "..", "..", "fixtures", "kwcov_on")))
+                         "on"  => normpath(joinpath(@__DIR__, "..", "..", "fixtures", "kwcov_on")),
+                         "ext" => normpath(joinpath(@__DIR__, "..", "..", "fixtures", "kwcov_ext")))
 
 "Stems (without .key) under <root>/<v>/ that have a live golden."
 kcase_stems(root, v) = sort([f[1:end-4] for f in readdir(joinpath(root, v)) if endswith(f, ".key") &&
