@@ -61,4 +61,15 @@ end
     @test !c.crashed
     @test isempty(_wt2_in(c.ms, ["FVS_Summary", "sum", "FVS_Carbon", "FVS_Fuels", "FVS_SnagSum"]))
 end
+
+# CR MISTPINF on a stand with no infected tree: mistoe.f:193 clears DMFLAG each MISTOE call, misinf.f:182 sets it, and MISPRT
+# (misprt.f:265-393) prints the cycle's zero-infection row (one FVS_DM_Stnd_Sum row, an empty FVS_DM_Spp_Sum table).
+# jl's CR path never set DMFLAG and the report gate excluded CR: both tables were missing (5 CR stands, 10 PRESENCE cells).
+@testset "CR MISTPINF zero-infection DM report (mistoe.f:193/267, misinf.f:182, misprt.f)" begin
+    for cn in ("2463020010690", "3026069010690")
+        c = _wt2_case("CR", cn, "mistletoe")
+        @test !c.crashed
+        @test isempty(_wt2_in(c.ms, ["FVS_DM_Stnd_Sum", "FVS_DM_Spp_Sum"]))
+    end
+end
 end
