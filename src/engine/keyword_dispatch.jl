@@ -2494,7 +2494,9 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
             end
-        elseif s.variant isa Klamath
+        elseif s.variant isa Klamath || s.variant isa OregonCoast
+            # oc/fmvinit.f:481-490 (same block): HTX(I,1)=HTX(I,3)=1.0, HTX(I,2)=HTX(I,4)=0.0 for every species (OC HTR1 0.03406,
+            # HTR2 0.01, HTXSFT 10; MEASURED FVSoc_tiered 30193600010497 2018 FMDOUT: the 2013 fire snags 48.9 -> 41.1 ft live).
             # nc/fmvinit.f:278-283: HTX(I,1)=HTX(I,3)=1.0, HTX(I,2)=HTX(I,4)=0.0 for every species (HTR1 0.03406,
             # HTR2 0.01, HTXSFT 10): snags lose height at HTR1 until 50% of HTD, then stop (FMSNGHT CASE DEFAULT).
             # MEASURED FVSnc_g16 23660512010900 simfire FVS_SnagDet 2011: the 2006 fire snags 44.11→37.09 ft live; jl held them.
