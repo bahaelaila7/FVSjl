@@ -252,4 +252,14 @@ end
     @test FVSjl._fm_tfall_table(FVSjl.OregonCoast())[18, 1:6] == Float32[3, 10, 10, 10, 10, 10]
 end
 
+# OP snag decay: op/fmvinit.f sets DECAYX(I)=1.0 for every species (MEASURED FVSop_tiered FMDOUT dump, all 39); the OP fire_species_props.csv
+# carried the OC value 999 ("hard snags never soften") ⇒ FMSNGDK DKTIME = JYRSOFT·DECAYX = 21·999, so TSOFT never bounded a fire snag's
+# crown fall (FMSCRO: RLIFE = MIN(TFALL, TSOFT); live LP D5.1 TSOFT 11 ⇒ ILIFE 11, jl 15) ⇒ CWD2B size-3 class 2 29.18 live vs 33.64 lb.
+@testset "OP DECAYX = 1.0 (op/fmvinit.f): fire-snag crown fall bounded by TSOFT" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", col = "Standing_Dead", before = 2022) == 0
+    @test _n(c.ms; file = "FVS_Carbon", col = "Forest_Down_Dead_Wood") == 0
+    @test _n(c.ms; file = "FVS_PotFire", before = 2017) == 0
+end
+
 end # module
