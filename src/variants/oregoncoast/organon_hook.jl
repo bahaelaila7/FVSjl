@@ -170,6 +170,10 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         end
         t.diam_growth[i] = dg
         t.dbh[i] = dbh_direct === nothing ? d0 + dg/bark : dbh_direct     # update.f:115 DBH=DBH+DG/BRATIO
+        # REGENT (oc/regent.f:285-345) writes DBH(K) itself for a tree with D < DGMIN BEFORE MORTS/FMMAIN run (the rest of the growth
+        # is applied at UPDATE), so the pre-UPDATE DBH those passes read is that value, not the start-of-cycle one: MEASURED FVSoc_tiered
+        # 15148784010497 plant_cyc cycle 3 MORTS ES014 D=0.10667 (REGENT) vs start 0.10261 ⇒ TOKILL 7.696978 vs 7.696754.
+        dbh_direct === nothing || (dbh0[i] = dbh_direct)
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
         # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).
         t.norm_ht[i] > 0 &&

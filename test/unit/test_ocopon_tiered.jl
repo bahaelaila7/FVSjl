@@ -332,4 +332,15 @@ end
     @test isempty(c.ms)
 end
 
+# OC native (non-ORGANON) MORTS reads the DBH REGENT(LESTB=.FALSE.) already wrote for a small tree (oc/regent.f:285-345 sets DBH(K) in place for
+# D < DGMIN; UPDATE only adds the rest) — jl swapped EVERY record to its start-of-cycle DBH for MORTS/FMMAIN. OC 15148784010497 PLANT cycle 3:
+# MORTS ES014 D 0.10667 vs start 0.10261 ⇒ RI 0.002835025 vs 0.002827 ⇒ TOKILL 7.696978 vs 7.696754 ⇒ every record's TPA 3e-5 off (QMD 2 ULP).
+@testset "OC small-tree DBH written by REGENT is what MORTS sees (oc/regent.f:285-345, morts.f)" begin
+    for (cn, r) in (("15148784010497", "plant_cyc"), ("15148784010497", "plant_cal"), ("645101878126144", "plant_cyc"), ("645101878126144", "plant_cal"))
+        c = _case("OC", cn, r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
