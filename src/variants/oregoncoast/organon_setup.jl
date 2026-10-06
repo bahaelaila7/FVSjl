@@ -91,7 +91,7 @@ const OC_TVAL = Float32[63.657,9.925,5.841,4.604,4.032,3.707,3.499,3.355,3.250,3
     if h < 4.501f0
         return h / 4.5f0 * b0
     else
-        return b0 + b1*dbh + b2*dbh*dbh
+        return b0 + b1*dbh + b2*(dbh*dbh)    # crngrow.f MCW_SWO `B2*DBH**2`: the integer power binds first
     end
 end
 
@@ -128,7 +128,7 @@ end
     b0 = OC_HCB_SWO_B0[g]; b1 = OC_HCB_SWO_B1[g]; b2 = OC_HCB_SWO_B2[g]; b3 = OC_HCB_SWO_B3[g]
     b4 = OC_HCB_SWO_B4[g]; b5 = OC_HCB_SWO_B5[g]; b6 = OC_HCB_SWO_B6[g]
     si = g == 3 ? si2 : si1
-    return ht/(1f0 + fexp(b0 + b1*ht + b2*ccfl + b3*flog(ba) + b4*(dbh/ht) + b5*si + b6*og*og))
+    return ht/(1f0 + fexp(b0 + b1*ht + b2*ccfl + b3*flog(ba) + b4*(dbh/ht) + b5*si + b6*(og*og)))     # start2.f A_HCB_SWO `B6*OG**2`
 end
 
 "organon/start2.f GET_CCFL_EDIT — crown-competition-factor-in-larger-trees at DBH (1-based)."

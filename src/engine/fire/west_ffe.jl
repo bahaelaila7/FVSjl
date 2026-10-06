@@ -21,6 +21,7 @@ _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho ||
                    v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska ||
                    v isa SouthCentralOregon || v isa Klamath || v isa BlueMountains ||
                    v isa WestSierra || v isa CentralCalifornia || v isa BritishColumbia ||
+                   v isa OregonCoast || v isa Olympic ||
                    v isa Ontario   # fire/base/fmsvol.f:146-153: VARACD 'ON' is not in the CS/LS/NE/SN MCF branch
 
 # fmvinit.f LVWEST ("western variant: merch volume is the commercially useful one", fmcrbout.f:127 LMERCH=LVWEST): the
@@ -55,6 +56,49 @@ function bc_fmsvol(s, sp::Int, d::Float32, h::Float32, xht::Float32)
 end
 
 """
+    oc_op_nocut_vol(s, sp, d, h) -> (tcf, mcf, bark)
+
+FMSVL2/FMSVOL (fire/base/fmsvol.f:98-142) for OC/OP: NATCRS on (D,H) with `BARK = BRATIO(JS,D,H)`, no top-kill. The volume
+equation is the stand's: a Region-6 national forest (KODFOR 6xx) runs organon/vols.f's R6_EQN VEQNNC (westside FW2 / INGY FW2 /
+616BEHW, `r6_voleq_oc_op`), the BLM forests (7xx) the BLMVOL Behre taper — exactly the kernels `compute_volumes_{oc,op}!` use for the
+live `.sum`. (The FFE snag/carbon paths ran `op_tree_cuft`/`oc_tree_cuft` (BLM) on every forest: OP 24164991010900 forest 609 snag
+D5.2 H28 LP TCF 2.9802 live vs 1.82; DF D7.09 H48.06 5.1 vs 7.29.) MCF is gated at the species DBHMIN.
+"""
+function oc_op_nocut_vol(s::StandState, sp::Int, d::Float32, h::Float32)
+    c = s.control; op = s.variant isa Olympic
+    bark = op ? op_bratio(sp, d) : oc_bratio(sp, d)
+    c.merch_init || init_merch_standards!(s)
+    eq = r6_voleq_oc_op(s, sp)
+    if eq === nothing                                          # BLM forests: NVEL BLMVOL (Behre taper)
+        if op
+            topd = c.sp_top_diam[1] > 0f0 ? c.sp_top_diam[1] : 5.0f0
+            tcf = op_tree_cuft(sp, d, h; topd = topd, topbark = bark)
+            v4, _ = op_tree_mvol(sp, d, h; topd = topd, topbark = bark)
+        else
+            tcf = oc_tree_cuft(sp, d, h)
+            v4, _ = oc_tree_mvol(sp, d, h)
+        end
+    else                                                       # R6 national forests: NATCRS on the R6_EQN VEQNNC
+        ifor = Int(s.plot.forest_idx)
+        stp = op ? c.sp_stump_ht[sp] : 1f0
+        tpd = op ? c.sp_top_diam[sp] : 4.5f0
+        bftpd = op ? c.sp_bf_topd[sp] : 4.5f0
+        se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+        if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+            tcf, v4, _ = op ? wc_fw2_westside_vol(eq, d, h, bark; topd = tpd, bftopd = bftpd, stump = stp) :
+                              wc_fw2_westside_vol(eq, d, h, bark)
+        elseif mdl == "FW2"
+            v = cr_fw2_vol(eq, d, h; bark = bark, topd = tpd, bftopd = bftpd, stump = stp, iregn = 6,
+                           board_cor = 'N', merch_opt = 23, sf_hs = true)
+            tcf = max(v[1], 0f0); v4 = max(v[4] + v[7], 0f0)
+        else
+            tcf, v4, _ = op ? pn_behre_vol(sp, ifor, d, h, bark; topd = tpd) : ca_behre_vol(sp, ifor, d, h, bark)
+        end
+    end
+    return (max(tcf, 0f0), d >= c.sp_dbh_min[sp] ? max(v4, 0f0) : 0f0, bark)
+end
+
+"""
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
 
 NATCRS total/merch cubic for species `sp` at DBH `d`, height `h`, with NO top-kill (fmsvol.f XHT=−1), for the
@@ -69,6 +113,11 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     if v isa BritishColumbia && d > 0f0 && h > 0f0 && 1 <= sp <= length(s.species.vol_eq)
         vn, vm = bc_fmsvol(s, sp, d, h, -1f0)
         return (vn, vm, bc_bratio(sp), true)
+    end
+    if v isa OregonCoast || v isa Olympic
+        (d < 1f0 || h <= 0f0 || sp < 1 || sp > (v isa Olympic ? 39 : 50)) && return (0f0, 0f0, 1f0, false)   # volinit.f:168 DBH<1
+        tcf, mcf, bark = oc_op_nocut_vol(s, sp, d, h)
+        return (tcf, mcf, bark, true)            # NATCRS CTKFLG=.TRUE. ⇒ fmsvol.f:139-140 CFTOPK trims every FMSVOL(XHT)
     end
     if v isa Ontario
         # fire/base/fmsvol.f METHC=8 (canada/on/grinit.f:149) ⇒ OCFVOL (canada/on/varvol.f:300-366): D<DBHMIN ⇒ the
@@ -282,7 +331,8 @@ function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
     # un-broken one (HTRUNC then truncates HTDEAD to 0.01 ft, and TCF·VOLTK/VOLT rounds).
     if (htcur < htd || always) && tcf > 0f0 && trim
         # CFTOPK reads the species' STMP/TOPD (WC/PN BLM forests TOPD 5); the other layer variants keep 1 / 4.5.
-        stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Ontario) ?
+        stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Ontario ||
+                      s.variant isa OregonCoast || s.variant isa Olympic) ?
                      (s.control.sp_stump_ht[sp], s.control.sp_top_diam[sp]) : (1f0, 4.5f0)
         tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, bark, unsafe_trunc(Int, htcur * 100f0), stmp, topd)
     end
@@ -320,7 +370,7 @@ _snag_htr1(::Utah) = 0.0228f0
 _snag_htr1(::CentralRockies) = 0.0228f0
 _snag_htr1(::SoutheastAlaska) = 0.02f0      # ak/fmvinit.f:140 HTR1
 _snag_htr1(::Klamath) = 0.03406f0           # nc/fmvinit.f:122 HTR1 (50% height loss in 20 yr)
-_snag_htr1(::Union{WestSierra,CentralCalifornia}) = 0.03406f0   # ws/fmvinit.f:171, ca/fmvinit.f:99
+_snag_htr1(::Union{WestSierra,CentralCalifornia,OregonCoast}) = 0.03406f0   # ws/fmvinit.f:171, ca/fmvinit.f:99, oc/fmvinit.f:99
 "HTR2 (after-50% snag height-loss rate, {v}/fmvinit.f): 0.01 everywhere but AK (ak/fmvinit.f:141 HTR2=0.02)."
 _snag_htr2(v) = v isa SoutheastAlaska ? 0.02f0 : 0.01f0
 "HTXSFT (soft-snag height-loss multiplier, {v}/fmvinit.f): UT/CR 10, the default 2 elsewhere."

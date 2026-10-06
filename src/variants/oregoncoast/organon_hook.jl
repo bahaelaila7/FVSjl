@@ -90,6 +90,7 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
                        msdi_1=msdi, msdi_2=msdi2, msdi_3=msdi3, cyclg=cyclg, calib1=calib1, calib3=calib3,
                        stor=s.calib.organon_stor, babt=th[11], bart=th[6:10], yt=th[1:5]) : nothing
     fscale = fint/5f0
+    yrscale = fint/5f0                               # SCALE=FINT/YR (htgf.f:63, regent.f:197), YR=5 for the ORGANON variants
     # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
     cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
     _misdg = _dm_effects_on(s)                       # oc/dgdriv.f:562 MISDGF (misintoc.f DGPDMR)
@@ -123,14 +124,15 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         # otherwise; then ×MISHGF for every record (htgf.f:266). CROWN: ANINT(CR2·100) for IORG=1 (oc/crown.f:282).
         mhg = mis_hg_mult(s, i)
         h_old = t.height[i]
+        crnew_org = 0f0                  # ANINT(CR2·100) of a valid-ORGANON tree, finished after the height is known (below)
         if iorg && g !== nothing
-            htg = g.hgro[i] * mhg
-            t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))
+            htg = (yrscale * g.hgro[i]) * mhg           # htgf.f:93 HTG=SCALE*XHT*HGRO*EXP(HTCON), SCALE=FINT/YR; then ×MISHGF
+            crnew_org = round(g.cr2[i]*100f0, RoundNearestTiesAway)
         else
             pt = Int(t.plot_id[i])
             pccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
             si = s.plot.sp_site_index[sp]
-            htg = oc_htgf_native(sp, h_old, t.crown_pct[i], s.plot.avg_height, pccf, si) * mhg
+            htg = (yrscale * oc_htgf_native(sp, h_old, t.crown_pct[i], s.plot.avg_height, pccf, si)) * mhg   # htgf.f:244 SCALE·HTG
         end
         # REGENT (oc/regent.f:157-370) for EVERY record with D < XMAX(sp), valid ORGANON trees included: the small-tree
         # height (SMHTGF·CON, blended by XWT; XWT=1 for IORG=1 so the ORGANON HTG stands), the 0.1-ft floor and SIZCAP(4);
@@ -139,7 +141,7 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
             if !(iorg && g !== nothing)
                 si = s.plot.sp_site_index[sp]
                 htg = oc_regent_htg(sp, d0, h_old, t.crown_pct[i], t.crown_ratio[i],
-                                    s.plot.basal_area, s.plot.avg_height, si, s.calib.htg_cor_small[sp], htg)
+                                    s.plot.basal_area, s.plot.avg_height, si, s.calib.htg_cor_small[sp], htg, yrscale)
             end
             htg < 0.1f0 && (htg = 0.1f0)
             if (h_old + htg) > sizcap[sp, 4]
@@ -152,8 +154,37 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         end
         t.ht_growth[i] = htg
         t.height[i] = h_old + htg
-        t.diam_growth[i] = dg
-        t.dbh[i] = dbh_direct === nothing ? d0 + dg/bark : dbh_direct     # update.f:115 DBH=DBH+DG/BRATIO
+        if iorg && g !== nothing
+            # oc/crown.f:281-288,368-380,426-433 for an IORG=1 tree: CRNEW=ANINT(CR2·100), CHG=CRNEW-ICR, CRNEW=ICR+CHG, ICRI=INT(CRNEW+.5), then
+            # (ICR>0) the CRMAX cap CRMAX=(HT·ICR/100+HTG)/(HT+HTG)·100 on the UPDATEd HT, ICRI>CRMAX ⇒ INT(CRMAX+.5) — ORGANON trees included —
+            # then ICRI ≤ 95 and ≥ 1 (LORGANON=.TRUE. ⇒ no <10 bump). MEASURED FVSoc_tiered 645182389126144 econ MA 2033: ICR 1,
+            # CR2 0.02507 ⇒ ICRI 3, HT 7.954158, HTG 0.12111 ⇒ CRMAX 2.4846 ⇒ ICRI 2 live (jl wrote 3).
+            icr_old = Int(t.crown_pct[i])
+            icri = trunc(Int, (Float32(icr_old) + (crnew_org - Float32(icr_old))) + 0.5f0)
+            if icr_old != 0
+                crln = t.height[i] * Float32(icr_old) / 100f0
+                crmax = (crln + htg) / (t.height[i] + htg) * 100f0
+                Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+            end
+            icri > 95 && (icri = 95); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+        end
+        t.diam_growth[i] = dg            # YR-basis DG: MORTS reads it so (morts.f:210 G=(DG/BARK)*(FINT/5)); gradd_dg_scale! rescales it after MORTS
+        # gradd.f:67-90 (FINT≠YR): DG → FINT basis, BARK=BRATIO(D,HT) at the pre-UPDATE D — the value UPDATE then adds to DBH.
+        dg_upd = dg
+        if fint != 5f0
+            if dg > 0f0
+                ddsf = (dg * (2f0 * bark * d0 + dg)) * yrscale
+                dg_upd = sqrt((d0 * bark)^2 + ddsf) - bark * d0
+            else
+                dg_upd = 0f0
+            end
+        end
+        t.dbh[i] = dbh_direct === nothing ? d0 + dg_upd/bark : dbh_direct     # update.f:115 DBH=DBH+DG/BRATIO
+        # REGENT (oc/regent.f:285-345) writes DBH(K) itself for a tree with D < DGMIN BEFORE MORTS/FMMAIN run (the rest of the growth
+        # is applied at UPDATE), so the pre-UPDATE DBH those passes read is that value, not the start-of-cycle one: MEASURED FVSoc_tiered
+        # 15148784010497 plant_cyc cycle 3 MORTS ES014 D=0.10667 (REGENT) vs start 0.10261 ⇒ TOKILL 7.696978 vs 7.696754.
+        dbh_direct === nothing || (dbh0[i] = dbh_direct)
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
         # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).
         t.norm_ht[i] > 0 &&
@@ -245,6 +276,24 @@ function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snag
             wki = c.op_mortexp[i]
             wki > p && (wki = p)
             killed[i] = wki
+        end
+    end
+    # SIZCAP size-limit mortality (oc/morts.f:704-717, reached by the ORGANON path too — it precedes `IF(SMORMT.GT.0.)GO TO 45`): a tree whose
+    # end-of-cycle DBH D+G, G=(DG/BARK)*(FINT/5) on the pre-UPDATE D, reaches SIZCAP(1) loses at least P*SIZCAP(2)*FINT/5. MEASURED FVSoc_tiered
+    # 645182389126144 TIMEINT 10: DF D21.7 → 23.22 lost 1.4502 of 6.857 TPA live (MORTEXP·2 = 0.031).
+    d0v = c.oc_dbh0
+    if length(d0v) == n
+        sizcap = s.control.sp_size_cap
+        @inbounds for i in 1:n
+            sp = Int(t.species[i]); (sp < 1 || sp > size(sizcap, 1)) && continue
+            p = t.tpa[i]; d = d0v[i]
+            bark = oc_bratio(sp, d)
+            g = (t.diam_growth[i] / bark) * (fint / 5f0)
+            if (d + g) >= sizcap[sp, 1] && trunc(Int, sizcap[sp, 3]) != 1
+                kc = (p * sizcap[sp, 2] * fint) / 5f0
+                killed[i] < kc && (killed[i] = kc)
+                killed[i] > p && (killed[i] = p)
+            end
         end
     end
     # Climate-FVS mortality (oc/morts.f:801 CALL CLMORTS, after the base kill WK2, before FIXMORT): CLMORTS

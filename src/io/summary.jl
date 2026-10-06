@@ -482,7 +482,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         s.variant isa CentralIdaho || s.variant isa CentralRockies || s.variant isa Kootenai ||
                         s.variant isa Utah || s.variant isa SouthCentralOregon || s.variant isa WestCascades ||
                         s.variant isa EastCascades || s.variant isa Klamath || s.variant isa PacificNorthwest ||
-                        s.variant isa BritishColumbia)) && (perdm = inventory_fint(s))
+                        s.variant isa BritishColumbia || s.variant isa OregonCoast || s.variant isa Olympic)) &&
+                (perdm = inventory_fint(s))   # OC/OP: FIA DG_MEASURE=10 (dbsstandin.f:701); MEASURED FVSoc_tiered 645182389126144 MISMRT FINT 10.00 at ICYC 0
             push!(dm_collect, (Int(r.year),
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end

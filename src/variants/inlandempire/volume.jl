@@ -93,7 +93,7 @@ function ie_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
     vol2 = 0f0; vol4 = 0f0; ht1 = 0f0
     v1 = if h <= 17.3f0                                    # R6VOL short-tree guard (TTH≤FC_HT): cylinder VOL(1)
-        0.00272708f0 * dbhib * dbhib * h
+        0.00272708f0 * (dbhib * dbhib) * h      # r6vol.f:105 VOL(1)=0.00272708*(DBHIB*DBHIB)*TTH
     else
         v = bm_r6vol3(d, dbtbh, fclass, h, 1)             # ZONE 1 total cubic → VOL(1)
         mtopp = 4.5f0 * bark                              # TOPDIAM = TOPD·BARK
