@@ -30,7 +30,14 @@ const FVS_BASE_KEYWORDS = Set([
 # excov.f CVIN, exmist.f MISIN, exrd.f RDIN — per bin/FVS<v>_buildDir). The stub reads nothing, so the block's
 # sub-keywords and its END reach the base reader (FVS01 each). (exbm/exbrus/exdfb/exdftm/exmpb are stubs in these
 # builds too, but jl runs those extensions — not switched here.)
-ext_stub_keywords(::Union{Southern,CentralStates,LakeStates,Northeast,Ontario}) = ("CLIMATE", "COVER", "MISTOE", "RDIN")
+ext_stub_keywords(::Union{Southern,CentralStates,LakeStates,Northeast}) = ("CLIMATE", "COVER", "MISTOE", "RDIN", "MPB", "DFTM", "BRUST", "DFB")
+# ON additionally links the exfert.f / execon.f stubs (FFIN, ECIN; bin/FVSon_buildDir): FERTILIZ and ECON raise the same FVS11. (BGCIN, exbgc.f, is not
+# in the keyword table here — FVS01 at the opener, like every build.) MEASURED FVSon_tiered kwcov_ext on_{fertiliz,econ_*,mpb_*,dftm_*,brust_*,dfb_*}.
+ext_stub_keywords(::Ontario) = ("CLIMATE", "COVER", "MISTOE", "RDIN", "MPB", "DFTM", "BRUST", "DFB", "FERTILIZ", "ECON")
+# exbudl.f BWEIN (WSBW budworm) is a SILENT stub in the CS/LS/NE/SN/ON builds: `IF (.TRUE.) RETURN` — no FVS11, nothing read, so the block's
+# sub-keywords and END reach the base reader (FVS01 each).
+ext_silent_stub_keywords(::Union{Southern,CentralStates,LakeStates,Northeast,Ontario}) = ("WSBW",)
+ext_silent_stub_keywords(::AbstractVariant) = ()
 ext_stub_keywords(::SoutheastAlaska) = ("CLIMATE", "RDIN")
 ext_stub_keywords(::BritishColumbia) = ("COVER",)
 ext_stub_keywords(::Union{CentralCalifornia,OregonCoast,Olympic}) = ("RDIN",)

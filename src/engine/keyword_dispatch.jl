@@ -3169,6 +3169,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         # not in keywds.f's TABLE is ERRGRO(.TRUE.,1) FVS01 and is otherwise ignored.
         if kw in ext_stub_keywords(s.variant)
             errgro!(s, 11); s.control.ext_stub_strict = true; continue
+        elseif kw in ext_silent_stub_keywords(s.variant)
+            s.control.ext_stub_strict = true; continue
         elseif s.control.ext_stub_strict && !(kw in FVS_BASE_KEYWORDS)
             errgro!(s, 1; irecnt = kr.record_count); continue
         end
