@@ -250,6 +250,12 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         end
         covca = (Int(ict[1]), Int(ict[2]))
         covcawt = xx > 0.001f0 ? (tba[ict[1]] / xx, tba[ict[2]] / xx) : (0f0, 0f0)
+        # op/fmcba.f has NO COVCA/COVCAWT (only NC/WS/CA/OC carry the top-2 pair): live (:453-457 FLIVE) and dead (:503-504 STFUEL)
+        # fuels load from the single COVTYP. MEASURED FVSop_tiered 24164991010900 2002 Forest_Shrub_Herb C 0.2000 live
+        # (FULIVE(16)=0.2+0.2) vs 0.1950 with the BA-weighted 0.899 DF + 0.101 LP pair.
+        if s.variant isa Olympic
+            covca = (Int(covtyp), 0); covcawt = (covtyp > 0 ? 1f0 : 0f0, 0f0)
+        end
     end
     # No basal area: FVS fmcba.f sets COVTYP to a VARIANT-SPECIFIC default cover-type species the first
     # year (SN 75, NE 1, CS 48, LS 3 red pine — fmcba.f "COVTYP.EQ.0" block), else keeps the previous

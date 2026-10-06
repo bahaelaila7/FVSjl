@@ -217,4 +217,15 @@ end
     @test _n(c.ms; file = "FVS_Carbon", col = "Aboveground_Merch_Live", year = 2002) == 0
 end
 
+# op/fmcba.f carries no COVCA/COVCAWT: FLIVE (:453-457) and the initial dead fuel STFUEL (:503-504) load from the single COVTYP. jl used
+# the NC/WS/CA/OC BA-weighted top-2 species pair (OP 24164991010900: 0.899 DF + 0.101 LP) ⇒ Forest_Shrub_Herb 0.19495 vs 0.2000 and
+# Forest_Down_Dead_Wood 21.46 vs 22.806 at the inventory year, and the fire's fuel models/flame/scorch.
+@testset "OP FMCBA loads live+dead fuel from the single COVTYP (op/fmcba.f:453-457,503-504)" begin
+    c = _case("OP", "24164991010900", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon", year = 2002) == 0
+    @test _n(c.ms; file = "FVS_BurnReport") == 0
+    @test _n(c.ms; file = "FVS_Mortality") == 0
+    @test _n(c.ms; file = "FVS_PotFire", year = 2002) == 0
+end
+
 end # module
