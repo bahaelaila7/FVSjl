@@ -126,8 +126,13 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # Needs the SN-style biomass coefficients (:v2t, decay class); variants whose coefficients omit them
     # (e.g. OC ORGANON, no FFE/biomass port) skip the FFE carbon/fuels accounting (inert for the .sum).
     if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
-        mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
-        accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+        if _snag_east_vol(s.variant) || s.variant isa Ontario
+            # FMSCUT (fmscut.f:106-109/135-145) accrues FATE per RECORD in record order at cuts.f:1823: defer to _fmscut_fate!
+            push!(s.fire.user.fate_cuts, (Int32(i), prem))
+        else
+            mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
+            accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+        end
         # Dead coarse roots of the cut trees: FMSCUT BIOROOT += RBIO·(WK3−SSNG) (fmscut.f:68) plus FMSADD's
         # RBIO·SNGNEW for the standing yarding-loss snags (fmsadd.f:320, fresh ⇒ XDCAY 1) = RBIO·PREM in all.
         let (_, _, rbio) = jenkins_biomass(s.coef, sp, t.dbh[i])
@@ -193,6 +198,30 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
           (species = Int32(sp), dstmp = t.dbh[i], prem = _stump,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
     return
+end
+
+# FMSCUT's FATE accrual (fmscut.f:106-109/135-145) for the eastern builds + ON: per record I=1..ITRN, X = FMSVL2(ISP,DBH,HT,-1,X,ICR,'L',LMERCH=.FALSE.)
+# (no top-kill) × V2T × HRVTRE, HRVTRE = WK3−SSNG−DSNG; eastern fmsvol.f VOL2HT = MAX(0.005454154·H, MCF), ON (VARACD 'ON') MAX(…, TCF) — the cone
+# floor reaches a tree whose merch volume is 0, which the stored per-tree MCFV does not carry. MEASURED kwcov_ffe/_on carbcut: Merch_Carbon_Removed
+# 9.174075 live vs 8.961 (merch-only) / 9.174077 (removal order): the sum is accumulated in record order like FMSCUT.
+function _fmscut_fate!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    fc = fs.user.fate_cuts
+    isempty(fc) && return s
+    t = s.trees; v2t = coef_col(s.coef, :v2t)
+    acc = Dict{Int32,Float32}()
+    for (i, prem) in fc; acc[i] = get(acc, i, 0f0) + prem; end
+    for i in sort!(collect(keys(acc)))
+        prem = acc[i]; sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        x = s.variant isa Ontario ? max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1]) :
+            ffe_east_snag_vol_at(s, sp, d, h, h; topkill = false)
+        lp = prem * s.control.yardloss_prlost
+        hrvtre = (prem - lp * (1f0 - s.control.yardloss_prdsng)) - lp * s.control.yardloss_prdsng
+        accrue_harvest_carbon!(s, sp, d, x * (v2t[sp] / 2000f0) * hrvtre, Int(current_cycle_year(s)))
+    end
+    empty!(fc)
+    return s
 end
 
 # cuts.f:255-275 — the CUTS-entry TREDEL of the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
@@ -353,13 +382,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             _ec_cut_on(s) && empty!(s.econ.calc.cut_prem)
             push!(s.control.years_cut, yr)   # evaluated: the 2nd (grow_cycle!) cuts! call must not value it again
-            s.fire === nothing || empty!(s.fire.pend_cut)
+            s.fire === nothing || (empty!(s.fire.pend_cut); empty!(s.fire.user.fate_cuts))
             return _NO_REMOVAL
         end
         if !met
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             push!(s.control.years_cut, yr)   # evaluated (canceled): idempotent re-call is a no-op
-            s.fire === nothing || empty!(s.fire.pend_cut)
+            s.fire === nothing || (empty!(s.fire.pend_cut); empty!(s.fire.user.fate_cuts))
             return _NO_REMOVAL
         end
     end
@@ -368,6 +397,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
+        s.fire === nothing || _fmscut_fate!(s)       # FMSCUT (cuts.f:1823, before TREDEL): harvested-wood FATE in record order
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags
