@@ -111,6 +111,7 @@ using FVSjl
     include("unit/test_tt_regent_dg_blend.jl")# TT REGENT XMIN/XMAX DATA + DG-not-blended coupling
     include("unit/test_west_tail.jl")         # western tail round 1: post-activity fuel models, SO activity fuels, WS snags (vs live)
     include("unit/test_west_tail2.jl")        # western tail round 2: all-dead crown dub, BC TVOLI, estab GENTIM (vs live)
+    include("unit/test_ocop_timeint10.jl")    # OC/OP at TIMEINT 10 (FINT≠5) vs live FVS{oc,op}_tiered: every .sum row + DBS table (19 stand/regime cases)
     include("unit/test_bc_port_live.jl")      # BC FFE / taper volume / DB plot id / NEWSI+DMCW / … vs the live BC tiered goldens (FVSbc_dbfix)
     include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
     include("unit/test_core_resid.jl")      # CORE (IE/EM/SN) tiered residual fixes vs live FVS{ie,em,sn}_g16 goldens: EM DVE dead KLASS + CFTOPK, FMPOFL CWD2B head, …

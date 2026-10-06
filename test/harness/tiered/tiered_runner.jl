@@ -64,8 +64,8 @@ end
 
 "Run jl on one fixture case in a scratch dir. Returns (sum_text, out_db_path_or_empty, crashed, errmsg)."
 function run_case(v::AbstractString, cn::AbstractString, r::AbstractString; dir::AbstractString = mktempdir(),
-                  snapshot_hook = nothing)
-    fx = fixture_dir(v); stem = "$(cn)_$(r)"
+                  snapshot_hook = nothing, fx::AbstractString = fixture_dir(v))
+    stem = "$(cn)_$(r)"
     kp = joinpath(fx, stem * ".key")
     isfile(kp) || return ("", "", true, "missing fixture key $kp")
     cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"); force = true)
