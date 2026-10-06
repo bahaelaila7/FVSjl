@@ -394,7 +394,8 @@ so it is normally inert — but faithful for a stand that does calibrate a minor
 """
 function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32};
         si_1::Float32, si_2::Float32, cyclg::Int=0,
-        calib1::Union{Nothing,Vector{Float32}}=nothing)
+        calib1::Union{Nothing,Vector{Float32}}=nothing,
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     n = buf.ntrees
     cch = oc_crnclo(spgrp, buf.dbh1, buf.ht1or, buf.cr1, buf.expan1, n)
     rasi = oc_ra_site(buf, si_1)
@@ -404,7 +405,7 @@ function organon_hg_swo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector
         g = Int(spgrp[i])
         if g <= 5                                  # big-6 → HTGRO1 (HS_HG potential + HG_SWO)
             hgro[i] = oc_htgro1(buf.species[i], g, buf.dbh1[i], buf.ht1or[i], buf.cr1[i], dgro[i],
-                                cch, si_1, si_2; cyclg=cyclg)
+                                cch, si_1, si_2; cyclg=cyclg, babt=babt, bart=bart, yt=yt)
         else                                       # minor species → HTGRO2 (HD-ratio / red-alder H40)
             c1 = calib1 === nothing ? 1.0f0 : calib1[g]
             hgro[i] = oc_htgro2(buf.species[i], g, buf.dbh1[i], dgro[i], buf.ht1or[i], c1, rasi)

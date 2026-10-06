@@ -65,7 +65,7 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
     sdiac = crown_sdi
     ba = p.basal_area
     qmd = stand_qmd(s)
-    org_ran = length(c.op_iorg) == n
+    org_ran = length(c.op_iorg) >= 1                      # slot-indexed IORG (stale beyond the last DGDRIV ITRN, organon_hook_op.jl)
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
     isort = crown_isort(s; lstart = lstart)
@@ -76,7 +76,7 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
         (sp < 1 || sp > 39) && continue
         (lstart && t.crown_pct[i] > 0) && continue          # op/crown.f:226 keep inventory crown
         icr = Int(t.crown_pct[i])
-        iorg = org_ran && c.op_iorg[i] == 1
+        iorg = org_ran && i <= length(c.op_iorg) && c.op_iorg[i] == 1
         prd = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0     # inert unless RW present
         qmdplt = qmd > 1f0 ? qmd : 1f0
         # op/crown.f:275 — d<1" at LSTART routes to statement 58 (DUBSCR).
@@ -95,7 +95,8 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
         local crnew::Float32
         local chg::Float32 = 0f0
         if iorg                                             # ORGANON crown (op/crown.f:279-286)
-            crnew = round(c.op_cr2[i] * 100f0, RoundNearestTiesAway)   # ANINT(CR2*100)
+            cr2 = i <= length(c.op_cr2) ? c.op_cr2[i] : 0f0          # execute2.f:210 CR2(I)=0 beyond NTREES
+            crnew = round(cr2 * 100f0, RoundNearestTiesAway)   # ANINT(CR2*100)
             chg = crnew - Float32(icr)
         elseif sp == 17                                     # RW logistic (op/crown.f CASE(17))
             hdr = d > 0f0 ? h * 12f0 / d : 1f0

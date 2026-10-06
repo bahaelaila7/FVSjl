@@ -433,7 +433,8 @@ ORGANON FIA species is WH (263) else SI_1 (diagro.f:45-50). Fert/thin = 1.0 on c
 """
 function op_dg_nwo_pass(buf::OrganonBuffer, spgrp::Vector{Int32}; si_1::Float32, si_2::Float32,
         msdi_1::Float32=0f0, msdi_2::Float32=0f0, msdi_3::Float32=0f0, cyclg::Int=0,
-        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6))
+        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6),
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     n = buf.ntrees
     sba1, bal1, ball1, _, _, _, _ = op_sstats(spgrp, buf.dbh1, buf.ht1or, buf.expan1, n)
     # execute2.f:327-331: SUBMAX only at CYCLG≤0 (or A1/A2 unset) — later cycles reuse STOR(3)/STOR(4).
@@ -451,6 +452,7 @@ function op_dg_nwo_pass(buf::OrganonBuffer, spgrp::Vector{Int32}; si_1::Float32,
         sbal1 = oc_get_bal(buf.dbh1[i], ball1, bal1)
         dgro[i] = op_dg_nwo(g, buf.dbh1[i], buf.cr1[i], site, sbal1, sba1)   # ADJ·CRADJ inside; fert=thin=1
         calib3 === nothing || (dgro[i] *= calib3[g])     # diagro.f:82 DGRO=DG*CALIB(3,ISPGRP)*FERTADJ*THINADJ
+        dgro[i] *= oc_dg_thin(buf.species[i], cyclg, babt, bart, yt)   # diagro.f:78 DG_THIN (op/diagro.f == oc/diagro.f); FERTADJ=1
     end
     return dgro, sba1, bal1, ball1, a1, a2
 end
@@ -462,7 +464,8 @@ organon/grow.f growth-2 (VERSION=2) — HTGRO1 (B_HG/F_HG + HG_NWO, groups 1..3)
 ratio, groups >3) off the buffer + C3 dgro. `calib1` = ACALIB(1,·) (HTGRO2 height calibration).
 """
 function op_hg_nwo_pass(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32};
-        si_1::Float32, si_2::Float32, cyclg::Int=0, calib1::Union{Nothing,Vector{Float32}}=nothing)
+        si_1::Float32, si_2::Float32, cyclg::Int=0, calib1::Union{Nothing,Vector{Float32}}=nothing,
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     n = buf.ntrees
     cch = op_crnclo(spgrp, buf.dbh1, buf.ht1or, buf.cr1, buf.expan1, n)
     rasi = organon_ra_state(buf, si_1)[1]                # execute2.f:297-320 red-alder site (VERSION≤3)
@@ -491,7 +494,7 @@ function op_hg_nwo_pass(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector
             end
             hg = op_hg_nwo(g, phtgro, cr, tcch)
             # HG_FERT/HG_THIN (VERSION≤3) = 1.0 with no fert/thin — reuse OC's (ispgrp==1 branch)
-            hg *= oc_hg_thin(cyclg, g, 0f0, zeros(Float32,5), zeros(Float32,5))
+            hg *= oc_hg_thin(cyclg, g, babt, bart, yt)   # htgrowth.f:176 HG_THIN
             hg *= oc_hg_fert(cyclg, g, si_1, zeros(Float32,5), zeros(Float32,5))
             hgro[i] = op_limit(buf.species[i], dbh, ht, dgro[i], hg)
         else
@@ -935,7 +938,8 @@ function op_execute_nwo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integer}; 
         si_2::Float32, msdi::Float32=0f0, msdi_1::Float32=NaN32, msdi_2::Float32=NaN32,
         msdi_3::Float32=NaN32, calib1::Vector{Float32}=ones(Float32,11),
         calib2::Vector{Float32}=ones(Float32,11), cyclg::Int=0,
-        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6))
+        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6),
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     # MSDI_1/2/3 = RVARS(3/4/5) = SDIDEF(16=DF)/SDIDEF(3=GF)/SDIDEF(19=WH) (op/sitset.f:325-327). Back-compat:
     # a single `msdi` fills all three (the validated 27-tree unit test path); pass msdi_1/2/3 for the real fan.
     isnan(msdi_1) && (msdi_1 = msdi); isnan(msdi_2) && (msdi_2 = msdi); isnan(msdi_3) && (msdi_3 = msdi)
@@ -943,8 +947,9 @@ function op_execute_nwo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integer}; 
     spgrp = Int32[op_spgroup_nwo(Int(isp)) for isp in isp_fvs]
     dgro, sba1, bal1, ball1, a1, a2 = op_dg_nwo_pass(buf, spgrp; si_1=si_1, si_2=si_2,
                                           msdi_1=msdi_1, msdi_2=msdi_2, msdi_3=msdi_3, cyclg=cyclg,
-                                          calib3=calib3, stor=stor)
-    hgro = op_hg_nwo_pass(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1)
+                                          calib3=calib3, stor=stor, babt=babt, bart=bart, yt=yt)
+    hgro = op_hg_nwo_pass(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1,
+                          babt=babt, bart=bart, yt=yt)
     deadexp = op_mortal_nwo(buf, dgro, spgrp, bal1, ball1, a1, a2; si_1=si_1, si_2=si_2, cyclg=cyclg, stor=stor,
                             raage=organon_ra_state(buf, si_1)[2])
     cr2 = op_cr_nwo(buf, dgro, hgro, spgrp, deadexp; si_1=si_1, si_2=si_2, calib2=calib2, cyclg=cyclg)
