@@ -343,4 +343,15 @@ end
     end
 end
 
+# NVEL R6VOL short-tree total cubic (r6vol.f:105 `VOL(1)=0.00272708*(DBHIB*DBHIB)*TTH`, H <= 17.3 ft, 616BEHW): the square binds first. ca_behre_vol
+# (CA + OC on R6 forests) wrote (K*dibh)*dibh*h — 1 ULP (OC 41133570010497 TO D1.2242/H12.087 TCuFt 0.0316143669 live vs 0.0316143632;
+# 24061836010900 likewise).
+@testset "R6VOL short-tree total cubic K*(DBHIB*DBHIB)*H (r6vol.f:105)" begin
+    for (cn, r) in (("41133570010497", "none"), ("24061836010900", "none"))
+        c = _case("OC", cn, r)
+        @test !c.crashed
+        @test _n(c.ms; file = "FVS_TreeList", col = "TCuFt") == 0
+    end
+end
+
 end # module
