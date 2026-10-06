@@ -129,7 +129,7 @@ function main_seedtest(v, cns, seeds, binoverride, regime)
             verdict, amax = isempty(good) ? ("no-data", 0.0) : metric_verdict(good, eps)
             vd[name] = (verdict, amax)
             println("  " * rpad(name,6) * " | " * join([fmt(x) for x in vals], " ") *
-                    "  |  $verdict  (|max|=$(round(amax,digits=1)); worst yr(s) $(join(unique([w[name] for w in t.wyear]), \",\")))")
+                    "  |  $verdict  (|max|=$(round(amax,digits=1)); worst yr(s) $(join(unique([w[name] for w in t.wyear]), ',')))")
         end
         isd(m) = occursin("determ", vd[m][1]); iss(m) = occursin("straddle", vd[m][1])
         # decisive-count bug: TPA (or density BA) seed-invariant & material. height bug: TopHt seed-invariant AND
