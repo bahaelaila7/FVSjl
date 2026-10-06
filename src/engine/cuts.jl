@@ -532,7 +532,7 @@ end
 # by HEIGHT (THINHT, ICFLAG 12) — VALMIN/VALMAX hold DBH or HT accordingly (cuts.f:637).
 # cuteff = remove/cstock is applied to each eligible record's TPA in record order until
 # the removal budget is spent (the last record is partial); the residual replaces PROB.
-function _thindbh!(s::StandState, act::ScheduledActivity)
+function _thindbh!(s::StandState, act::ScheduledActivity; wk4ext::Union{Nothing,Vector{Float32}} = nothing)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
     p1, p2, _eff, spf, ctpa_in, cba_in = act.params
@@ -547,7 +547,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
     jtyp = lbarea ? 2 : 1
 
     grps = s.control.sp_groups                         # SPGROUP table (for ispcut<0)
-    wk4 = Float32[t.tpa[i] for i in 1:n]               # pre-thin PROB copy
+    wk4 = wk4ext === nothing ? Float32[t.tpa[i] for i in 1:n] : wk4ext   # pre-thin PROB copy (THINQFA: the shared WK4)
     cstock = _clsstk(s, wk4, n, jtyp, ispcut, dlo, dhi, hlo, hhi, grps)
     cstock <= 0f0 && return _NO_REMOVAL
     remove = cstock - (ctpa + cba)
@@ -577,6 +577,7 @@ function _thindbh!(s::StandState, act::ScheduledActivity)
         totcut += cut_v
         wk4[i] -= prem
     end
+    wk4ext === nothing || return _NO_REMOVAL            # THINQFA: DO 1700 runs ONCE after every class (_thin_qfa!)
     return _cuts_do1700!(s, t, 1:n, wk4)                # cuts.f DO 1700 (LSPECL ⇒ IND2 = identity): residual rule + ESTUMP + totals
 end
 
@@ -741,7 +742,7 @@ end
     return acc
 end
 
-function _thin_sdi!(s::StandState, act::ScheduledActivity)
+function _thin_sdi!(s::StandState, act::ScheduledActivity; wk4ext::Union{Nothing,Vector{Float32}} = nothing)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
     target, cuteff_p, ispcut_f, dbhlo, dbhhi_p, icut_f = act.params
@@ -752,7 +753,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
     valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
 
     grps = s.control.sp_groups                       # SPGROUP table (for ispcut<0)
-    wk4  = Float32[t.tpa[i] for i in 1:n]
+    wk4  = wk4ext === nothing ? Float32[t.tpa[i] for i in 1:n] : wk4ext
     sdic = _sdi_zeide(s, wk4, n, ispcut, valmin, valmax, grps)
     sdic <= target && return _NO_REMOVAL
     remove = sdic - target
@@ -806,6 +807,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
         end
     end
 
+    wk4ext === nothing || return _NO_REMOVAL            # THINQFA: DO 1700 runs ONCE after every class (_thin_qfa!)
     return _cuts_do1700!(s, t, ord, wk4)
 end
 
@@ -1182,23 +1184,24 @@ function _thin_qfa!(s::StandState, act::ScheduledActivity)
         abs(tpa1) <= 0.1f0 && break
     end
 
-    # thin each excess class down to its residual target (per-class residual path)
-    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    # thin each excess class down to its residual target (per-class residual path). cuts.f only lowers WK4 per class
+    # (CYCQFA re-enters label 352 → 355/550 → DO 1100); the removals are applied and ESTUMP-logged by ONE DO 1700 pass
+    # over IT=IND2(I) = record order (LSPECL) after the last class — NOT class by class — so the stump list (and with it
+    # the sprout-record order/TPA) is in record order.
     for i in 1:ndcls
         (tpacls1[i] * clstar1[i] - clstar2[i]) > 1f-5 || continue
         dlo = dcls[i] - diacw / 2f0; dhi = dcls[i] + diacw / 2f0
-        r = if qfatar <= 1
+        if qfatar <= 1
             ctpa_t = qfatar <= 0 ? 0f0 : clstar2[i]
             cba_t  = qfatar <= 0 ? clstar2[i] : 0f0
             _thindbh!(s, ScheduledActivity(act.year, Int32(8),
-                                           (dlo, dhi, 0f0, Float32(ispcut), ctpa_t, cba_t)))
+                                           (dlo, dhi, 0f0, Float32(ispcut), ctpa_t, cba_t)); wk4ext = wk4)
         else
             _thin_sdi!(s, ScheduledActivity(act.year, Int32(10),
-                                            (clstar2[i], 0f0, Float32(ispcut), dlo, dhi, 1f0)))
+                                            (clstar2[i], 0f0, Float32(ispcut), dlo, dhi, 1f0)); wk4ext = wk4)
         end
-        rtpa += r.tpa; rcuft += r.cuft; rmcuft += r.mcuft; rscuft += r.scuft; rbdft += r.bdft
     end
-    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+    return _cuts_do1700!(s, t, 1:n, wk4)
 end
 
 # THINPT (cuts.f label_475→400, ICFLAG 15): point-level thin. SETPTHIN sets the point
