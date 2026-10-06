@@ -97,8 +97,9 @@ _same(a::AbstractString, b::AbstractString) = a == b || (let x = _num(a), y = _n
 const KEY_COLS = ["StandID", "Year", "TreeId", "TreeIndex", "SpeciesFVS", "Species", "PtIndex", "Removal_Code",
                   "RmvCode", "Rank", "Fire_Type", "Size_Class", "SizeClass", "Stratum", "Condition"]
 
-function compare_case(v, cn, r, jl_sum::AbstractString, jl_db::AbstractString)
-    fx = fixture_dir(v); stem = "$(cn)_$(r)"; ms = Mismatch[]
+function compare_case(v, cn, r, jl_sum::AbstractString, jl_db::AbstractString;
+                      fx::AbstractString = fixture_dir(v), stem::AbstractString = "$(cn)_$(r)")
+    ms = Mismatch[]
     mk(file, col, yr, g, j) = push!(ms, Mismatch(v, cn, r, file, col, string(yr), string(g), string(j)))
     gsp = joinpath(fx, stem * ".live.sum")
     isfile(gsp) || (mk("FIXTURE", "live.sum", "*", "present", "missing"); return ms)

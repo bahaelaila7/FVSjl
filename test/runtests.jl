@@ -277,6 +277,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_parallel.jl") # pillar-3: multi-stand parallel run == serial, bit-identical, all variants
     include("integration/test_allocation.jl") # pillar-2: grow_cycle! per-cycle allocation floor guard (net01 NE)
     include("integration/test_kwcov_variants.jl") # pillar-1: NE/CS/LS keyword-isolation coverage vs live Fortran
+    include("integration/test_kwcov_east_ffe.jl") # eastern FFE keyword-isolation vs the stock-flag live oracle (kwcov_ffe fixtures)
     include("integration/test_fia_reader.jl") # FIA "FVS-ready" DATABASE/DSNIN reader: cycle-0 bit-exact vs live
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
