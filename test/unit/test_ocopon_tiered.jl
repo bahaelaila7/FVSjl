@@ -323,4 +323,13 @@ end
     @test isempty(c.ms)
 end
 
+# WC/PN/OP FMCFMD after a burn (fmmain.f:189 FMCFMD3→FMCFMD): CTBA/STNDBA/TARGBA are FMCBA's year-start FMTBA (pre-fire BA); only QMD80 reads the
+# post-kill FMPROB (fmeff.f:547). jl re-summed the survivors' BA for the cover-group weights: OP 15072502010497 simfire 2015 PotFire fuel
+# models 9/5 99:1 live vs 100:0 jl (Surf_Flame_Sev 3.2022 vs 3.1256, PTorch, Mortality_BA 86 vs 84).
+@testset "OP post-burn FMCFMD uses the pre-fire FMTBA (op/fmcfmd.f, fmmain.f:189)" begin
+    c = _case("OP", "15072502010497", "simfire")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module

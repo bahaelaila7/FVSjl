@@ -314,13 +314,13 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # WC (wc/fmcfmd.f) — the FIRE-VPN cover-type-metagroup selection (SF/DF/MH/RA/LP/WO groups), top-2 by BA,
     # QMD80 (lower-80%-BA QMD) + PERCOV + habitat forb/grass/shrub/wet weighting rules. NOT California-CWHR.
     if s.variant isa WestCascades
-        return wc_select_fuel_models(s, mois, sm, lg)
+        return wc_select_fuel_models(s, mois, sm, lg; fire_basis = fire_basis)
     end
 
     # PN (pn/fmcfmd.f — BYTE-IDENTICAL to wc/fmcfmd.f) — same FIRE-VPN cover-metagroup selection; only PN's
     # fmcba.f habitat arrays (MAPFGS/MAPDRY) differ, handled inside wc_select_fuel_models by variant.
     if s.variant isa PacificNorthwest || s.variant isa Olympic   # OP FIRE-VPN == wc/fmcfmd (rules byte-identical; _op_covgrp)
-        return wc_select_fuel_models(s, mois, sm, lg)
+        return wc_select_fuel_models(s, mois, sm, lg; fire_basis = fire_basis)
     end
 
     # AK (ak/fmcfmd.f): model 8 + the natural fuels {10,12,13} (EQWT(10)=1−AFWT; the ≤5-yr post-activity model 11

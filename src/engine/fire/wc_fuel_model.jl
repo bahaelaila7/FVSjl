@@ -85,7 +85,8 @@ end
 WC FIRE-VPN cover-type-metagroup fuel-model selection (wc/fmcfmd.f). `sm`/`lg` are the SMALL/LARGE down-wood
 loads (the FMDYN point); PERCOV comes from the FireState (fmcba). Source-faithful transcription.
 """
-function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32;
+                              fire_basis::Bool = false)
     t = s.trees
     eqwt = zeros(Float32, 13)                                  # WC ICLSS = 13
     percov = s.fire.percov
@@ -104,11 +105,15 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # per-species FFE basal area (FMTBA) and cover-group BA (CTBA[1..6]).
     nsp = length(coef_col(s.coef, :dbh_min))
+    # After this year's burn (fire_basis: FMMAIN's post-FMBURN FMCFMD3→FMCFMD, fmmain.f:189) FMTBA — hence CTBA, STNDBA and TARGBA — is still
+    # FMCBA's year-start (pre-fire) sum; only QMD80 below reads the post-kill FMPROB (fmeff.f:547). MEASURED FVSop_tiered 15072502010497 simfire
+    # 2015 post-burn EQWT (5, 8, 9) = (.0115, .0025, .9860) live; jl re-summed the survivors' BA ⇒ (.0002, 0, .9998).
+    pre = (fire_basis && length(s.fire.prob_prefire) == t.n) ? s.fire.prob_prefire : t.tpa
     fmtba = zeros(Float32, nsp)
     @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
+        pre[i] > 0f0 || continue
         sp = Int(t.species[i])
-        fmtba[sp] += t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+        fmtba[sp] += pre[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
     end
     ctba = zeros(Float32, 6); stndba = 0f0
     @inbounds for sp in 1:nsp
