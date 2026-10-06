@@ -246,6 +246,15 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         end
     end
     isempty(acts) && return _NO_REMOVAL
+    # SALVAGE/SALVSP/PILEBURN/FUELMOVE are FFE activities (fmsalv.f/fmtret.f/fmfmov.f), not cuts: a cycle whose only due
+    # activities are those removes no tree, so the CUTS-entry zero-PROB TREDEL below must NOT run here — in FVS the start-of-
+    # cycle DENSE (grincr.f) sees the uncompacted list and compaction happens later; compacting early re-ordered the
+    # swap-from-end records ahead of that DENSE (RDPSRT tie order ⇒ PCT/PBAL ULPs ⇒ growth): jl SALVAGE-only AK
+    # 10706662010497 Acc 63 vs live 62 while the same run without SALVAGE matched. FMSALV itself still runs here (cuts.f:386).
+    if all(a -> a.icflag in (Int32(2501), Int32(2520), Int32(2523), Int32(2530)), acts)
+        (s.fire !== nothing && s.fire.active) && apply_salvage!(s)
+        return _NO_REMOVAL
+    end
     # cuts.f:255-275 — CUTS ENTRY deletes the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
     # (PROB≤1E-10, TREDEL swap-from-end) BEFORE any thinning is evaluated, so the cut's priority sort (IND2, RDPSRT
     # ties) and the ESTUMP stump order see the compacted list. The .sum driver calls cuts! AHEAD of grow_cycle!

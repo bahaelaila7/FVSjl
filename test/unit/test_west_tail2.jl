@@ -51,4 +51,14 @@ end
         @test isempty(_wt2_in(c.ms, ["FVS_PotFire", "FVS_BurnReport"]))
     end
 end
+
+# A cycle whose only due activities are FFE ones (SALVAGE/SALVSP/PILEBURN/FUELMOVE) is not a cut: FVS compacts the zero-PROB
+# records at CUTS entry only AFTER the start-of-cycle DENSE (grincr.f), and FMSALV runs at cuts.f:386. jl compacted early inside
+# cuts!, re-ordering RDPSRT ties: AK 10706662010497 salvage Acc 63 vs live 62, QMD/BA drifting from 2017 (the same run without
+# SALVAGE matched; live salvage .sum == live none .sum).
+@testset "SALVAGE-only cycle does not compact the tree list early (cuts.f:255 vs grincr.f DENSE)" begin
+    c = _wt2_case("AK", "10706662010497", "salvage")
+    @test !c.crashed
+    @test isempty(_wt2_in(c.ms, ["FVS_Summary", "sum", "FVS_Carbon", "FVS_Fuels", "FVS_SnagSum"]))
+end
 end
