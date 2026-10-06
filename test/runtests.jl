@@ -107,6 +107,10 @@ using FVSjl
     include("unit/test_west_shared_tiered.jl") # western shared fixes per record vs live western tiered goldens (TT/UT FMCROWW route, bare-stand COVINI, …)
     include("unit/test_west_kcwa_tiered.jl")  # KT/WS/CA/AK fixes vs live tiered goldens (KT glibc, REGENT copies, CCF/PCT order, BKRAT, MORTMULT, CA/WS FFE, DMFLAG)
     include("unit/test_ocopon_tiered.jl")     # OC/OP/ON vs live tiered goldens: ORGANON DGCALIB/CALIB decay/STOR/RVARS, OC DGDRIV calibration + mistletoe + REGENT, OP dgf.f/glibc
+    include("unit/test_ontario_regent.jl")    # ON ONSTHG small-tree height + REGENT on a sub-12cm stand vs FVSon_g16
+    include("unit/test_tt_regent_dg_blend.jl")# TT REGENT XMIN/XMAX DATA + DG-not-blended coupling
+    include("unit/test_west_tail.jl")         # western tail round 1: post-activity fuel models, SO activity fuels, WS snags (vs live)
+    include("unit/test_west_tail2.jl")        # western tail round 2: all-dead crown dub, BC TVOLI, estab GENTIM (vs live)
     include("unit/test_bc_port_live.jl")      # BC FFE / taper volume / DB plot id / NEWSI+DMCW / … vs the live BC tiered goldens (FVSbc_dbfix)
     include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
     include("unit/test_core_resid.jl")      # CORE (IE/EM/SN) tiered residual fixes vs live FVS{ie,em,sn}_g16 goldens: EM DVE dead KLASS + CFTOPK, FMPOFL CWD2B head, …
@@ -190,6 +194,9 @@ include("integration/test_compress_tripling.jl")# COMPRESS still triples its own
 include("integration/test_growth_fint.jl")# D2: GROWTH FINT!=5 measurement period (first-cycle serial-corr old) vs live FVSsn
 include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board feet for GW-JF/Ouachita/Ozark forests vs live FVSsn
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
+    include("integration/test_tiered_east.jl")   # CS/LS/NE/ON/OC/OP fixes vs live tiered goldens
+    include("integration/test_em_bare_ingrowth.jl")  # EM bare-stand AUTOES ingrowth (EZCRUISE INADV=1)
+    include("integration/test_opt2c_multicycle.jl")  # OP opt2c multi-cycle vs FVSop_clean
     include("integration/test_tiered.jl")    # TIERED fast tier: variants × regimes × outputs vs committed live-oracle goldens (test/harness/tiered/README.md)
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)
