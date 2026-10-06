@@ -183,11 +183,12 @@ mutable struct AKEstabState
     xtes::Float32             # ESHAP XTES — the removal ratio of the last LAUTAL evaluation
     xmaxpt::Vector{Float32}   # XMAXPT of the last SDICAL (morts.f:202) — the DENSE PRDA divisor
     xmax::Float32
+    dense_n::Int              # ITRN of the gradd.f:192 DENSE that ESTAB's BAAA/PTPAA/PCCF/PRDA still hold (before ESUCKR's sprouts)
 end
 AKEstabState() = AKEstabState(0, 0f0, -99, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0, zeros(Int, 3), 0,
                               zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT),
                               zeros(Int, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT),
-                              ones(Int, AK_ES_MAXPLT + 1), 0f0, 0f0, 0f0, Float32[], 1f0)
+                              ones(Int, AK_ES_MAXPLT + 1), 0f0, 0f0, 0f0, Float32[], 1f0, 0)
 
 @inline _ak_es_state(s::StandState) = (s.estab.ak_state === nothing && (s.estab.ak_state = AKEstabState());
                                        s.estab.ak_state::AKEstabState)
@@ -592,6 +593,7 @@ function ak_estab!(s::StandState, kdt::Integer; fint::Float32 = 10.0f0)::Int
     let pi_f = p.pi, gross = p.gross_space, xmp = st.xmaxpt
         @inbounds for i in _ind1_order(s)
             ip = Int(t.plot_id[i]); (1 <= ip <= AK_ES_MAXPLT) || continue
+            (st.dense_n > 0 && i > st.dense_n) && continue   # sprouts ESUCKR added after the gradd.f:192 DENSE are not in BAAA/PTPAA/PRDA
             d = t.dbh[i]; pr = t.tpa[i]; sp = Int(t.species[i])
             pccf[ip] += ak_tree_ccf(sp, d) * pr * pi_f / gross
             d < AK_ES_REGNBK && continue

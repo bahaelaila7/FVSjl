@@ -1532,6 +1532,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 s.variant isa BritishColumbia                        # BC: bc_esgent! (strp/esgent.f → canada/bc/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
+    # AK ESTAB reads BAAA/PTPAA/PRDA of the gradd.f:192 DENSE — they do not hold ESUCKR's sprouts (FVSak_g16 10709344010497
+    # simfire: DENSE ITRN 396 / PTPAA 200.54 vs 432 / 210.06 at ESTAB entry; ESTOCK XTPA 200.54).
+    s.variant isa SoutheastAlaska && (_ak_es_state(s).dense_n = s.trees.n)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the

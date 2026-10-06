@@ -90,4 +90,14 @@ end
     @test !c.crashed
     @test isempty(_wt2_in(c.ms, ["FVS_PotFire", "FVS_BurnReport", "FVS_Carbon"]))
 end
+
+# AK ESTAB's BAAA/PTPAA/PRDA are the arrays of the gradd.f:192 DENSE, which precedes ESNUTR: ESUCKR's fire-kill sprout records
+# (appended before ESTAB) are not in them. jl recomputed them over the list WITH the sprouts: AK 10709344010497 simfire ESTOCK
+# XTPA 210.06 (432 rec) vs live 200.54 (396 rec, DENSE) => post-fire regen TPA +3.5%, Tpa/BA/TCuFt/PotFire/Carbon all drifting
+# (live DENSE/EST trace: private FVSak relink of dense.f/estab.f, /workspace/.postswap/wt2/ak_relink).
+@testset "AK ESTAB density stats exclude ESUCKR sprouts (gradd.f:192 DENSE vs ESNUTR)" begin
+    c = _wt2_case("AK", "10709344010497", "simfire")
+    @test !c.crashed
+    @test isempty([m for m in c.ms if !(m.col in ("QMD", "ATQMD"))])      # QMD/ATQMD: 1-2 ULP (3e-6 rel), open
+end
 end
