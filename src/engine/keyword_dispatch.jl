@@ -1713,6 +1713,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                 if act == 110
                     pkil > 1f0 && (pkil = 1f0)
                     t.ht_growth[i] *= pkil
+                    t.birth_age[i] = 0f0                    # htgstp.f:110-112 `HTG(I)=HTG(I)*PKIL; ABIRTH(I)=0.0` (the tree's age restarts)
                 else
                     pkil > 0.8f0 && (pkil = 0.8f0)
                     topk = h * pkil; toph = h - topk
