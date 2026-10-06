@@ -16,7 +16,9 @@ function run_kcase(root::AbstractString, v::AbstractString, stem::AbstractString
     cp(joinpath(fx, stem * ".key"), joinpath(dir, stem * ".key"))
     for e in (".tre", ".trl"); isfile(joinpath(fx, stem * e)) && cp(joinpath(fx, stem * e), joinpath(dir, stem * e)); end
     outdb = joinpath(dir, "out.db")
-    key = join([l == "out.db" ? outdb : l for l in split(read(joinpath(dir, stem * ".key"), String), '\n')], '\n')
+    indb = joinpath(dir, "stands.db")      # DB-read cases (ON): the shared sub-DB of the fixture directory
+    isfile(joinpath(fx, "stands.db")) && cp(joinpath(fx, "stands.db"), indb)
+    key = join([l == "out.db" ? outdb : l == "stands.db" ? indb : l for l in split(read(joinpath(dir, stem * ".key"), String), '\n')], '\n')
     write(joinpath(dir, stem * ".key"), key)
     txt = ""; crashed = false; err = ""
     try
