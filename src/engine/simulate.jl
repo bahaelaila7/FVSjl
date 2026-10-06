@@ -841,7 +841,9 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function _morts_wk2(s::StandState, old_tpa::Vector{Float32}, nlive::Int)::Vector{Float32}
     t = s.trees; kb = s.scratch.mort_killed
     w = Vector{Float32}(undef, nlive)
-    on = s.variant isa Ontario        # ON VARMRT can leave WK2 > PROB (varmrt.f exhaustion); WK2 is reported unclamped
+    # ON VARMRT can leave WK2 > PROB (varmrt.f exhaustion); OC ORGANON path WK2=MORTEXP·FINT/5 is never capped (oc/morts.f:499; OP caps it, op/morts.f:554);
+    # WK2 is reported unclamped (dbstrls.f:158 DP=WK2/GROSPC)
+    on = s.variant isa Ontario || s.variant isa OregonCoast
     @inbounds for i in 1:nlive
         k = i <= length(kb) ? (on ? kb[i] : min(kb[i], old_tpa[i])) : -1f0
         w[i] = (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i]

@@ -107,6 +107,7 @@ using FVSjl
     include("unit/test_west_shared_tiered.jl") # western shared fixes per record vs live western tiered goldens (TT/UT FMCROWW route, bare-stand COVINI, …)
     include("unit/test_west_kcwa_tiered.jl")  # KT/WS/CA/AK fixes vs live tiered goldens (KT glibc, REGENT copies, CCF/PCT order, BKRAT, MORTMULT, CA/WS FFE, DMFLAG)
     include("unit/test_ocopon_tiered.jl")     # OC/OP/ON vs live tiered goldens: ORGANON DGCALIB/CALIB decay/STOR/RVARS, OC DGDRIV calibration + mistletoe + REGENT, OP dgf.f/glibc
+    include("unit/test_ocop_timeint10.jl")    # OC/OP at TIMEINT 10 (FINT≠5) vs live FVS{oc,op}_tiered: every .sum row + DBS table (19 stand/regime cases)
     include("unit/test_bc_port_live.jl")      # BC FFE / taper volume / DB plot id / NEWSI+DMCW / … vs the live BC tiered goldens (FVSbc_dbfix)
     include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
     include("unit/test_core_resid.jl")      # CORE (IE/EM/SN) tiered residual fixes vs live FVS{ie,em,sn}_g16 goldens: EM DVE dead KLASS + CFTOPK, FMPOFL CWD2B head, …
