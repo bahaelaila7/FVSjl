@@ -91,6 +91,13 @@ const CASES = Pair{String,Tuple{Vector{String},Vector{String}}}[
                               kw("FUELMODL", 2010, 12, 1.0), "", sf()]),
     "firecalc"       => ([], [kw("FIRECALC", 2000, 1, 0), sf()]),
     "firecalc_ml"    => ([], [kw("FIRECALC", 2000, 2, 1, 2100, 1900, 1600, 0.12, 0.8, 8100), sf()]),
+    "firecalc_13"    => ([], [kw("FIRECALC", 2000, 1, 0), sf()]),                  # new logic over the original 13 only (IFMSET 0)
+    "firecalc_40"    => ([], [kw("FIRECALC", 2000, 1, 1), sf()]),                  # ... the 40 Scott-Burgan only (IFMSET 1)
+    "firecalc_sav"   => ([], [kw("FIRECALC", 2000, 1, 2, 2400, 2000, 1700, 0.08, 0.6), sf()]),
+    "firecalc_off"   => ([], [kw("FIRECALC", 2000, 1, 2), kw("FMODLIST", 2000, 8, 1), kw("FMODLIST", 2000, 9, 1), kw("FMODLIST", 2000, 11, 1), sf()]),
+    "firecalc_on"    => ([], [kw("FIRECALC", 2000, 1, 0), kw("FMODLIST", 2000, 5, 0), kw("FMODLIST", 2000, 143, 0), sf()]),
+    "firecalc_late"  => ([], [kw("FIRECALC", 2010, 2, 1), sf(2010, 15, 2, 70, 1, 100, 2)]),   # modelled loads set the same year the fire burns
+    "firecalc_stat"  => ([], [kw("FIRECALC", 2000, 1, 2), kw("STATFUEL"), sf()]),
     "statfuel"       => ([], [kw("STATFUEL"), sf()]),
     "soilheat"       => ([], [kw("SOILHEAT", 2010, nothing, 2), sf()]),
     "mortclas"       => ([], [kw("MORTCLAS", 4, 8, 12, 16, 20, 24, 30), sf()]),
