@@ -155,4 +155,63 @@ end
     @test _n(_case("ON", "720549798290487", "none").ms; col = "BAPctile") == 0
     @test _n(_case("ON", "1803293564290487", "none").ms; col = "BAPctile") == 0
 end
+
+# OP FIA PV_CODE (alpha plant-association code) -> KODTYP (op/habtyp.f HBDECD == pn/habtyp.f, op/pvref6.f == pn/pvref6.f
+# byte-identical). The FIA reader decoded PV_CODE only for PN/WC, so OP kept habitat 0 => CHS133 default fan (DF SI 98)
+# where live resolves CHS137 (ECOCLS DF 108): FVS_InvReference SiteIndex, TreeList growth, every .sum column.
+@testset "OP PV_CODE habitat decode (op/habtyp.f HBDECD)" begin
+    c = _case("OP", "12973618010497", "none")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
+# OC 645142535126144 thinbba (THINBBA cycle 2 leaves one DF; ESTAB adds 8 ES records afterwards). Two ORGANON mechanisms:
+# (1) oc/dgdriv.f:304-327 "MANAGE THE THINNING VARIABLES" — OLDBA(pre-CUTS, grincr.f:283) > BA ⇒ YST(1)=(CYCLG-1)*5,
+#     BART(1)=OLDBA-ATBA, BABT=OLDBA, fed to DG_THIN/HG_THIN (diagro.f:578, htgrowth.f:957): the surviving DF grew 11% slow;
+# (2) oc/crown.f:281-288 stale slot IORG=1 with CR2=0 for the ES records ⇒ ICR=1 ⇒ ~95% suppression mortality.
+# Before: 228 mismatches (.sum TPA 9 vs 132 from 2033); after: only StrClass cover rounding + 1 QMD ULP-class cell.
+@testset "OC ORGANON thinning response (dgdriv.f:304-327, diagro.f DG_THIN, htgrowth.f HG_THIN) + stale-IORG CROWN" begin
+    c = _case("OC", "645142535126144", "thinbba")
+    @test !c.crashed
+    @test _n(c.ms; file = "sum") == 0
+    @test _n(c.ms; file = "FVS_Summary", before = 2043) == 0
+    @test _n(c.ms) <= 4
+end
+
+# OP: same two mechanisms through the NWO engine (op/dgdriv.f:304-327 identical block, op/diagro.f DG_THIN == oc, op/htgrowth.f
+# HG_THIN == oc; op/crown.f:279-286 stale-IORG + CR2=0). 30194263010497 thinbba: TPA 35 live vs 86 jl at 2023 before.
+@testset "OP ORGANON thinning response + stale-IORG CROWN (op/dgdriv.f:304-327, op/crown.f:279)" begin
+    for cn in ("24164991010900", "30194263010497")
+        c = _case("OP", cn, "thinbba")
+        @test !c.crashed
+        @test _n(c.ms; file = "sum") == 0
+        @test _n(c.ms; file = "FVS_Summary") == 0
+    end
+end
+
+# REGENT(LESTB) DBH step for a PLANTed record (FINT≤5 ⇒ LSKIPH, HTG=0): oc/regent.f:285-345 (HK≤4.5 ⇒ DBH=D+0.001·HK; else
+# HTDBH⁻¹, DIAM floor, +0.001·HK, DG=DBH) and op/regent.f:325-406 (HK<4.5 ⇒ D+0.001·HK; else DBH=DG=0 ⇒ DIAM(sp)), then DGBND and
+# ESGENT (esgent.f:20-34, WK4=0.99998 ⇒ DG=DBH). jl left every new record at the strp DBH=0.1 (OC .sum QMD/BA/CCF/SDI off from the
+# birth cycle: OC 24382439010900 plant_cyc 62 cells, OP 22964003010497 plant_cyc 88 cells -> 0).
+@testset "OC/OP REGENT(LESTB) establishment DBH (oc/regent.f:285-345, op/regent.f:325-406, esgent.f)" begin
+    for (v, cn) in (("OC", "24382439010900"), ("OP", "22964003010497"))
+        for r in ("plant_cyc", "plant_cal")
+            c = _case(v, cn, r)
+            @test !c.crashed
+            @test isempty(c.ms)
+        end
+    end
+end
+
+# OC FFE runs on the PRE-growth stand: organon_apply_growth! grows DBH/HT/CR inline, but FVS's FMMAIN (FMBURN/FMEFF/FMCBA) runs in
+# GRADD before UPDATE (live DEBUG FMEFF 30193600010497 2013: DBH 7.87 / HT 56.8 vs jl 8.65 / 65.5 ⇒ PMORT 0.588 vs 0.329), and its
+# crown cover reads the stored CRWDTH (PERCOV 14.603 live). Before: .sum Mort 2013 44 vs 76, 239 mismatches; after: only FVS_Carbon.
+@testset "OC FFE sees the cycle-start stand + stored CRWDTH (simfire)" begin
+    c = _case("OC", "30193600010497", "simfire")
+    @test !c.crashed
+    for f in ("sum", "FVS_Summary", "FVS_Mortality", "FVS_BurnReport")   # FVS_PotFire/FVS_Carbon post-fire residuals stay OPEN
+        @test _n(c.ms; file = f) == 0
+    end
+end
+
 end # module

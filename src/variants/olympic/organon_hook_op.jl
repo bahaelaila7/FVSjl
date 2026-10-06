@@ -149,13 +149,15 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     m1, m2, m3 = _op_organon_msdi(s)
     cyclg = Int(s.control.cycle)                            # CYCLG = ICYC-1 = jl cycle (0-based)
     isp_fvs = Int[Int(t.species[i]) for i in 1:n]
+    th = organon_thin_update!(s.calib.organon_thin, s.plot.basal_area, cyclg)   # op/dgdriv.f:304-327 (== oc)
     cal = organon_calib_schedule(s.calib.organon_acalib, cyclg)   # execute2.f:231-252 cycle-decayed CALIB
     calib1 = Float32[cal[1, g] for g in 1:11]
     calib2 = Float32[cal[2, g] for g in 1:11]
     calib3 = Float32[cal[3, g] for g in 1:11]
     g = buf.runs ? op_execute_nwo(buf, isp_fvs; si_1 = si1r - 4.5f0, si_2 = si2r - 4.5f0,
                         msdi_1 = m1, msdi_2 = m2, msdi_3 = m3, calib1 = calib1, calib2 = calib2,
-                        calib3 = calib3, cyclg = cyclg, stor = s.calib.organon_stor) : nothing
+                        calib3 = calib3, cyclg = cyclg, stor = s.calib.organon_stor,
+                        babt = th[11], bart = th[6:10], yt = th[1:5]) : nothing
     # Fold the ORGANON DGRO→DDS into WK2 for the IORG=1 trees (op/dgdriv.f:432-441).
     if g !== nothing
         @inbounds for i in 1:n
@@ -186,8 +188,12 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
         t.diam_growth[i] = op_dgbnd(sp, d, dg, sizcap)
     end
     # Stash the ORGANON per-tree outputs for the cooperating hooks (op has no tripling ⇒ index-stable).
-    if length(c.op_iorg) != n
-        resize!(c.op_iorg, n); resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
+    # IORG is a SLOT-indexed COMMON array (op/dgdriv.f:231-256 sets 1..ITRN only): slots beyond this call's ITRN keep their
+    # last value, which CROWN reads for trees ESTAB adds afterwards (op/crown.f:279 with CR2(I)=0, execute2.f:210) ⇒
+    # ICR=1. Grow-only stash; HGRO/CR2/MORTEXP are zeroed beyond NTREES by every EXECUTE, so they track n exactly.
+    length(c.op_iorg) < n && resize!(c.op_iorg, n)
+    if length(c.op_hgro) != n
+        resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
     end
     @inbounds for i in 1:n
         c.op_iorg[i] = (g !== nothing) ? buf.iorg[i] : Int32(0)

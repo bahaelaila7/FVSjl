@@ -22,6 +22,26 @@
 # built-in SWO fallback A1). For ocmin pass msdi=815 (the measured RVARS).
 # =============================================================================
 
+"""
+    organon_thin_update!(th, ba, cyclg) -> th
+
+oc|op/dgdriv.f:304-327 "MANAGE THE THINNING VARIABLES": with OLDBA (grincr.f:283, pre-CUTS BA, th[12]) above the current
+(post-thin) BA, shift YST/BART down one slot and set YST(1)=(CYCLG-1)*5, BART(1)=OLDBA-ATBA (ATBA=BA, grincr.f:319),
+BABT=OLDBA. Once per cycle (th[13]).
+"""
+function organon_thin_update!(th::Vector{Float32}, ba::Float32, cyclg::Int)
+    if th[13] != Float32(cyclg) + 1f0 && th[12] > ba
+        @inbounds for i in 5:-1:2
+            th[i] = th[i-1]; th[5+i] = th[5+i-1]
+        end
+        th[1] = Float32((cyclg - 1) * 5)
+        th[6] = th[12] - ba
+        th[11] = th[12]
+    end
+    th[13] = Float32(cyclg) + 1f0
+    return th
+end
+
 "organon/execute2.f SI_1/SI_2 = SITE_1−4.5 / SITE_2−4.5 for OC (DF site sp 7, PP site sp 18)."
 @inline function _oc_organon_si(s::StandState)
     site1 = s.plot.sp_site_index[7]
@@ -61,13 +81,14 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     # calibration (organon/htgrowth.f:235-236). Inert (1.0) on FVS/FIA inventory unless a minor
     # ORGANON species had ≥2 measured-height trees; HTGRO1 (big-6) ignores it (htgrowth.f:56).
     # execute2.f:231-252 CALIB = the cycle-decayed ACALIB (CALH/CALD on): row 1 → HTGRO2, row 3 → DIAMGRO_RUN.
+    th = organon_thin_update!(s.calib.organon_thin, s.plot.basal_area, cyclg)
     cal = organon_calib_schedule(s.calib.organon_acalib, cyclg)
     calib1 = Float32[cal[1, g] for g in 1:18]
     calib3 = Float32[cal[3, g] for g in 1:18]
     # ORGANON growth (only when a big-6 tree exists); else the whole stand is FVS-native.
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
                        msdi_1=msdi, msdi_2=msdi2, msdi_3=msdi3, cyclg=cyclg, calib1=calib1, calib3=calib3,
-                       stor=s.calib.organon_stor) : nothing
+                       stor=s.calib.organon_stor, babt=th[11], bart=th[6:10], yt=th[1:5]) : nothing
     fscale = fint/5f0
     # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
     cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
@@ -75,6 +96,8 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     _, _mdgp, _, _mmaxsp = _mis_tables(s.variant)
     sizcap = s.control.sp_size_cap
     dbh0 = s.calib.oc_dbh0; resize!(dbh0, t.n)
+    ht0 = s.calib.oc_ht0; cr0 = s.calib.oc_cr0; resize!(ht0, t.n); resize!(cr0, t.n)
+    @inbounds for i in 1:t.n; ht0[i] = reinterpret(Int32, t.height[i]); cr0[i] = t.crown_pct[i]; end   # FFE reads PRE-growth HT/ICR
     @inbounds for i in 1:t.n; dbh0[i] = t.dbh[i]; end
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue
@@ -146,7 +169,10 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     # Weibull crown-change model must run for the IORG=0 trees; the valid-ORGANON (IORG=1) crowns are
     # already set above from CR2. op_iorg is the shared ORGANON per-tree flag (also used by Olympic).
     c = s.calib
-    length(c.op_iorg) != t.n && resize!(c.op_iorg, t.n)
+    # IORG is a SLOT-indexed COMMON array (oc/dgdriv.f:231-256 sets IORG(1..ITRN) each call and never clears the
+    # rest): slots beyond this call's ITRN keep their last value, which CROWN reads for trees ESTAB adds after the
+    # call (oc/crown.f:281 IF(LORGANON .AND. IORG(I).EQ.1) with CR2(I)=0 ⇒ ICR=1). Grow-only stash mirrors that.
+    length(c.op_iorg) < t.n && resize!(c.op_iorg, t.n)
     @inbounds for i in 1:t.n; c.op_iorg[i] = buf.iorg[i]; end
     return g
 end

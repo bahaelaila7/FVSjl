@@ -220,7 +220,7 @@ uses the LTHTG special form. Requires the tree's `diam_growth` (DG) already comp
 function height_growth!(s::StandState, ::Olympic; scale::Float32 = 1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     avh = p.avg_height; ba = p.basal_area
-    org_ran = length(c.op_iorg) == t.n           # ORGANON ran this cycle ⇒ IORG=1 trees take stashed HGRO
+    org_ran = length(c.op_hgro) == t.n && length(c.op_iorg) >= t.n           # ORGANON ran this cycle ⇒ IORG=1 trees take stashed HGRO
     @inbounds for i in 1:t.n
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue

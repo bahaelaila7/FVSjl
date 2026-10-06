@@ -96,7 +96,8 @@ _stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa Southeas
                     v isa WestSierra || v isa CentralCalifornia || v isa PacificNorthwest || v isa WestCascades ||
                     v isa SouthCentralOregon || v isa CentralRockies || v isa CentralIdaho || v isa EastCascades ||
                     v isa Utah || v isa Teton || v isa Klamath || v isa BlueMountains ||
-                    v isa BritishColumbia   # metric/base/cwidth.f, called at the same fvs.f:207 / gradd.f:254 points
+                    v isa BritishColumbia ||  # metric/base/cwidth.f, called at the same fvs.f:207 / gradd.f:254 points
+                    v isa OregonCoast || v isa Olympic   # oc/op fmcba.f CWIDTH=CRWDTH(I), sstage.f WK6=CRWDTH(I) (same base cwidth.f)
 
 """
     cwidth!(s) -> s

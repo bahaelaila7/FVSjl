@@ -334,7 +334,8 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # fires and the stand keeps ~3-4× too much TPA at cycle 1 (measured live vs jl on dense over-max-SDI FIA
     # stands; cyc0/ref-stand sweeps never caught it — the ref stands' habitat resolves to a benign default).
     # Match live FVSpn/FVSwc, which read PV_CODE and PVREF6/HBDECD it to the PCOML index.
-    if s.variant isa PacificNorthwest || s.variant isa WestCascades
+    # OP (op/habtyp.f == pn/habtyp.f, op/pvref6.f == pn/pvref6.f byte-identical): same PCOML/PVREF6 decode as PN.
+    if s.variant isa PacificNorthwest || s.variant isa WestCascades || s.variant isa Olympic
         pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
         pvref = ""
         if _fia_present(d, "PV_REF_CODE")
@@ -342,7 +343,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             r > 0f0 && (pvref = string(Int(round(r))))
         end
         if !isempty(pv) || !isempty(pvref)
-            hc = s.variant isa PacificNorthwest ? pn_habitat_kodtyp(pv, pvref) : wc_habitat_kodtyp(pv, pvref)
+            hc = s.variant isa WestCascades ? wc_habitat_kodtyp(pv, pvref) : pn_habitat_kodtyp(pv, pvref)
             p.habitat_code = Int32(hc)
         end
     end
