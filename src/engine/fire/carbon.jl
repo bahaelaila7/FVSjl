@@ -394,7 +394,6 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             b = _snag_bole_tons(s, i)
             v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
         end
-        haskey(ENV, "DBGCARB") && println(stderr, "JLSN ", i, " ", sn.sp[i], " ", sn.dbh[i], " ", sn.height[i], " ", sn.den_hard[i], " ", sn.htcur[i], " v=", v)
         sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
     end
     c2 = fs.cwd2b; c22 = fs.cwd2b2; tfm = size(c2, 3)
