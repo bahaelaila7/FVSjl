@@ -240,4 +240,16 @@ end
     @test _n(c.ms; file = "FVS_Mortality") == 0
 end
 
+# OC FFE FMOLDC: OLDHT/OLDCRL are the PRE-growth HT/ICR (fmoldc.f closes FMMAIN, which runs in GRADD before UPDATE). OC's ORGANON hook grows
+# the stand inline, so the non-fire cycle's ffe_fmoldc! stored GROWN heights ⇒ next FMSDIT's crown-lift X was 0 for those records
+# (OC 30193600010497 2013 FD dump: OLDCRW(1) 0.10202 live vs 0 jl) ⇒ the fire snags' CWD2B2 sizes 1-4 (YRSCYC*OLDCRW term, fmscro.f:147) low.
+# oc/fmvinit.f:481-510: snag HTX(I,1:4)=1/0/1/0 + HTR1 0.03406 (fire snags lose height: 48.9 -> 41.1 ft by 2018) and TFALL(I,1)=10, (2)=15,
+# (4:5)=TFALL(3) (the generic tfall class rows dropped a fire's crowns in ~4 yr instead of 10-20).
+@testset "OC FFE: pre-growth FMOLDC, snag height loss HTX/HTR1, crown TFALL (oc/fmvinit.f, fmoldc.f, fmsdit.f)" begin
+    c = _case("OC", "30193600010497", "simfire")
+    @test _n(c.ms; file = "FVS_Carbon") == 0
+    @test _n(c.ms; file = "FVS_PotFire", before = 2028) == 0
+    @test FVSjl._fm_tfall_table(FVSjl.OregonCoast())[18, 1:6] == Float32[3, 10, 10, 10, 10, 10]
+end
+
 end # module
