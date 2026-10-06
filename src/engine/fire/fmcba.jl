@@ -434,6 +434,14 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_code),
                                             s.plot.sp_site_index, Int(s.plot.site_species))
         end
+        # OC (oc/fmcba.f:575-737 == ca/fmcba.f): the same first-year decay rates — California forests (KODFOR 500-599) the flat
+        # 0.025/0.0125 set, else the Oregon base × DKRADJ(CAHMC(ITYPE),CAWMD(ITYPE),K); KODFOR < 600 then ×DCYMLT (GETDUNN). ITYPE =
+        # the habtyp index (`habitat_input`). The fixed mesic CWC221 default (_FM_DKR_OC) over-/under-decayed every other habitat:
+        # MEASURED FVSoc_tiered 15148784010497 (CDC321: ITYPE 3, TEMP 2, MOIST 3) 2015 Forest_Down_Dead_Wood 0.454 live vs 0.436 jl.
+        if s.variant isa OregonCoast && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_input),
+                                            s.plot.sp_site_index, Int(s.plot.site_species))
+        end
         # EC decay-rate habitat adjustment (ec/fmcba.f:457-491): scale the EC base DKR by DKRADJ(TEMP,MOIST,K)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11

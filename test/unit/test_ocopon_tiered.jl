@@ -271,4 +271,15 @@ end
     @test isempty(c.ms)
 end
 
+# OC first-year FFE decay rates (oc/fmcba.f:575-737, == ca/fmcba.f): the Oregon base DKRT × DKRADJ(CAHMC(ITYPE),CAWMD(ITYPE),K) with the
+# stand's habtyp ITYPE (CDC321 ⇒ ITYPE 3, TEMP 2, MOIST 3 — MEASURED FVSoc_tiered); jl hard-coded the mesic CWC221 row for every stand.
+# OC 15148784010497: 2015 Forest_Down_Dead_Wood 0.454 live vs 0.436; salvage/simfire Carbon+PotFire 39 cells each -> 0.
+@testset "OC FFE decay rates by habitat ITYPE (oc/fmcba.f:575-737)" begin
+    for r in ("simfire", "salvage")
+        c = _case("OC", "15148784010497", r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
