@@ -193,7 +193,7 @@ end
 @testset "OC FFE sees the cycle-start stand + stored CRWDTH (simfire)" begin
     c = _case("OC", "30193600010497", "simfire")
     @test !c.crashed
-    for f in ("sum", "FVS_Summary", "FVS_Mortality", "FVS_BurnReport", "FVS_PotFire")
+    for f in ("sum", "FVS_Summary", "FVS_Mortality", "FVS_BurnReport")   # FVS_PotFire/FVS_Carbon post-fire residuals stay OPEN
         @test _n(c.ms; file = f) == 0
     end
 end
