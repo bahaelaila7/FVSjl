@@ -467,7 +467,7 @@ function fertilizer_growth!(s::StandState; fint::Float32 = 5f0)
         d = t.dbh[i]; d <= 0f0 && continue
         dib = d * bark_ratio(ba_a, ba_b, t.species[i], d)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba   # basal area in larger trees (PCT in crown_ratio)
-        rdds = exp(0.1108f0 * log(d) + 0.003004f0 * bal / log(d + 1f0))
+        rdds = fexp(0.1108f0 * flog(d) + 0.003004f0 * bal / flog(d + 1f0))   # ffert.f EXP/ALOG = glibc expf/logf (fmath.jl)
         rdds > 2.6f0 && (rdds = 2.6f0)
         dg  = t.diam_growth[i]
         dds = 2f0 * dib * dg + dg * dg                # squared-diameter change this cycle
