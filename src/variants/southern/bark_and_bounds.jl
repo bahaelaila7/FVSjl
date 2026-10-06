@@ -106,10 +106,12 @@ increment to the `sfint`-year cycle (gradd.f:79-90: `DDS=(DG·(2·d_ib+DG))·(FI
 """
 @inline function _bound_scale(dlo_v, dhi_v, sp::Integer, dbh::Real, d_ib::Real, dg5::Real,
                               sfint::Real, sizcap::AbstractMatrix, yr::Real = 5f0, wcbnd::Bool = false,
-                              wsbnd::Bool = false)::Float32
+                              wsbnd::Bool = false, onbnd::Bool = false)::Float32
     # wcbnd: the wc/dgbnd.f form (WC/PN) — DGMAX envelope + DG≥0 floor, then the same SIZCAP cap.
     # wsbnd: ws/dgbnd.f — the per-species DGAMAX·DBH^DGBMAX·EXP(DGCMAX·DBH) envelope (DBH≥3), then SIZCAP.
-    dg = wcbnd ? wc_dgbnd(Int(sp), Float32(dbh), Float32(dg5), sizcap[sp, 1], sizcap[sp, 3]) :
+    # onbnd: canada/on/dgbnd.f — 6·exp(−0.03·DBH) ceiling and a 0 floor, NO SIZCAP term (TREESZCP reaches ON only through morts.f/htgf.f).
+    dg = onbnd ? _on_dgbnd(Float32(dbh), Float32(dg5)) :
+         wcbnd ? wc_dgbnd(Int(sp), Float32(dbh), Float32(dg5), sizcap[sp, 1], sizcap[sp, 3]) :
          wsbnd ? ws_dgbnd(Int(sp), Float32(dbh), Float32(dg5), sizcap[sp, 1], sizcap[sp, 3]) :
                  dg_bound(dlo_v, dhi_v, sp, dbh, dg5, sizcap)
     s = Float32(sfint); y = Float32(yr)             # YR = the DG model's native period (SN 5, NE 10)
