@@ -255,7 +255,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # NOAUTOES keeps the fire kill but suppresses the post-fire sprouts (the 456→177 TPA difference).
             # esuckr! (simulate.jl, after the fire) then sprouts them. cut_log was freshly cleared by cuts! this
             # cycle and cuts! runs BEFORE the fire, so these records append cleanly alongside any harvest cuts.
-            if s.control.lsprut && is_sprout[sp] == 1f0
+            if s.control.lsprut && is_sprout[sp] == 1f0 && curkil > 0.00001f0     # fmkill.f:78 IF (FIRKIL(I) .GT. 0.00001) CALL ESTUMP
                 push!(s.control.cut_log,
                       (species = Int32(sp), dstmp = d, prem = curkil,
                        plot = Int32(t.plot_id[i]), ishag = round(Int32, cyclen)))
