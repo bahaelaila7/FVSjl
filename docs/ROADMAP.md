@@ -1,6 +1,6 @@
 # FVSjl — roadmap
 
-_Last updated 2026-10-05. Current numbers: **[CERTIFICATION_STATUS.md](CERTIFICATION_STATUS.md)**. Method:
+_Last updated 2026-10-07. Current numbers: **[CERTIFICATION_STATUS.md](CERTIFICATION_STATUS.md)**. Method:
 **[DOCTRINE.md](DOCTRINE.md)**. (Supersedes the per-cluster scoping docs `WESTERN_UNPORTED_VARIANTS_ROADMAP.md`,
 `WESTERN_ROLLOUT_GOAL.md`, `CS_GOAL.md`/`LS_GOAL.md`/`NE_GOAL.md`, whose port phases are complete.)_
 
@@ -17,7 +17,7 @@ code is refactored to a cleaner design with the tiered suite as a lock-step safe
 | 1 | Port every variant's base model + extensions | **done** |
 | 2 | Tiered suite with live goldens for every variant | **done** 2026-10-05 (CS/LS/NE/ON/OC/OP were the last six; BC on 10-04) |
 | 3 | Drive every variant's tiered cells to zero or to named corners | **in progress** — see below |
-| 4 | Certification pass: re-audit every CORNER entry against the live oracle, close or justify each OPEN entry, FIA full-population re-sweeps, full suite on the final tip | **in progress** — eastern FIA re-sweep running (1.47M stands, ~30–45 h + digs) |
+| 4 | Certification pass: re-audit every CORNER entry against the live oracle, close or justify each OPEN entry, FIA full-population re-sweeps, full suite on the final tip | **in progress** — eastern FIA re-sweep ~115k of 1.47M stands; round-1 dig fixes integrating, round 2 running |
 | 5 | Refactor to a cleaner design (jl-vs-jl bit-identity snapshots + oracle fast tier + coverage + mutation + thread-determinism as the net) | after phase 4 |
 
 ## Phase 3 — remaining work, in priority order
@@ -27,7 +27,7 @@ Priority set by the user on 2026-10-05: **eastern variants first** (CS, LS, NE, 
 | Priority | Variants | Off / compared | What is known | Estimate |
 |---|---|---|---|---|
 | ✔ | CS, LS, NE | **0** / 1.28M | done 2026-10-05 (on integ-1006a; lands with its merge) | — |
-| ✔ | ON | **2** / 358k | one 1-ULP volume cell OPEN; eastern extension/keyword coverage round in progress (FFE keywords, ON keyword suite, stub parity, 4 old kwcov corners) | 1–2 days |
+| ✔ | ON | **0** / 358k | done 2026-10-07 together with the eastern keyword-coverage suites (0 OPEN entries) | — |
 | ✔ | OC, OP | **0** / 193k, **0** / 173k | OC startup DG calibration (oc/dgdriv.f) never runs; OP FVS-native paths use Julia math where op/*.f call glibc expf/logf/powf | 3–5 days, in parallel |
 | 3 | Western tail (UT 71, WS 53, SO 33, WC 9, EC 4, KT 3, AK 2, PN 1) | 176 / 6.0M | UT snag-bin carbon ULPs, SO FFE/volume rounding edges, WS HtG | 1 day |
 | ✔ | BC | **0** / 1.97M | post-fire down-wood carbon (+40% ten years after a burn) | <1 day |
@@ -38,15 +38,18 @@ root-disease cycle-1 WK1; EM NOAUTOES+PLANT planted birth heights; remaining `NO
 
 ## Timeline
 
-| | Estimate (2026-10-05) |
+| | Estimate (2026-10-07) |
 |---|---|
-| Phase 3 complete | 3–6 days |
-| Phase 4 (certification pass) | +1–2 days |
-| **Certification** | **~3–6 days from 2026-10-06** |
+| Phase 3 complete (western tail 176 cells) | 1–2 days |
+| Eastern FIA re-sweep + digs | ~2.5–3 days at the current ~10,000 stands/hour/lane (lane C, LS+CS, is the long pole; it is split when lane B finishes) |
+| Western FIA re-sweeps on the final engine, CORNER re-audit, final full suite | +1–2 days |
+| **Certification** | **~4–6 days from 2026-10-07** |
 | Phase 5 refactor | +1–2 weeks |
 
 History of the estimate: ~2–3 weeks (2026-09-28, before the API outage), 1.5–2.5 weeks (2026-10-04 restart),
-5–9 days (2026-10-05). It shortened because BC (467,601 → 57) and the core four (→ 0) closed far faster than planned.
+5–9 days (2026-10-05), 3–6 days (2026-10-06). The tiered work is almost done; the long pole is now the FIA
+full-population sweep throughput (1.47M eastern stands on a shared machine) and the digs it turns up — round 1 found
+five real eastern bugs plus the same two in NC/UT, none of which the tiered fixtures exercised.
 
 ## Risks
 
