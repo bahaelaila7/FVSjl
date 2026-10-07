@@ -611,6 +611,14 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # Recompute NOW over the overstory (1:nstart, no seedlings yet): cs_estab overstory 134.1/70.2; bare stand 0/0.
     ov_ba_pre = stand_ba(s)
     ov_avh_pre = stand_top_height(s)
+    # OP REGENT(LESTB) with FINT>5 runs SMHGDG, whose PTBAA(ITRE(IT)) is the per-point BA of GRADD's post-growth, PRE-regen DENSE (a fresh
+    # tally over the overstory; density.point_ba is still the cycle-start one here). Computed into a local so density.* stays untouched.
+    local ptba_op = Float32[]
+    if s.variant isa Olympic && per > 5
+        pb0 = copy(s.density.point_ba); bal0 = copy(s.density.point_bal)
+        point_basal_area!(s); ptba_op = copy(s.density.point_ba)
+        copyto!(s.density.point_ba, pb0); copyto!(s.density.point_bal, bal0)
+    end
     # estab.f:175-205 — pre-replicate :estab RNG setup, consumed BEFORE any per-replicate height draw.
     # On the FIRST tally (NTALLY==1) FVS draws once to derive ESDRAW = INT(DRAW·1e5+0.5) and SAVEs it;
     # every tally then reseeds the establishment stream with ESRNSD(.TRUE.,ESDRAW) (odd-forced) and
@@ -1139,6 +1147,12 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             rdiam_e = sd[:htdbh_db]
             rnd_e = s.control.dg_stddev_bound >= 1f0
         end
+        if oc_estab || op_estab
+            # {oc,op}/regent.f LESTB: FNT=FINT−5 (FINT>5; LSKIPH ⇒ no growth when FINT≤5), SCALE=FNT/REGYR (REGYR=5).
+            # BA/AVH = the post-growth overstory (pre-seedling snapshot, as NE/CS/LS); a new record has PCT(I)=0 (estab.f:647) ⇒ BAL=BA.
+            avh_e = ov_avh_pre; ba_e = ov_ba_pre
+            scale_e = per > 5 ? Float32(per - 5) / 5f0 : 0f0
+        end
         # IE has its OWN esgent (ie_esgent!, run after this) which does the REGENT(LESTB) crown-dub in the
         # faithful ie/regent.f DO-13 STORAGE order for ALL new records (PLANT + AUTOES). Drawing it here too
         # (in SPESRT species order) would DOUBLE-consume the main stream for IE PLANT/NATURAL records and use
@@ -1171,6 +1185,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0
             t.crown_ratio[i] = Float32(icr0)
+            # {oc,op}/regent.f:215 IORG(I)=0 for every record REGENT(LESTB) grows (a new seedling is not a valid ORGANON tree); IORG is a
+            # SLOT-indexed COMMON, so without this a new record inherits the slot's stale flag (a planted RC read IORG=1, CR2=0 ⇒ ICR 1).
+            (oc_estab || op_estab) && i <= length(s.calib.op_iorg) && (s.calib.op_iorg[i] = Int32(0))
             if ne_estab || cs_estab || ls_estab                # REGENT(LESTB) (+ ESGENT) for the new record
                 # {ne,cs,ls}/regent.f LESTB: CR dub (above), HTG over FNT=FINT−5 (LSKIPH ⇒ HTG=0 when FINT≤5, no draw),
                 # SIZCAP(·,4) cap, HK=H+HTG; HK≤4.5 ⇒ DG=0, DBH=D+0.001·HK (:291-294), else DBH=HTDBH⁻¹(HK) floored to DIAM,
@@ -1223,37 +1240,66 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 t.dbh[i] = dbhk
                 t.diam_growth[i] = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)
                 esgent_finish!(t, i, htgr, ne_estab ? _NE_ES_HHTMAX[sp] : cs_estab ? _CS_ES_HHTMAX[sp] : _LS_ES_HHTMAX[sp])
-            elseif (oc_estab || op_estab) && per <= 5
-                # {oc,op}/regent.f REGENT(LESTB) for a new record with FINT≤5: LSKIPH ⇒ DGR=HTG(K)=0 (regent.f:234-238, no SMHGDG,
-                # no draw with DGSD=0), HK=H. The DBH step (OC regent.f:285-345, OP regent.f:325-406):
+            elseif oc_estab || op_estab
+                # {oc,op}/regent.f REGENT(LESTB) for a new record. FINT≤5: LSKIPH ⇒ DGR=HTG(K)=0 (regent.f:234-238, no SMHTGF/SMHGDG, no
+                # draw with DGSD=0), HK=H. FINT>5 (FNT=FINT−5, SCALE=FNT/REGYR=FNT/5, XWT=0 for LESTB, no draw with DGSD<1):
+                #   OC regent.f:200-243: HTGR=SMHTGF(CR=ICR/10, BA, BAL=BA (PCT=0), SI, RELHT=min(H/AVH,1.05))·CON·XRHGRO·SCALE;
+                #   OP regent.f:263-298: SMHGDG(MODE=1: CR=ICR/100, PTBALT(I), PTBAA(ITRE), RELHT=min(H/AVHT,1.5), AVHT=(5·AVH+(FINT−5)·ATAVH)/FINT)
+                #   → HTGR=(HG5·XRHGRO·SCALE·CON·WK4(I)); then HTG=max(HTGR,0.1), SIZCAP(·,4) (the new record's WK4 = HTIMLT).
+                # The DBH step (OC regent.f:285-345, OP regent.f:325-406):
                 #   HK≤4.5 (OC) / HK<4.5 (OP): DG=0, DBH=D+0.001·HK;
                 #   OC HK>4.5: DBH=HTDBH⁻¹(HK) floored to DIAM, +0.001·HK, DG=DBH;
-                #   OP HK≥4.5: DG=DGR·SCALE·WK4=0 ⇒ DBH=DG floored to DIAM(sp).
+                #   OP HK≥4.5: DG=DGR5·SCALE·WK4, DBH=DG floored to DIAM(sp).
                 # then DGBND, then ESGENT (esgent.f:20-34: HTG·=WK4; WK4<1 rescales DBH/DG).
                 sp = Int(t.species[i]); h = t.height[i]; d = t.dbh[i]
-                if oc_estab
-                    if h <= 4.5f0
-                        dgk = 0f0; dbhk = d + 0.001f0 * h
+                htg_e = 0f0; dg5_e = 0f0
+                if per > 5
+                    si_e = s.plot.sp_site_index[sp]
+                    xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))
+                    if oc_estab
+                        cr_e = Float32(t.crown_pct[i]) / 10f0
+                        relht_e = avh_e > 0f0 ? min(h / avh_e, 1.05f0) : 1f0
+                        htgrr = oc_smhtgf(sp, d, h, cr_e, ba_e, ba_e, si_e, relht_e)
+                        htg_e = ((htgrr * fexp(s.calib.htg_cor_small[sp])) * xrhgro) * scale_e
                     else
-                        dbhk = oc_hd_diam(sp, h)
+                        finf = Float32(per)
+                        avht_e = (5f0 / finf) * avh_e + ((finf - 5f0) / finf) * s.plot.at_avg_ht
+                        pt_e = Int(t.plot_id[i])
+                        ptba_e = (1 <= pt_e <= length(ptba_op)) ? ptba_op[pt_e] : 0f0
+                        ptbal_e = ptba_e                      # estab.f:655 PTBALT(ITRN)=PTBAA(NNID): a new record's BAL is its point's whole BA
+                        hg5, dg5_e = op_smhgdg(sp, h, d, Float32(t.crown_pct[i]) * 0.01f0, ptbal_e, ptba_e, avht_e, si_e)
+                        htg_e = ((((hg5 * xrhgro) * scale_e) * fexp(s.calib.htg_cor_small[sp])) * t.htimlt[i])
+                    end
+                    htg_e < 0.1f0 && (htg_e = 0.1f0)
+                    if (h + htg_e) > s.control.sp_size_cap[sp, 4]
+                        htg_e = s.control.sp_size_cap[sp, 4] - h
+                        htg_e < 0.1f0 && (htg_e = 0.1f0)
+                    end
+                end
+                hk_e = h + htg_e
+                if oc_estab
+                    if hk_e <= 4.5f0
+                        dgk = 0f0; dbhk = d + 0.001f0 * hk_e
+                    else
+                        dbhk = oc_hd_diam(sp, hk_e)
                         dbhk < OC_REG_DIAM[sp] && (dbhk = OC_REG_DIAM[sp])
-                        dbhk += 0.001f0 * h; dgk = dbhk
+                        dbhk += 0.001f0 * hk_e; dgk = dbhk
                     end
                     if (dbhk + dgk) > s.control.sp_size_cap[sp, 1] && s.control.sp_size_cap[sp, 3] < 1.5f0   # oc/dgbnd.f
                         dgk = s.control.sp_size_cap[sp, 1] - dbhk
                         dgk < 0.01f0 && (dgk = 0.01f0)
                     end
                 else
-                    if h < 4.5f0
-                        dgk = 0f0; dbhk = d + 0.001f0 * h
+                    if hk_e < 4.5f0
+                        dgk = 0f0; dbhk = d + 0.001f0 * hk_e
                     else
-                        dgk = 0f0; dbhk = dgk
+                        dgk = (dg5_e * scale_e) * t.htimlt[i]; dbhk = dgk
                         dbhk < OP_REG_DIAM[sp] && (dbhk = OP_REG_DIAM[sp])
                     end
                     dgk = op_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap)
                 end
                 t.dbh[i] = dbhk; t.diam_growth[i] = dgk
-                esgent_finish!(t, i, 0f0, oc_estab ? _OC_ES_HHTMAX[sp] : _OP_ES_HHTMAX[sp])
+                esgent_finish!(t, i, htg_e, oc_estab ? _OC_ES_HHTMAX[sp] : _OP_ES_HHTMAX[sp])
             end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding

@@ -29,7 +29,7 @@ function _pofl_fmfint(s::StandState, models, mois::AbstractMatrix{Float32}, fwin
         (fm == 0 || w <= 0f0) && continue                              # fmfint.f:89
         load, sav, depth, mext = fmgfmv(s, fm, mois)
         depth *= dpmod; dlast = depth
-        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
+        r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope, lhv = _fm_lhv(s, fm))
         byram += r.byram * w; ssig += r.sigma * w; srho += r.rhobqig * w; sxir += r.xir * w
         sirxi += r.xio * w; sphis += r.phis * w; sfrate += r.spread * w; scbe += r.scbe * w
     end
@@ -56,12 +56,12 @@ function _pofl_fmcfir(s::StandState, models, mois::AbstractMatrix{Float32}, f, s
     cbd <= 0f0 && return (; cftype = "SURFACE", crburn = 0f0, oinit = -1f0, oact = -1f0, rfinal = f.sfrate)
     init1 = 0f0
     if actcbh != -1
-        init1 = (460f0 + 25.9f0 * _POFL_FOLMC) * 0.001333f0                          # fmcfir.f:94
+        init1 = (460f0 + 25.9f0 * s.fire.user.folmc) * 0.001333f0                    # fmcfir.f:94 (FOLMC: CANCALC field 5)
         init1 = fpow(init1 * Float32(actcbh), 3f0 / 2f0)
     end
     # FM10 at FWIND = SWIND·0.4 (fmcfir.f:122-143: FMFINT(…,2,HPA2,1) ⇒ FMGFMV(IYR,10), no interpolation)
     load, sav, depth, mext = _fm10(s)
-    r10 = rothermel_surface_fire(load, sav, depth, mext, mois; wind = Float32(swind) * 0.4f0, slope_tan = s.plot.slope)
+    r10 = rothermel_surface_fire(load, sav, depth, mext, mois; wind = Float32(swind) * 0.4f0, slope_tan = s.plot.slope, lhv = _fm_lhv(s, 10))
     b = 0.02526f0 * fpow(f.ssigma, 0.54f0)                                            # fmcfir.f:146
     oact = 0f0
     if r10.xio < 1f0                                                                   # `IF (SIRXI(2) .LT. 00001)` — integer 1

@@ -1,0 +1,2 @@
+StandID,Year,Min_Soil_Exp,Litter_Consumption,Duff_Consumption,Consumption_lt3,Consumption_ge3,Consumption_3to6,Consumption_6to12,Consumption_ge12,Consumption_Herb_Shrub,Consumption_Crowns,Total_Consumption,Percent_Consumption_Duff,Percent_Consumption_ge3,Percent_Trees_Crowning,Smoke_Production_25,Smoke_Production_10
+ne,2010,37.54324722290039,3.894749402999878,9.095017433166504,2.527186155319214,2.707080602645874,1.1524730920791626,0.39541125297546387,1.1591960191726685,0.4959999918937683,0.0,18.720033645629883,51.75,52.03177261352539,0,0.17224174737930298,0.20293276011943817

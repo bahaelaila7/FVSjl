@@ -289,6 +289,12 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
 
     sdimax = stand_sdimax(s)                          # SDICAL(0,SDIMAX) — Reineke, climate check
     bamax = sdimax * 0.5454154f0 * pmsdiu             # BAMAX (DENSE), morts.f BA-check target
+    if ctl.ba_max > 0f0
+        # sdical.f:203-209: with a user BAMAX (LBAMAX) BAMAX stays the keyword value and XMAX (the SDIMAX MORTS reads) is re-derived as
+        # BAMAX/(0.5454154·TEM), TEM = PMSDIU (/100 when > 1). MEASURED FVSon_tiered kwcov_on bamax: BA 25 (live) vs 36 (jl, never capped).
+        bamax = ctl.ba_max
+        sdimax = bamax / (0.5454154f0 * pmsdiu)
+    end
 
     # --- MORTS QMD-convergence loop, morts.f label 10 .. `IF(DIFF.GT.0.2) ... GO TO 10`, faithfully: every pass
     # runs DO 50 + VARMRT + the DO 30 survivor sums (TN/D10N) in BOTH regimes (the background test T<=TEM reads

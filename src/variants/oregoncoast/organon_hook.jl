@@ -267,6 +267,10 @@ function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snag
     end
     length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    # oc/morts.f:499 sets WK2(I)=MORTEXP(I)*(FINT/5.) UNclamped (only the local WKI is capped at PROB, :500) and nothing later
+    # clamps it unless SIZCAP applies (:713-714); update.f:72-73 caps the kill, dbstrls.f:158 prints WK2 itself. `wk2_raw`
+    # keeps that value for FVS_TreeList MortPA via s.scratch.mort_killed (a record with 5-yr MORTEXP·FINT/5 > PROB reports MortPA > TPA).
+    wk2_raw = fill(-1f0, n)
     # oc/morts.f:493-504: ORGANON ran ⇒ WK2(I)=MORTEXP(I)·(FINT/5) for every record (the per-record ORGANON kill
     # MORTEXP stashed by the DG driver, fscale already applied). [No-big-6 stands take the FVS-native SDI path, :506-546
     # + VARMRT — not yet ported for OC.]
@@ -276,6 +280,7 @@ function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snag
             wki = c.op_mortexp[i]
             wki > p && (wki = p)
             killed[i] = wki
+            wk2_raw[i] = c.op_mortexp[i]
         end
     end
     # SIZCAP size-limit mortality (oc/morts.f:704-717, reached by the ORGANON path too — it precedes `IF(SMORMT.GT.0.)GO TO 45`): a tree whose
@@ -293,6 +298,7 @@ function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snag
                 kc = (p * sizcap[sp, 2] * fint) / 5f0
                 killed[i] < kc && (killed[i] = kc)
                 killed[i] > p && (killed[i] = p)
+                wk2_raw[i] = -1f0                                      # morts.f:714 WK2 capped at P
             end
         end
     end
@@ -311,8 +317,9 @@ function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snag
     end
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n
-        t.mort_pa[i] = killed[i]
         t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
+        t.mort_pa[i] = killed[i]
+        wk2_raw[i] > killed[i] && (killed[i] = wk2_raw[i])   # grow_cycle!'s _morts_wk2 reads this buffer for MortPA/OMORT
     end
     return s
 end

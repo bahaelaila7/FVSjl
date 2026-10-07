@@ -1,0 +1,46 @@
+# test_kwcov_on.jl — Ontario (ON, metric) keyword-isolation coverage vs the LIVE oracle.
+#
+# test/fixtures/kwcov_on/on/on_<stand>_[ffe_]<case>.{key,live.sum,<Table>.csv,tables} (+ stands.db): two FIA stands from
+# test/fixtures/tiered/on/stands.db (DB-read path) × one isolated keyword — base-model keywords (thinnings, multipliers,
+# volume/defect, SETSITE, ESTAB, ...) and the FFE keywords the ON build accepts (every FFE report + *_Metric DBS table
+# requested). Goldens = /workspace/.onwork/tiered/FVSon_tiered (test/harness/kwcov_on/make_cases.jl, PROVENANCE.toml). Every
+# .sum field and every DBS table cell must match at print precision — no tolerance.
+#   KWON_ONLY=regex(on stem)   restrict the run (default: all)
+# A case that is not yet bit-exact goes in _KWON_OPEN with the measured diagnosis (reported as @test_broken so an unexpected
+# pass surfaces); never silently skipped.
+using Test, FVSjl
+include(joinpath(@__DIR__, "..", "harness", "kwcov_ffe", "runner.jl"))
+
+const _KWON_OPEN = Dict{String,String}(
+    "on_21769405010661_ffe_carbcut" => "OPEN (measured 2026-10-06, FVSon_tiered): 16 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_21769405010661_ffe_fuelmove" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Consumption_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_21769405010661_ffe_fueltret" => "OPEN (measured 2026-10-06, FVSon_tiered): 22 cells in FVS_Carbon_Metric,FVS_Consumption_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_21769405010661_ffe_pileburn" => "OPEN (measured 2026-10-06, FVSon_tiered): 9 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_21769405010661_ffe_pileburn_jack" => "OPEN (measured 2026-10-06, FVSon_tiered): 10 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_21769405010661_ffe_simfire_nomort" => "OPEN (measured 2026-10-06, FVSon_tiered): 116 cells in FVS_Carbon_Metric,FVS_SnagDet_Metric,FVS_SnagSum_Metric,sum; SIMFIRE with zero fire mortality: 2027 snag density +0.26pct vs live (fire-year kill), primitive unresolved",
+    "on_21769405010661_thinqfa" => "OPEN (measured 2026-10-06, FVSon_tiered): 15672 cells in FVS_StrClass_Metric,FVS_TreeList_East_Metric; THINQFA ON: 1e-6-relative BAPctile/TPH diffs, class targets+cut amounts identical to live DEBUG (clstar2 4.5748067 remove 18.805433); primitive unresolved",
+    "on_64767919010661_ffe_carbcut" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Carbon_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_64767919010661_ffe_flameadj_len" => "OPEN (measured 2026-10-06, FVSon_tiered): 1 cells in FVS_Down_Wood_Cov_Metric",
+    "on_64767919010661_ffe_fueltret" => "OPEN (measured 2026-10-06, FVSon_tiered): 7 cells in FVS_Carbon_Metric,FVS_Consumption_Metric",
+    "on_64767919010661_ffe_pileburn" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Carbon_Metric,FVS_Down_Wood_Vol_Metric",
+    "on_64767919010661_ffe_pileburn_jack" => "OPEN (measured 2026-10-06, FVSon_tiered): 5 cells in FVS_Carbon_Metric",
+    "on_64767919010661_ffe_salvage" => "OPEN (measured 2026-10-06, FVSon_tiered): 24 cells in FVS_Carbon_Metric,FVS_Hrv_Carbon",
+    "on_64767919010661_ffe_simfire_nomort" => "OPEN (measured 2026-10-06, FVSon_tiered): 6 cells in FVS_Carbon_Metric,FVS_SnagDet_Metric; 1-ULP",
+)
+
+@testset "ON keyword-isolation vs live" begin
+    root = KCASE_ROOTS["on"]
+    pat = Regex(get(ENV, "KWON_ONLY", "."))
+    for stem in kcase_stems(root, "on")
+        occursin(pat, stem) || continue
+        @testset "$stem" begin
+            ms, crashed, err = run_kcase(root, "on", stem)
+            if haskey(_KWON_OPEN, stem)
+                @test_broken isempty(ms)
+            else
+                isempty(ms) || foreach(m -> println("  MISMATCH ", key_str(m), " gold=", m.gold, " jl=", m.got), first(ms, 12))
+                @test isempty(ms)
+            end
+        end
+    end
+end

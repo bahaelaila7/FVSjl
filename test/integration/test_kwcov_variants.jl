@@ -25,6 +25,8 @@ const _KCV_VARIANT = Dict("ne" => FVSjl.Northeast(), "cs" => FVSjl.CentralStates
 # effect on a few trees (grown DBH on a merch boundary under the override), NOT a systematic bug — the goal
 # permits ULP-class. Base stand + SN(R8) bit-exact. Not closed to bit-exact; tracked. See
 # docs/MODERNIZATION_R9_VOLUME_OVERRIDE_GAP.md (live-stamp findings).
+# 2026-10-06: cs_simfire / ls_simfire / cs_fixhtg / ls_estab (formerly ULP-class @test_broken) are bit-exact vs the live oracle (Unexpected Pass at
+#   1bd62684 and now: julia -e 'using Test,FVSjl; include("test/integration/test_kwcov_variants.jl")') — their entries are removed.
 const _KCV_BROKEN = Dict{String,String}(
     # 2026-10-05: cs_simfire, ls_simfire, cs_fixhtg and ls_estab are now exact vs live (integ-1006a eastern fixes) and
     # no longer listed; the notes below are their history.
@@ -52,11 +54,13 @@ const _KCV_BROKEN = Dict{String,String}(
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the
     #   sawtimber scftopd/scfstmp (which a blank-SCFTOPD VOLUME card zeroes) instead of the BOARD's own sp_bf_topd/
     #   sp_bf_stump; bftopk now uses the board top/stump (bf-equal ⇒ inert in the base). Now full-row BIT-EXACT.
-    # VOLUME/MCDEFECT: the BdFt divergence is FIXED by the same bftopk board-top fix; the residual below is now ONLY
+    # {ne,cs,ls}_volume: FIXED (2026-10-05, east-ext) — NOT a ULP corner. The dated `VOLUME 2000 0 1 4 8` card leaves
+    #   SCFMIND/SCFTOPD/SCFSTMP blank; initre.f:1962-1975 FILLS blanks from the standard in force at read time
+    #   (species 1 for ISP=0 — grinit SCFSTMP=1.0) and volkey.f:9917 stores them at the event. jl stored the raw blank
+    #   (SCFSTMP 0) ⇒ CFTOPK's STUMP=1-SCFSTMP/H (cftopk.f:105) was wrong for every TOP-KILLED saw tree (per-tree
+    #   live-vs-jl vols.f stamp: only those records differed, SCFV +0.3%). Now full-row bit-exact. Moved out of broken.
+    # VOLUME/MCDEFECT (history): the BdFt divergence was FIXED by the same bftopk board-top fix; the residual below is now ONLY
     #   the SawCuFt (col 11) off-by-1-2 (0.03-0.05%, ULP-class — present in the base too), NOT the ~1% board gap.
-    "ne_volume"   => "R9 VOLUME override — SawCuFt col off-by-1-2 (ULP-class ~0.04%); BdFt now bit-exact (task #78 bftopk fix)",
-    "cs_volume"   => "R9 VOLUME override — SawCuFt col off-by-1 (ULP-class); BdFt now bit-exact (task #78)",
-    "ls_volume"   => "R9 VOLUME override — SawCuFt col off-by-1 (ULP-class); BdFt now bit-exact (task #78)",
     # cs/ls_mcdefect + cs/ls_bfdefect: FIXED (2026-07-07) — the "off-by-1"/board divergences were the SAME bug:
     #   jl's _set_defect! took the RAW card fields (a blank field → 0), but FVS sdefet.f:60-82 FILLS blank fields
     #   via ALGSLP (clamp/interp of the non-blanks — e.g. a blank 25" field clamps to the last non-blank, not 0).
@@ -115,7 +119,11 @@ const _KCV_BROKEN = Dict{String,String}(
     #   divergence was the missing sdefet.f blank-field ALGSLP-fill (my earlier "ALGSLP extrapolates" guess was WRONG:
     #   algslp.f CLAMPS at Y(N) — the real bug was jl reading a blank card field as 0 instead of the clamped fill).
     #   Now full-row bit-exact for cs + ls; NE unaffected. Moved out of broken.
-    # cs_setsite: the OPCYCL mid-cycle firing bug is FIXED (apply_setsite! containing-cycle gate) ⇒ NE + LS setsite
+    # cs_setsite: FIXED (2026-10-05, east-ext) — NOT a sub-ULP height corner (the July "ill-conditioned NC-128 inversion"
+    #   verdict was wrong). Per-record live-vs-jl HTGF stamp: cycles 1-2 bit-identical, at cycle 3 HT/DBH/HTG1 are bit-equal
+    #   but PROB differs ⇒ cycle-2 MORTALITY differed. grincr.f:197 SETSITE `CALL RCON` → MORCON (morts.f:1053) zeroes
+    #   CEPMRT/SLPMRT/TPAMRT (the latched Pretzsch line); jl kept the pre-SETSITE line. apply_setsite! now resets it.
+    # cs_setsite (history): the OPCYCL mid-cycle firing bug is FIXED (apply_setsite! containing-cycle gate) ⇒ NE + LS setsite
     #   are now FULL-ROW BIT-EXACT. CS retains a ~1-2% residual that GROWS after the 2005 site change (site→70):
     #   TPA/BA/mortality (e.g. 2010 TPA 475/469, Mort 8/11) + the volumes they feed. The SETSITE now fires in the
     #   right cycle (proven by NE/LS bit-exactness on the identical card), so this is a CS-SPECIFIC growth/mortality
@@ -129,7 +137,6 @@ const _KCV_BROKEN = Dict{String,String}(
     #   rounding at the higher site) that self-corrects. cs_dgcons! RULED OUT (skipping it changes nothing). Named
     #   primitive: the CS SDI-mortality threshold response to the sped-up stand — needs a live per-tree DG/mort trace
     #   to classify definitively as ULP-amplified vs a coefficient. NE/LS bit-exact ⇒ CS-specific.
-    "cs_setsite" => "SETSITE — ULP-CLASS, per-tree DBS-PROVEN (2026-07-07): DBH growth BIT-EXACT (DG-diff 0); the CS height at 2010 differs by SUB-ULP (jl 5.593282699 vs live 5.593282222 = 4.8e-7 ≈ 0.7 Float32 ULP), and the ANAMORPHIC height-curve inversion (htcalc.f NC-128) is ill-conditioned at the raised site 70 ⇒ amplifies that sub-ULP Ht diff into ~0.8% HtG on 16/27 trees, cascading to TopHt→SDI-mortality timing (2010-2030) → RE-CONVERGES bit-exact @2040. Formulas + XSITE=SITEAR=70 match jl on inspection ⇒ irreducible Float32 amplification, NOT a bug (goal permits ULP-class). NE+LS bit-exact. Task #84.",
 )
 
 _kcv_rows(txt) = [split(l) for l in split(txt, "\n")

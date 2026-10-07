@@ -98,7 +98,13 @@ has a crown. Idempotent; safe to call once before the first grow.
 """
 function init_crown_ratios!(s::StandState)
     t = s.trees
-    t.n == 0 && return s
+    if t.n == 0
+        # sn|ne|cs|ls/crown.f IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead
+        # records' crowns (DO 79). With ITRN = 0 DENSE leaves BA = 0 (MEASURED FVSne_tiered/FVScs/FVSls on an all-dead stand: the
+        # eastern TWIGS dub PctCr equals the BA = 0 value of the formula for every record; SN's DUBSCR has no BA term).
+        t.ndead > 0 && _cratet_dead_crown_dub!(s, 0f0)
+        return s
+    end
     n = t.n
     # all crowns already set (live AND the cycle-0 dead records, which crown.f DO 79 also dubs)
     (any(@views t.crown_pct[1:n] .== 0) || any(@views t.crown_pct[(n + 1):(n + Int(t.ndead))] .<= 0)) || return s
@@ -123,11 +129,16 @@ function init_crown_ratios!(s::StandState)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
     end
-    # crown.f DO 79 — cycle-0 dead records with a missing crown (eastern forms are deterministic, no draw):
-    #   SN  (sn/crown.f:386-401): DUBSCR(D,CR): CR = 0.70 − 0.40/24·D (D≤24) else 0.30, bounded [.05,.95]; ICRI=INT(CR·100+.5)
-    #   CS/LS/NE (crown.f DO 79): CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))) (CS's sign folded into crown_bcr4);
-    #                             ICRI = INT(CR+.5). BA = the same COMMON BA the live init dub reads.
-    v = s.variant
+    _cratet_dead_crown_dub!(s, bd_ba)             # crown.f DO 79 (below)
+    return s
+end
+
+# crown.f DO 79 — cycle-0 dead records with a missing crown (eastern forms are deterministic, no draw):
+#   SN  (sn/crown.f:386-401): DUBSCR(D,CR): CR = 0.70 − 0.40/24·D (D≤24) else 0.30, bounded [.05,.95]; ICRI=INT(CR·100+.5)
+#   CS/LS/NE (crown.f DO 79): CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))) (CS's sign folded into crown_bcr4);
+#                             ICRI = INT(CR+.5). BA = the same COMMON BA the live init dub reads.
+function _cratet_dead_crown_dub!(s::StandState, bd_ba::Float32)
+    t = s.trees; v = s.variant
     if v isa Southern
         dub_dead_crowns!(s) do i
             d = t.dbh[i]

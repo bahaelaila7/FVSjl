@@ -51,6 +51,13 @@ end
 # 3-arg form (the common case): no PPE harvest variables.
 EventCtx(cycle::Integer, year::Integer, state) = EventCtx(Int(cycle), Int(year), state, nothing)
 
+# True when the IF condition contains a comparison / logical operator (EQ NE GT GE LT LE AND OR) — the operators whose ALGEVL result the
+# canada/on (metric) build reports as an error (FVS21; MEASURED FVSon_tiered kwcov_on eventmon: every IF with a comparison, `(CYCLE EQ 2)`,
+# `(BBA GT 10)`, `(1 EQ 1)`, `(A AND B)`, errors twice per cycle and never fires; `IF (BBA)` and COMPUTE evaluate normally).
+_ev_has_cmp(n::EvNode)::Bool = n isa EvBin ? (n.op in (:gt, :ge, :lt, :le, :eq, :ne, :and, :or) || _ev_has_cmp(n.a) || _ev_has_cmp(n.b)) :
+                               n isa EvUn ? _ev_has_cmp(n.a) : n isa EvFun ? (_ev_has_cmp(n.a) || _ev_has_cmp(n.b)) :
+                               n isa EvTime ? any(_ev_has_cmp, n.args) : false
+
 # --- evaluator (single recursive function, no closures) ---------------------
 function eval_event(n::EvNode, ctx::EventCtx)::Float32
     if n isa EvNum

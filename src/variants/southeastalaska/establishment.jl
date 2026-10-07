@@ -184,11 +184,12 @@ mutable struct AKEstabState
     xmaxpt::Vector{Float32}   # XMAXPT of the last SDICAL (morts.f:202) — the DENSE PRDA divisor
     xmax::Float32
     dense_n::Int              # ITRN of the gradd.f:192 DENSE that ESTAB's BAAA/PTPAA/PCCF/PRDA still hold (before ESUCKR's sprouts)
+    dense_ind1::Vector{Int32} # that DENSE's IND1 walk order (the post-TRIPLE REASS interleave, before esnutr.f:138's SPESRT)
 end
 AKEstabState() = AKEstabState(0, 0f0, -99, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0, zeros(Int, 3), 0,
                               zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT),
                               zeros(Int, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT), zeros(Float32, AK_ES_MAXPLT),
-                              ones(Int, AK_ES_MAXPLT + 1), 0f0, 0f0, 0f0, Float32[], 1f0, 0)
+                              ones(Int, AK_ES_MAXPLT + 1), 0f0, 0f0, 0f0, Float32[], 1f0, 0, Int32[])
 
 @inline _ak_es_state(s::StandState) = (s.estab.ak_state === nothing && (s.estab.ak_state = AKEstabState());
                                        s.estab.ak_state::AKEstabState)
@@ -591,7 +592,10 @@ function ak_estab!(s::StandState, kdt::Integer; fint::Float32 = 10.0f0)::Int
     baaa = zeros(Float32, AK_ES_MAXPLT); ptpaa = zeros(Float32, AK_ES_MAXPLT); prda = zeros(Float32, AK_ES_MAXPLT)
     pccf = zeros(Float32, AK_ES_MAXPLT); over = zeros(Float32, nofspe, AK_ES_MAXPLT)
     let pi_f = p.pi, gross = p.gross_space, xmp = st.xmaxpt
-        @inbounds for i in _ind1_order(s)
+        # IND1 as the gradd.f:192 DENSE walked it (saved before ESUCKR): esnutr.f:138's SPESRT after the sprouts resets the
+        # post-TRIPLE REASS interleave to ascending record order, but BAAA/PTPAA/PRDA were summed in the interleave order.
+        # MEASURED FVSak_g16 10709344010497 simfire 2016: DENSE BAAA 111.172951 (REASS order) vs 111.172935 (ascending).
+        @inbounds for i in (isempty(st.dense_ind1) ? _ind1_order(s) : st.dense_ind1)
             ip = Int(t.plot_id[i]); (1 <= ip <= AK_ES_MAXPLT) || continue
             (st.dense_n > 0 && i > st.dense_n) && continue   # sprouts ESUCKR added after the gradd.f:192 DENSE are not in BAAA/PTPAA/PRDA
             d = t.dbh[i]; pr = t.tpa[i]; sp = Int(t.species[i])

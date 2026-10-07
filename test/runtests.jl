@@ -111,6 +111,7 @@ using FVSjl
     include("unit/test_tt_regent_dg_blend.jl")# TT REGENT XMIN/XMAX DATA + DG-not-blended coupling
     include("unit/test_west_tail.jl")         # western tail round 1: post-activity fuel models, SO activity fuels, WS snags (vs live)
     include("unit/test_west_tail2.jl")        # western tail round 2: all-dead crown dub, BC TVOLI, estab GENTIM (vs live)
+    include("unit/test_ocop_timeint10.jl")    # OC/OP at TIMEINT 10 (FINT≠5) vs live FVS{oc,op}_tiered: every .sum row + DBS table (19 stand/regime cases)
     include("unit/test_bc_port_live.jl")      # BC FFE / taper volume / DB plot id / NEWSI+DMCW / … vs the live BC tiered goldens (FVSbc_dbfix)
     include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
     include("unit/test_core_resid.jl")      # CORE (IE/EM/SN) tiered residual fixes vs live FVS{ie,em,sn}_g16 goldens: EM DVE dead KLASS + CFTOPK, FMPOFL CWD2B head, …
@@ -284,7 +285,11 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_parallel.jl") # pillar-3: multi-stand parallel run == serial, bit-identical, all variants
     include("integration/test_allocation.jl") # pillar-2: grow_cycle! per-cycle allocation floor guard (net01 NE)
     include("integration/test_kwcov_variants.jl") # pillar-1: NE/CS/LS keyword-isolation coverage vs live Fortran
+    include("integration/test_kwcov_east_ffe.jl") # eastern FFE keyword-isolation vs the stock-flag live oracle (kwcov_ffe fixtures)
+    include("integration/test_kwcov_on.jl")       # ON (metric) keyword-isolation vs the stock-flag live oracle (kwcov_on fixtures)
+    include("integration/test_kwcov_ext.jl")      # CS/LS/NE/ON extension-stub parity vs the stock-flag live oracles (kwcov_ext fixtures)
     include("integration/test_fia_reader.jl") # FIA "FVS-ready" DATABASE/DSNIN reader: cycle-0 bit-exact vs live
+    include("unit/test_west_tail3.jl")      # west-tail round 3: live-fixture regressions (FUELDCAY SETDECAY semantics, all-dead crown dub, ...) vs FVS{v}_g16 goldens
     # include("integration/test_sndb.jl")   # enabled at C6
     # include("integration/test_snt02.jl")  # enabled at C8
 end

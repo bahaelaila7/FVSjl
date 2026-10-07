@@ -396,11 +396,22 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         isempty(fs.params.stfuel_hard) && !isempty(s.plot.ffe_fuel_hard) && (fs.params.stfuel_hard = copy(s.plot.ffe_fuel_hard))
         isempty(fs.params.stfuel_soft) && !isempty(s.plot.ffe_fuel_soft) && (fs.params.stfuel_soft = copy(s.plot.ffe_fuel_soft))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
+        # FUELFOTO (fmcba.f:222-244): the last photo activity of the first cycle replaces STFUEL(I,2) with FOTOVAL(I) where ≥ 0 and STFUEL(I,1)=FOTOVALS(I)
+        # (I ≤ 9); FUELINIT / FUELSOFT then override (fmcba.f:246+). A ref/code pair that is not both valid is a warning and changes nothing.
+        photo = nothing
+        let fa = ffe_find(s, 2548)
+            if !isempty(fa)
+                p = fa[end].params
+                (p[1] >= 0f0 && p[2] >= 0f0) && (photo = get(_PHOTO, (Int(p[1]), Int(p[2])), nothing))
+            end
+        end
         # CWD(1,ISZ,J,IDC) = CWD + ADD (fmcba.f:597-613): the initial load ADDS to whatever the cut phase already
         # booked this year (FMSCUT crown slash, YARDLOSS downed boles — cuts.f precedes FMMAIN), it does not reset.
         @inbounds for isz in 1:11
-            sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : deffuel[isz]   # FUELINIT hard
-            ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : 0f0            # FUELSOFT soft
+            dh = (photo !== nothing && photo[1][isz] >= 0f0) ? photo[1][isz] : deffuel[isz]
+            ds = (photo !== nothing && isz <= 9) ? photo[2][isz] : 0f0
+            sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : dh              # FUELINIT hard
+            ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : ds              # FUELSOFT soft
             if totba > 0f0
                 for ksp in 1:nsp
                     tba[ksp] > 0f0 || continue
@@ -418,23 +429,25 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         # BM decay-rate habitat adjustment (bm/fmcba.f:333-368): applied ONCE at the first FFE year, and only
         # when the user has not set the decay rates with FuelDcay/FuelMult (fs.params.dkr still empty). Store
         # the adjusted matrix into params.dkr so every subsequent fmcwd! reads it (mirrors the persisted DKR).
-        if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
+        if s.variant isa BlueMountains
+            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)), _ffe_dkr_current(s, fs), fs.params.setdecay)   # habtyp.f ITYPE (79 if unmatched)
         end
         # CI habitat-moisture DCYMLT on every DKR(I,J) (ci/fmcba.f:407-445; MAPDRY(ICINDX)), once, unless FUELDCAY set it.
-        if s.variant isa CentralIdaho && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input))
+        # (jl has no SVSTART FMCBA(IY(1),1) call, whose ISWTCH=1 skips this block and is wiped before the real call, so the
+        # ISWTCH≠1 guard holds by construction.) SETDECAY<0 elements only, on the keyword-edited DKR.
+        if s.variant isa CentralIdaho
+            fs.params.dkr = ci_adjusted_dkr(Int(s.plot.habitat_input), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
-        if s.variant isa Klamath && size(fs.params.dkr, 1) != 11
+        if s.variant isa Klamath
             _ss = Int(s.plot.site_species)
             _si = (1 <= _ss <= length(s.plot.sp_site_index)) ? s.plot.sp_site_index[_ss] : 0f0
-            fs.params.dkr = nc_adjusted_dkr(_si)
+            fs.params.dkr = nc_adjusted_dkr(_si, _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # WS / CA first-FFE-year decay rates (ws/fmcba.f:541-581 DCYMLT; ca/fmcba.f:579-745 R5/R6 tables + DCYMLT).
-        if s.variant isa WestSierra && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ws_adjusted_dkr(s.plot.sp_site_index, Int(s.plot.site_species))
+        if s.variant isa WestSierra
+            fs.params.dkr = ws_adjusted_dkr(s.plot.sp_site_index, Int(s.plot.site_species), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         if s.variant isa CentralCalifornia && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_code),
@@ -450,20 +463,19 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         end
         # EC decay-rate habitat adjustment (ec/fmcba.f:457-491): scale the EC base DKR by DKRADJ(TEMP,MOIST,K)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
-        if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input))
+        if s.variant isa EastCascades
+            fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input), _ffe_dkr_current(s, fs), fs.params.setdecay)
         end
         # WC / PN / OP decay-rate habitat adjustment (wc/fmcba.f:488-521; pn,op/fmcba.f:462-495): WCWMC/WCWMD or
         # PNWMC/PNWMD (the FMR6SDCY tables) by ITYPE.
-        if (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic) &&
-           size(fs.params.dkr, 1) != 11
+        if s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic
             _it = Int(s.plot.habitat_input)
             if s.variant isa WestCascades
                 _it = clamp(_it, 1, 139); _t = _R6SD_WCWMC[_it]; _m = _R6SD_WCWMD[_it]
             else
                 _it = clamp(_it, 1, 75); _t = _R6SD_PNWMC[_it]; _m = _R6SD_PNWMD[_it]
             end
-            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m;
+            fs.params.dkr = r6_adjusted_dkr(_ffe_dkr_current(s, fs), _t, _m; sd = fs.params.setdecay,
                                             adj = s.variant isa WestCascades ? _FM_DKRADJ_WC : _FM_DKRADJ_PN)
         end
         # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)
@@ -477,7 +489,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             fs.params.dkr = ((500 <= _kf < 600) || _kf == 701) ? so_california_dkr() : so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
-        fmtret_slchng!(s)          # the first FMTRET follows FMCBA's initial dead-fuel load (fmmain.f:139-158)
+        fmfmov_slchng!(s)   # first FMMAIN: FMFMOV runs right after FMCBA's load (X=0 ⇒ SLCHNG=0; OLARGE/OSMALL seeded)
     end
     return s
 end
