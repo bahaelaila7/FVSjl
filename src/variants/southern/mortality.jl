@@ -328,10 +328,13 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     if s.density.tpa_mort > 0f0 && abs(tt - s.density.tpa_mort) > 1f0
         s.density.mort_slope = 0f0; s.density.mort_intercept = 0f0
     end
-    tt > 35000f0 && (tt = 35000f0)
+    # DQ0/DQ10/DR0/DR10 divide by the TRUE stand TPA (morts.f:249-258); the `IF(T.GT.35000.) T=35000.` clamp comes only
+    # AFTER the DIA0<0.3 reset (morts.f:328) and feeds the SDI-target logic. MEASURED live FVSls_new FIA 176140322010661
+    # (35,894 TPA seedlings): D10 0.5651 (true T) vs 0.5693 (clamped) ⇒ TN10 29334.9 vs 28988.3 ⇒ −346 TPA at cycle 1.
     dia0 = zeide ? fpow(sumdr0  / tt, 1f0 / 1.605f0) : sqrt(sdq0  / tt)   # (Σ..)**(1/1.605) → FFI (gfortran)
     d10  = zeide ? fpow(sumdr10 / tt, 1f0 / 1.605f0) : sqrt(sd2sq / tt)
     dia0 < 0.3f0 && (d10 = 0.3f0 + d10 - dia0; dia0 = 0.3f0)
+    tt > 35000f0 && (tt = 35000f0)
 
     sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
     sdimax = clim_sdical_xmax(s, sdimax0, fint)   # morts.f SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
