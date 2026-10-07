@@ -111,6 +111,26 @@ function init_crown_ratios!(s::StandState)
     _backdate_dbh!(s)                                   # dense.f:70-128 backdating (shared w/ DG calibration)
     compute_density!(s)
     bd_relden = stand_ccf(s)                            # CCF on the backdated stand
+    # SN: crown.f reads RELDEN (CCF) for the percentile SCALE, and CRATET's LSTART DENSE walks IND1 with the cycle-0 DEAD
+    # records still in it (cratet.f:176-205 drops them only after that DENSE; dense.f:11-12 gives IMC=9 records WK3=0,
+    # other dead their read DBH; dead P expanded x FINT/FINTM, notre.f), so RELDEN = live backdated + dead CCFT.
+    # MEASURED live FVSsn_new FIA 258567874010854 (10 dead records): RELDEN 554.19 at the LSTART CROWN (jl live-only 94.84
+    # ⇒ SCALE 0.84 vs 0.30 ⇒ every dubbed seedling crown 7-10 points high ⇒ cycle-2 mortality/DG drift).
+    if s.variant isa Southern && t.ndead > 0
+        nd = Int(t.ndead); fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        sv_dbh = t.dbh[(n + 1):(n + nd)]; sv_tpa = t.tpa[(n + 1):(n + nd)]
+        @inbounds for j in (n + 1):(n + nd)
+            t.tpa[j] *= fintr
+            (t.history[j] == 8 || t.history[j] == 9) && (t.dbh[j] = 0f0)
+        end
+        t.n = n + nd
+        try
+            bd_relden = stand_ccf(s)
+        finally
+            t.n = n
+            @inbounds for j in 1:nd; t.dbh[n + j] = sv_dbh[j]; t.tpa[n + j] = sv_tpa[j]; end
+        end
+    end
     bd_ba = s.plot.basal_area                           # RAW backdated BA — the NE/CS crown model's COMMON BA
                                                         # (crown.f uses raw BA, not /gross_space); D39 init dub.
     @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end   # restore current dbh

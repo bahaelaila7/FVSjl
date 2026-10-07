@@ -8,6 +8,9 @@
 # density rate turns ON; the loop then limit-cycles bg/density for all 10 passes and keeps the pass-10 state. jl
 # used to `break` after any background pass (one pass), keeping the background kill (-13 TPA at 1998, −10% of
 # every small tree's survival).
+# SN 258567874010854: sn/crown.f LSTART dub reads RELDEN (CCF) from CRATET's DENSE that still holds the 10 cycle-0 DEAD
+# records (live 94.8 vs live-FVS 554.2 ⇒ SCALE 0.84 vs 0.30); jl dubbed every seedling crown 7-10 points high.
+# SN 1893364809290487: the same IPASS loop as the LS stand above (1011 TPA at 2030).
 using Test
 using FVSjl
 
