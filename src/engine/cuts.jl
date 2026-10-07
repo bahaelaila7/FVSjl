@@ -150,13 +150,8 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             s.fire.cut_acc[Int32(i)] = (a[1] + prem, a[2] + _loss * (1f0 - pd), a[3] + _loss * pd,
                                         a[4] + ((pc * (prem - _loss)) + (_loss * pd)), a[5] + ((1f0 - pc) * (prem - _loss)))
         end
-        let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
-            idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
-            s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
-            @inbounds for isz in 1:5
-                s.fire.cwd[isz, 2, idc] += xv[isz + 1] * xcr          # branch classes → woody sizes 1-5
-            end
-        end
+        # The crown slash itself (CWD += CROWNW·CTCRWN·P2T) is booked by fmscut_removal! in RECORD order I=1..ITRN (fmscut.f:79-96),
+        # not here in cut (IND2) order — float32 addition order matters at 1 ULP.
         # YARDLOSS cut-snags (cuts.f:1382-1386 + fmscut→FMSADD ITYP=2): of the yarding LOSS = prem·PRLOST,
         # a (1−PRDSNG) fraction becomes STANDING FFE snags (fs.snags → fall→down-wood via update_snags!) and
         # PRDSNG becomes DOWNED. jl's cut path previously modelled SSNG=0, so cut trees never entered the FFE
@@ -180,8 +175,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D',LMERCH=F) of the cut tree, no top-kill — MAX(X,TCF), MAX(X,MCF)
             # for CS/LS/NE/SN (fmsvol.f) — computed fresh by _fm_tvoli for every variant.
-            dsng = loss * s.control.yardloss_prdsng
-            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
+            # (the CWD3 of the downed portion is booked by fmscut_removal!, in record order, right after the slash)
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define

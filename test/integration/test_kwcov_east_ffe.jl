@@ -11,31 +11,12 @@
 using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "kwcov_ffe", "runner.jl"))
 
-# OPEN causes (2026-10-06): removed-carbon cells (Total_Removed_Carbon/Biomass_Removed; ported on west-tail 5956ebda, not duplicated
-# here), 1-ULP DWD 305to508 cells after FUELMOVE/PILEBURN, and 1-ULP PotFire flame cells (cs/ne firecalc_40/_off/_sav, ls_simfire_nomort).
+# OPEN causes (2026-10-07): PotFire flame/torch cells under FIRECALC IFLOGIC 1/2 (cs/ne firecalc_*), see each entry.
 const _KWFFE_OPEN = Dict{String,String}(
-    "cs_carbcut" => "OPEN (measured 2026-10-06, stock-flag live oracle): 24 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire_East",
     "cs_firecalc_40" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire_East",
     "cs_firecalc_off" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire_East",
-    "cs_fueltret" => "OPEN (measured 2026-10-06, stock-flag live oracle): 11 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Vol,FVS_Fuels",
-    "cs_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 55 cells in FVS_BurnReport,FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_Mortality,FVS_SnagDet",
-    "cs_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 14 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels",
-    "cs_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 13 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels",
-    "cs_salvage" => "OPEN (measured 2026-10-06, stock-flag live oracle): 2 cells in FVS_Carbon,FVS_Down_Wood_Cov",
-    "cs_salvage_sp" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Down_Wood_Cov",
-    "ls_carbcut" => "OPEN (measured 2026-10-06, stock-flag live oracle): 28 cells in FVS_Carbon,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ls_fueltret" => "OPEN (measured 2026-10-06, stock-flag live oracle): 12 cells in FVS_Carbon,FVS_Consumption,FVS_Fuels,FVS_PotFire",
-    "ls_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 13 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Fuels,FVS_PotFire",
-    "ls_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 27 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ls_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 19 cells in FVS_Carbon,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ls_simfire_nomort" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_Down_Wood_Cov",
-    "ne_carbcut" => "OPEN (measured 2026-10-06, stock-flag live oracle): 9 cells in FVS_Carbon,FVS_Down_Wood_Vol,FVS_Fuels",
     "ne_firecalc_40" => "OPEN (measured 2026-10-06, stock-flag live oracle): 5 cells in FVS_PotFire",
     "ne_firecalc_sav" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire",
-    "ne_fueltret" => "OPEN (measured 2026-10-06, stock-flag live oracle): 12 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ne_fueltret2" => "OPEN (measured 2026-10-06, stock-flag live oracle): 12 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
-    "ne_pileburn" => "OPEN (measured 2026-10-06, stock-flag live oracle): 11 cells in FVS_Carbon,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels",
-    "ne_pileburn_jack" => "OPEN (measured 2026-10-06, stock-flag live oracle): 22 cells in FVS_Carbon,FVS_Consumption,FVS_Down_Wood_Cov,FVS_Down_Wood_Vol,FVS_Fuels,FVS_PotFire",
 )
 
 @testset "eastern FFE keyword-isolation vs live" begin

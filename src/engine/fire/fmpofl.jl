@@ -60,7 +60,7 @@ function _pofl_fmcfir(s::StandState, models, mois::AbstractMatrix{Float32}, f, s
         init1 = fpow(init1 * Float32(actcbh), 3f0 / 2f0)
     end
     # FM10 at FWIND = SWIND·0.4 (fmcfir.f:122-143: FMFINT(…,2,HPA2,1) ⇒ FMGFMV(IYR,10), no interpolation)
-    load, sav, depth, mext = _fm10(s)
+    load, sav, depth, mext = _fm10(s); depth *= dpmod            # FMGFMV(IYR,10) too applies DEPTH = DEPTH*DPMOD (fmgfmv.f:138)
     r10 = rothermel_surface_fire(load, sav, depth, mext, mois; wind = Float32(swind) * 0.4f0, slope_tan = s.plot.slope, lhv = _fm_lhv(s, 10))
     b = 0.02526f0 * fpow(f.ssigma, 0.54f0)                                            # fmcfir.f:146
     oact = 0f0

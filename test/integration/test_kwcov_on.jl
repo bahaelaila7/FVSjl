@@ -12,16 +12,7 @@ using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "kwcov_ffe", "runner.jl"))
 
 const _KWON_OPEN = Dict{String,String}(
-    "on_21769405010661_ffe_carbcut" => "OPEN (measured 2026-10-06, FVSon_tiered): 16 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
     "on_21769405010661_ffe_fuelmove" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Consumption_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_21769405010661_ffe_fueltret" => "OPEN (measured 2026-10-06, FVSon_tiered): 22 cells in FVS_Carbon_Metric,FVS_Consumption_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_21769405010661_ffe_pileburn" => "OPEN (measured 2026-10-06, FVSon_tiered): 9 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_21769405010661_ffe_pileburn_jack" => "OPEN (measured 2026-10-06, FVSon_tiered): 10 cells in FVS_Carbon_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_64767919010661_ffe_carbcut" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Carbon_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_64767919010661_ffe_flameadj_len" => "OPEN (measured 2026-10-06, FVSon_tiered): 1 cells in FVS_Down_Wood_Cov_Metric",
-    "on_64767919010661_ffe_fueltret" => "OPEN (measured 2026-10-06, FVSon_tiered): 7 cells in FVS_Carbon_Metric,FVS_Consumption_Metric",
-    "on_64767919010661_ffe_pileburn" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Carbon_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_64767919010661_ffe_pileburn_jack" => "OPEN (measured 2026-10-06, FVSon_tiered): 5 cells in FVS_Carbon_Metric",
     "on_64767919010661_ffe_salvage" => "OPEN (measured 2026-10-06, FVSon_tiered): 24 cells in FVS_Carbon_Metric,FVS_Hrv_Carbon",
 )
 
