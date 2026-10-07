@@ -341,6 +341,11 @@ function point_density!(s::StandState)
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
         elseif s.variant isa CentralRockies
             ccft = cr_tree_ccf(Int(t.species[i]), t.dbh[i], Int(p.model_type)) * t.tpa[i]   # cr/ccfcal.f CCFT·P
+        elseif s.variant isa Ontario
+            # canada/on/ccfcal.f (the LS-form CCFCAL over ON's open-grown cwcalc IWHO=1 crown width), as stand_ccf does. The generic
+            # national crown-width path below fed ON's raw code2 ("PW") to the US-coded library ⇒ PCCF ~900x low: MEASURED
+            # FVSon_tiered DEBUG kwcov_on estab cycle 2 DENSE RELDEN 240.9 / jl point CCF 0.27 ⇒ every planted crown ICR 1-2 high.
+            ccft = on_tree_ccf(Int(t.species[i]), t.dbh[i], p.latitude, p.longitude, p.elevation) * t.tpa[i]
         elseif s.variant isa BritishColumbia
             # canada/bc/ccfcal.f (CCFT already ×P). Was the generic national crown-width path ⇒ PCCF ~400× low
             # (MEASURED FVSbc_instr YSM029-250 plant_cyc REGENT(LESTB) PCCF 45.56 live / 0.12 jl).

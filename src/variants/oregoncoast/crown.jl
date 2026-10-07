@@ -48,7 +48,12 @@ inventory crowns in `oc_organon_prepare!`/`oc/cratet.f` at setup, so this hook i
 function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    n = t.n; n == 0 && return s
+    n = t.n
+    if n == 0
+        # oc/crown.f:123 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        lstart && t.ndead > 0 && _oc_dead_crown_dub!(s)
+        return s
+    end
     sdiac = crown_sdi
     nsd = length(p.sp_sdi_def)
     # oc/crown.f:250-273 — PRD and QMDPLT are INVENTORY-POINT quantities (ZRD/XMAXPT from SDICAL+SDICLS,
@@ -62,7 +67,10 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
     org_ran = length(c.op_iorg) >= 1   # slot-indexed IORG (stale beyond the last DGDRIV ITRN, see organon_hook.jl)
     # oc/crown.f DO 70 ISPC … I=IND1(I3): species-major (the RANN d≤0 draw follows this order).
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
+        # oc/crown.f DO 60 I3=I1,I2 visits EVERY record of ITRN, including one whose PROB MORTS/UPDATE just took to 0 this cycle — its crown
+        # still changes and prints in FVS_TreeList. MEASURED FVSoc_tiered 645182389126144 plant_cal TIMEINT 10: planted RC ES020066-75
+        # (TPA → 0 in 2038-48) PctCr 68-73 live vs the unchanged 75-81 when skipped.
+        (lstart && t.tpa[i] <= 0f0) && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 50) && continue
         (lstart && t.crown_pct[i] > 0) && continue        # oc/crown.f:228 keep the inventory crown
         iorg = org_ran && i <= length(c.op_iorg) && c.op_iorg[i] == 1
@@ -134,13 +142,18 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
-    # oc/crown.f DO 79 (:448) — cycle-0 dead-record DUBSCR with the record's own point PRD/QMDPLT.
-    if lstart && t.ndead > 0
-        dub_dead_crowns!(s) do i
-            pt = Int(t.plot_id[i])
-            icri_round(_ca_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], p.basal_area,
-                                  _prd(pt), _qmdplt(pt)))
-        end
+    lstart && t.ndead > 0 && _oc_dead_crown_dub!(s)
+    return s
+end
+
+# oc/crown.f DO 79 (:448) — cycle-0 dead-record DUBSCR with the record's own point PRD/QMDPLT.
+function _oc_dead_crown_dub!(s::StandState)
+    t = s.trees
+    _prd, _qmdplt, _ = point_crown_inputs(s)
+    dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        icri_round(_ca_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area,
+                              _prd(pt), _qmdplt(pt)))
     end
     return s
 end

@@ -37,7 +37,10 @@ the dead moisture of extinction.
         ov = get(fs.defulmod, Int32(model), nothing)
         ov !== nothing && return ov
     end
-    Int(model) > size(s.coef.ffe_fuel_models, 1) && haskey(_SB_FUEL_MODELS, Int(model)) && return _sb_fuel_model(model)
+    # a Scott-Burgan model absent from the variant CSV (zero row of the sparse table, e.g. LS 181-185/187) is still in FMLOAD/SURFVL
+    # (fminit.f "ADD IN THE 40 NEW FUEL MODELS" runs for every variant): MEASURED FVSls_tiered DEBUG FMCFMD2 DINDEX FM=181..189
+    ffm = s.coef.ffe_fuel_models
+    haskey(_SB_FUEL_MODELS, Int(model)) && (Int(model) > size(ffm, 1) || ffm[Int(model), 8] == 0f0) && return _sb_fuel_model(model)
     return standard_fuel_model(s.coef, model)
 end
 
@@ -221,15 +224,15 @@ function _small_large_fuel(fs)
 end
 
 """
-    fmtret_slchng!(s)
+    fmfmov_slchng!(s)
 
-The end of FMTRET (fmtret.f:372-400, once per FMMAIN, after the pile burns and before FMFMOV's FUELMOVE): OLARGE/OSMALL =
-the previous SMALL/LARGE, the new SMALL/LARGE (`_small_large_fuel`), and SLCHNG = 100·(LARGE+SMALL−X)/X with
-X = OLARGE+OSMALL (0 when X ≤ 1E-6) — the ≥SLCRIT (10%) fuel jump that opens fmcfmd.f's post-activity window. The very
-first FMTRET follows the initial dead-fuel load (FMCBA); a cycle whose FMCBA has not loaded it yet is taken at the load
-(`fmcba!` calls this once `fuels_init` is set).
+The SLCHNG block at label 506 of FMFMOV (fmtret.f:372-400; FMFMOV reaches it every FMMAIN year, `IF (NTODO.EQ.0) GOTO 506`, and
+FMMAIN calls FMCBA → FMTRET → FMFMOV), i.e. AFTER the FUELMOVE moves: OLARGE/OSMALL = the previous SMALL/LARGE, the new SMALL/LARGE
+(`_small_large_fuel`, both pile pools), and SLCHNG = 100·(LARGE+SMALL−X)/X with X = OLARGE+OSMALL (0 when X ≤ 1E-6) — the ≥SLCRIT
+(10%, fmvinit.f:1252) fuel jump that opens fmcfmd.f's post-activity window. The very first FMMAIN follows the initial dead-fuel load
+(FMCBA); a cycle whose FMCBA has not loaded it yet is taken at the load (`fmcba!` calls this once `fuels_init` is set). Once per year.
 """
-function fmtret_slchng!(s::StandState)
+function fmfmov_slchng!(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active || !fs.fuels_init) && return s
     yr = Int32(current_cycle_year(s))
@@ -273,15 +276,34 @@ distance to each model's iso-line. Returns up to `MXFMOD` (model, weight) pairs 
 weights sum to 1. This is the input FMFINT integrates over for the surface fire.
 """
 function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
-    # FUELMODL (fmusrfm.f → fmcfmd.f:113 IF(LUSRFM)RETURN): a forced fuel-model list for this cycle skips
-    # the FMCFMD auto-selection entirely.
-    if s.fire !== nothing && !isempty(s.fire.fuelmodl)
-        yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
-        for (date, pairs) in s.fire.fuelmodl
-            (Int(date) == yr || (0 < Int(date) < 1000 && Int(date) == fvscyc)) || continue
-            return [(Int(m), w) for (m, w) in pairs]
+    fs = s.fire; u = fs === nothing ? nothing : fs.user
+    # FUELMODL (fmusrfm.f → fmcfmd.f:107-113 IF(LUSRFM)RETURN): once a forced fuel-model list is in force (from the cycle of its
+    # FUELMODL activity on, until another one with model 0 / no valid pair) the FMCFMD auto-selection is skipped entirely. The
+    # weights are sorted descending (RDPSRT), FMD = the top model if its weight > 1E-6 else 8, at most 4 models; STATFUEL
+    # (LDYNFM=FALSE, fmusrfm.f:186-196 / fmdyn.f:423-431 / fmcfmd2.f:453) keeps only the heaviest at weight 1.
+    if u !== nothing && u.lusrfm
+        fw = copy(u.fwtusr); indx = zeros(Int32, 4)
+        rdpsrt!(4, fw, indx, true)
+        mods = [(Int(u.fmdusr[indx[i]]), fw[i]) for i in 1:4]
+        out = Tuple{Int,Float32}[]
+        if !(mods[1][2] > 1f-6)
+            push!(out, (8, 1f0))                                  # FMD < 0 ⇒ model 8 (RCDSET(2) warning)
+        else
+            for (m, w) in mods
+                w <= 1f-6 && break
+                push!(out, (m, w))
+            end
         end
+        u.ldynfm || (out = [(out[1][1], 1f0)])
+        return out
     end
+    (u !== nothing && u.iflogic != 0) && return select_iflogic_models(s)           # FIRECALC 1 (FMCFMD2) / 2 (FM 89 from the modelled loads)
+    models = _select_fuel_models_core(s, mois; fire_basis = fire_basis)
+    (u !== nothing && !u.ldynfm && !isempty(models)) && (models = [(models[1][1], 1f0)])
+    return models
+end
+
+function _select_fuel_models_core(s::StandState, mois::AbstractMatrix{Float32}; fire_basis::Bool = false)
     # FVS_StandInit FUEL_MODEL override (dbsstandin.f:1081 → FUELMODL activity 2538 → fmusrfm.f LUSRFM):
     # a fixed input fuel model burns on that model at weight 1.0 for the whole run, bypassing FMCFMD/FMCFMD2
     # auto-selection (fmcfmd.f:107 IF(LUSRFM)RETURN). Honors the Anderson 13 and the Scott-Burgan 101-204.
@@ -300,7 +322,10 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # model 9 + the natural-fuel candidates 10/12/13, resolved by the (SMALL,LARGE) point. (Model 11 = the
     # 5-yr post-activity fuel-jump candidate, AFWT/SLCHNG — deferred; net01 takes the natural-fuel path.)
     if s.variant isa Northeast
-        eqwt[9] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        # ne/fmcfmd.f:120-146: model 9 + the post-activity FM11 window (AFWT) sharing with 10, and the natural-fuel candidates 12/13
+        eqwt[9] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0; eqwt[13] = 1f0
         return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
     end
 
@@ -472,7 +497,7 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     burnseas = Int(fs.burnseas)
     fwind   = fs.swind * fire_wind_reduction(percov)      # 20-ft → midflame wind
     itype   = Int(s.plot.forest_idx)                      # ITYPE (/PLOT/) — FDc/FDn habitat checks
-    ldry    = false                                       # DROUGHT (IDRYB..IDRYE) — none in these stands
+    ldry    = (let yr = Int(current_cycle_year(s)); yr >= Int(fs.user.idryb) && yr <= Int(fs.user.idrye) end)   # DROUGHT (fmcfmd.f:194-195 IYR in IDRYB..IDRYE)
     # FMAVH = ATAVH (ls/fmcfmd.f:150) — the post-thin top-40 AVH grincr.f:318 saves each cycle, NOT a TPA-weighted
     # mean of all trees (MEASURED live FVSls 104685266010661 simfire 2016: jack pine PERCOV 40 ⇒ FMAVH>25 ⇒ FM10
     # live vs FM4 jl, flame 3.29 vs 12.04).
@@ -696,13 +721,36 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # ---- post-selection natural-fuel candidates (fmcfmd.f:541-620) ----
     # Activity fuel (model 11) deferred: LATFUEL=false ⇒ AFWT=0 for all natural stands.
+    u = fs.user; cyr = Int(current_cycle_year(s)); hy = Int(fs.harvyr)
     if ict in (JPCT, MWCT, OACT)
-        eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        afwt = _ffe_afwt!(s, eqwt)                       # ls/fmcfmd.f:541-565
+        eqwt[10] = 1f0 - afwt; eqwt[12] = 1f0; eqwt[13] = 1f0
         ict == OACT && (eqwt[12] = 0f0; eqwt[13] = 0f0)   # oak never gets 12 or 13
     elseif ict == NHCT
-        eqwt[10] = 0f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
+        # northern hardwoods never get FM 10/12/13, and FM11 only with activity fuel (fmcfmd.f:567-580)
+        afwt = max(0f0, 1f0 - Float32(cyr - hy) / 5f0)
+        if fs.slchng >= 10f0 || fs.latfuel
+            fs.latfuel = true
+            afwt <= 0f0 && (fs.latfuel = false)
+        end
+        eqwt[11] = fs.latfuel ? 1f0 : 0f0
+        eqwt[10] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
     elseif ict == RPCT
-        eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        # red/white pine: FM12 (red slash, <=2 yr) then FM11 (older slash, <=5 yr), else the natural fuels (fmcfmd.f:582-612)
+        afwt = max(0f0, 1f0 - Float32(cyr - hy) / 5f0)
+        if fs.slchng >= 10f0 || fs.latfuel
+            fs.latfuel = true
+            if (cyr - hy) <= 2
+                eqwt[12] = 1f0; eqwt[11] = 0f0; eqwt[10] = 0f0; eqwt[13] = 0f0
+            elseif (cyr - hy) > 2 && (cyr - hy) <= 5
+                eqwt[11] = 1f0; eqwt[12] = 0f0; eqwt[10] = 0f0; eqwt[13] = 0f0
+            else
+                eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+            end
+            afwt <= 0f0 && (fs.latfuel = false)
+        else
+            eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        end
     elseif ict == ABCT
         eqwt[10] = 1f0; eqwt[11] = 0f0; eqwt[12] = 0f0; eqwt[13] = 0f0
     end
@@ -771,7 +819,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     t = s.trees; fs = s.fire
     percov = fs.percov
     fwind = fs.swind * fire_wind_reduction(percov)
-    ldry = false                                   # DROUGHT (IDRYB..IDRYE) — none in crt01
+    ldry = (let yr = Int(current_cycle_year(s)); yr >= Int(s.fire.user.idryb) && yr <= Int(s.fire.user.idrye) end)   # DROUGHT (IDRYB..IDRYE)
     NSP = nspecies(s.variant)                       # CR=38, UT=24, TT=18 (fmcfmd shared, VARACD-branched)
     usht = 0.5f0 * stand_top_height(s)             # UNDERSTORY = HT ≤ 0.5·FMAVH (top-40 ht) (fmcfmd.f:182)
     ctba = zeros(Float32, 8)                        # per-cover-type BA (CTBA)

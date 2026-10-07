@@ -406,6 +406,7 @@ mutable struct Control
     ext_stub_strict::Bool
     dm_block_open::Bool
     habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
+    evmon_err_cycle::Int32     # ON: the last cycle whose IF-condition ALGEVL errors (FVS21) were recorded (one pair per IF block per cycle)
     # grincr.f:74 LTRIP tests ITRN at GRINCR entry, BEFORE CUTS TREDELs the previous cycle's zero-PROB records (cuts.f:
     # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
     itrn_grincr::Int32
@@ -498,7 +499,7 @@ function Control()
         0f0,                                                     # sdical_bamax
         false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
-        String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
+        String[], false, false, false, Int32(-1),                # error_msgs, ext_stub_strict, dm_block_open, habtyp_done, evmon_err_cycle
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
         false, false,                                            # iptinv_set, nonstk_set
         true,                                                    # misflg (misin0.f:83)
@@ -760,6 +761,10 @@ mutable struct Calibration
     # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
     # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
     cur_rmsqd::Float32
+    # Species that had records at the PREVIOUS cycle's DGDRIV: dgdriv.f:186-205 `IF(I1.EQ.0) GO TO 50` precedes the COR/HCOR
+    # attenuation, so COR is advanced (for the NEXT cycle's DGF) only for species present in that cycle. A species absent for
+    # a cycle keeps the COR it had; when it reappears (sprouts, regen) DGF uses that stale value, not the elapsed-time curve.
+    dg_cor_present::Vector{Bool}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -787,7 +792,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
     Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
     Float32[],                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
-    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    -1f0,                                                            # cur_rmsqd (calibration-time RMSQD stash)
+    fill(false, MAXSP))                                              # dg_cor_present (species present at the previous DGDRIV)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -804,9 +810,15 @@ mutable struct Density
     mort_ibasp::Int32            # ON only: persisted index of the species with the most BA (IBASP,
                                  # canada/on/morts.f) — resets the ON self-thinning line when the
                                  # dominant species changes. Default 0 (inert for all other variants).
+    # PTBALT of the last DENSE, by SLOT, saved when the .sum driver's CUTS-entry TREDEL compacts the list ahead of
+    # grow_cycle! (see `cuts_entry_tredel!`): FVS's TREMOV does not move PTBALT and no DENSE follows a removal-free CUTS
+    # (grincr.f:305-312 DENSE only when ONTREM(7)>0), so the cycle's DGDRIV/MORTS read the old value of each SLOT.
+    ptbal_stale::Vector{Float32}
+    ptbal_stale_n::Int           # 0 = none saved
 end
 Density(maxtre::Int = MAXTRE) = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, maxtre),
-                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
+                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0),
+                    zeros(Float32, maxtre), 0)
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls
@@ -1076,11 +1088,14 @@ mutable struct SnagList
     htcur::Vector{Float32}        # HTIH/HTIS — CURRENT snag height (ft), = `height` at creation; only shrinks
                                   # when SNAGBRK sets HTX>0 (FMSNGHT). Drives the recomputed bole then. At
                                   # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
+    htcur_soft::Vector{Float32}   # HTIS — CURRENT height of the INITIALLY-SOFT pool (ft); `htcur` is HTIH, the hard pool's. fmsnag.f
+                                  # advances them separately (FMSNGHT IHRD=1 on HTIH, IHRD=0 on HTIS) and fmsout/fmdout/CWD1/CWD2/
+                                  # FMSALV use each pool's own height; they differ only where PSOFT>0 (SNAGPSFT) makes a soft pool.
     pbfris::Vector{Float32}       # PBFRIS/PBFRIH — the post-burn soft/hard fall rates FMSNAG stores per record in the
     pbfrih::Vector{Float32}       # burn year and the year after (fmsnag.f:182-190) and reuses through PBTIME
 end
 SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[],
-                      Float32[], Float32[])
+                      Float32[], Float32[], Float32[])
 
 """
 Preallocated, reused work buffers for `book_mortality_snags!`'s FMSADD snag-record binning (fire path only).
@@ -1168,11 +1183,67 @@ mutable struct FFEParams
     # EMPTY ⇒ HTX=0 = no height loss (the SN default, fmvinit.f:1089) ⇒ snag bole stays frozen at death height.
     # When set, FMSNGHT shrinks the snag height each year (snag.jl) and the bole volume is recomputed from it.
     snag_htx::Dict{Int32,NTuple{4,Float32}}
+    # SETDECAY(11,4) (fminit.f:84-89 = -1; fmin.f:831-860): the decay rate FUELDCAY set for each [size, class] element (a
+    # value ≥ 0 marks it user-set). The first-FFE-year habitat/site decay multipliers (fmcba.f DCYMLT/DKRADJ) scale ONLY the
+    # elements still < 0. Empty (0×0) ⇒ every element is -1.
+    setdecay::Matrix{Float32}
 end
 FFEParams() = FFEParams(1.0f0, 0.9f0, 12.0f0, 7.0f0, 0.0f0, Dict{Int32,Float32}(), Dict{Int32,Float32}(),
                         Matrix{Float32}(undef, 0, 0), Float32[], Float32[], Matrix{Float32}(undef, 0, 0),
                         Dict{Int32,Int32}(), (PotFireCond(), PotFireCond()), Dict{Int32,Float32}(),
-                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}())
+                        Dict{Int32,Float32}(), Dict{Int32,NTuple{4,Float32}}(),
+                        Matrix{Float32}(undef, 0, 0))
+
+"""
+One scheduled FFE activity (fmin.f OPNEW codes 2505 MOISTURE, 2507 FLAMEADJ, 2525 FUELTRET, 2529 DROUGHT, 2538 FUELMODL,
+2539 DEFULMOD, 2549 FIRECALC …): the keyword's date (a value < 1000 is a CYCLE number, opexpn.f:40-44), its parameter vector
+(PRMS) and a done flag (OPDONE). `ffe_find` is OPFIND: the not-done activities whose date falls in the CURRENT cycle, in
+date order (ties in keyword order).
+"""
+mutable struct FFEAct
+    code::Int32
+    date::Int32
+    seq::Int32
+    dcyc::Int32            # cycle (0-based) in which OPDONE last marked it; −1 = never. A date ≤ 0 repeats every cycle (opexpn.f).
+    params::Vector{Float32}
+end
+
+"""
+FFE model state the FMIN keywords set that persists across cycles (FMCOM): LDYNFM (STATFUEL), LOWDBH (MORTCLAS), IDRYB/IDRYE
+(DROUGHT), the canopy-fuel options (CANCALC), the FIRECALC fire-model choice and the user fuel-model list/weights (LUSRFM,
+FMDUSR, FWTUSR from FUELMODL) and the FUELTRET fuel-bed treatment (IFTYR, FTREAT, HARTYP, DPMOD).
+"""
+mutable struct FFEUser
+    acts::Vector{FFEAct}
+    ldynfm::Bool
+    lowdbh::Vector{Float32}
+    idryb::Int32
+    idrye::Int32
+    icbhmt::Int32
+    canmht::Float32
+    icansp::Int32
+    cbhcut::Float32
+    folmc::Float32
+    iflogic::Int32
+    ifmset::Int32
+    usav::NTuple{3,Float32}
+    ubd::NTuple{2,Float32}
+    ulhv::Float32
+    lusrfm::Bool
+    fmdusr::Vector{Int32}
+    fwtusr::Vector{Float32}
+    iftyr::Int32
+    ftreat::Int32
+    hartyp::Int32
+    dpmod::Float32
+    pburned::Vector{Float32}   # BURNED(3,1:11) tons/ac consumed by PILEBURN (FMCONS BTYPE=1) since the last carbon/fuel report
+    crdcay::Float32        # CRDCAY dead coarse-root decay rate (fminit.f:918 0.0425; CARBCALC field 3)
+    cdbrk::NTuple{2,Float32}   # CDBRK pulp/saw DBH break, softwood/hardwood (fminit.f:919-920 9/11; CARBCALC fields 4/5)
+    ifuelmon::Vector{Int32}    # IFUELMON(1:MXDFMD) (fminit.f:832 = -1): FMODLIST per-model switch for FMCFMD2's pick list (0 = force on, 1 = force off)
+end
+FFEUser() = FFEUser(FFEAct[], true, Float32[0, 5, 10, 20, 30, 40, 50], Int32(0), Int32(0), Int32(0), 6f0, Int32(0), 30f0, 100f0,
+                    Int32(0), Int32(2), (2000f0, 1800f0, 1500f0), (0.10f0, 0.75f0), 8000f0, false, zeros(Int32, 4),
+                    zeros(Float32, 4), Int32(0), Int32(0), Int32(0), 1f0, zeros(Float32, 11), 0.0425f0, (9f0, 11f0), fill(Int32(-1), 256))
 
 mutable struct FireState
     active::Bool                       # FFE enabled (FMIN keyword)
@@ -1192,8 +1263,6 @@ mutable struct FireState
     mortcode::Int32                    # 1 = FFE estimates mortality     (MKODE, PRMS4)
     psburn::Float32                    # percent of the stand burned     (PSBURN, PRMS5)
     burnseas::Int32                    # burn season 1–4                 (BURNSEAS, PRMS6)
-    flmult::Float32                    # flame-length multiplier         (FLAMEADJ)
-    crburn::Float32                    # crown-fire fraction             (FLAMEADJ)
     snags::SnagList                    # standing-dead snag cohorts
     bioroot::Float32                   # dead coarse-root biomass pool, tons/ac (BIOROOT) — accrues at
                                        # tree death, decays at CRDCAY each cycle; → the Below-Dead column
@@ -1259,6 +1328,7 @@ mutable struct FireState
     prob_prefire::Vector{Float32}      # PROB(I) at this cycle's burn, before FMEFF's kill: FVS takes the fire kill off
                                        # PROB only in FMKILL (GRADD), so FMMAIN's post-burn FMCFMD3→FMCFMD (fmmain.f:189,
                                        # bm/fmcfmd.f BMSTAGE; FMCBA's year-start FMTBA) still read the pre-fire density
+    user::FFEUser                      # FMIN-keyword model state + scheduled activities (FFEAct) — see FFEUser
     harvyr::Int32                      # HARVYR (fminit.f:36 = 0; fmscut.f:75-76 = IY(ICYC) when a cut leaves crown slash or
                                        # downed snags): the last harvest year — FMCFMD's DSTLG/AFWT and FMCONS's activity test
     tonrmh::Float32                    # TONRMH (fmscut.f:162-177): tons removed by this cycle's harvest — Σ FMSVL2·V2T·WK3
@@ -1268,9 +1338,6 @@ mutable struct FireState
                                        # accumulated until FMCRBOUT reports and zeroes it (fmcrbout.f:198)
     cut_acc::Dict{Int32,NTuple{5,Float32}} # this CUTS call's per-record (WK3, SSNG, DSNG, CTCRWN, TKCRWN) (cuts.f:1381-1391),
                                        # consumed by FMSCUT (cuts.f:1823) before TREDEL
-    user_flame::Float32                # FLAMEADJ FLAME = FPRMS(2) (fmin.f:401/412: −1 when blank or <0); >0 ⇒ USRFL
-    user_sch::Float32                  # FLAMEADJ SCH = FPRMS(4) (fmin.f:403-406, fmburn.f:340-344; −1 when field 5 blank)
-    flameadj_on::Bool                  # a FLAMEADJ was read ⇒ IFTYPE=1, CFTMP='USER_DEF' (fmburn.f:348-349)
     salv_year::Int32                   # the year FMSALV last ran (it runs once per CUTS, cuts.f:386, ahead of the thin)
     o_large::Float32                   # OLARGE/OSMALL (fminit.f:79-80 = 0): FMTRET's SMALL/LARGE of the previous FMMAIN
     o_small::Float32                   #   (fmtret.f:372-373), the base of SLCHNG
@@ -1283,7 +1350,7 @@ mutable struct FireState
                                        # reads the same common-block CRWDTH (ca/fmcfmd.f:230), so the NC/WS/CA selects reuse it
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
-                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
+                        Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), SnagList(), 0f0,
                         zeros(Float32, 4, 6, 60), zeros(Float32, 9, 4), Any[], Dict{NTuple{3,Int},Float32}(),
                         (-1f0, -1f0), FFEParams(), Tuple{Int32,NTuple{7,Float32}}[], NTuple{6,Float32}[],
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
@@ -1291,7 +1358,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), -1f0, -1f0, false, Int32(-1),
+                        Float32[], FFEUser(), Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), Int32(-1),
                         0f0, 0f0, 0f0, false, Int32(-1), Float32[], Float32[])
 
 """

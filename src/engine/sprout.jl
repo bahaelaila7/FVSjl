@@ -1000,6 +1000,10 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
             t.cuft_vol[n]    = 0f0; t.merch_cuft_vol[n] = 0f0
             t.saw_cuft_vol[n] = 0f0; t.bdft_vol[n] = 0f0
+            # HT2TD(ITRN,·): FVS's VOLS zeroes every slot (vols.f:86-104) and the inventory-dead block lives at the TOP of the arrays
+            # (IREC2…MAXTRE), so a new record's slot reads 0; jl stores the dead block UPWARD from n+1 (VOLS fills its tops), so reset
+            # as estab.f:621-622 does. MEASURED FVSoc_tiered 24061836010900 thinbba TIMEINT 10 2022: TO/GC sprouts Ht2TDCF 0 live.
+            t.merch_top_cf[n] = 0f0; t.merch_top_bf[n] = 0f0
             t.defect[n]      = Int32(0); t.special[n] = Int32(0)
             t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
             t.old_random[n]  = 0f0; t.old_crown_pct[n] = 0f0

@@ -627,7 +627,7 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # fmsadd.f:300-306: the crown goes in with UNFIRE = SNGNEW − FIRKIL, and FMKILL(2) zeroes FIRKIL only AFTER
         # FMSADD — so in a fire cycle SNGNEW (= WK2 − FIRKIL, fmkill.f:119-123) loses the fire kill a second time.
         unfire = firkil === nothing ? den : (den > firkil[i] ? den - firkil[i] : 0f0)
-        fmscro!(s, sp, d, xv, unfire, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
+        fmscro!(s, sp, d, xv, unfire, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 4)   # DKRCLS(SP), FUELPOOL-overridable (fmscro.f:73)   # FMKILL → FMSADD(…,4) mortality reconciliation
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
         push!(items, (sp, d, h, h, h, den, -1f0))

@@ -443,6 +443,59 @@ Fills `cuft_vol` (GTV total merch cubic), `merch_cuft_vol`/`saw_cuft_vol` (GMV m
 cubic), and `bdft_vol` (NMV = Mowraski-culled GMV, the metric .sum board column). Top-killed records
 take CFTOPK on the NORMHT tree (vols.f:127-160); the board NMV keeps the untruncated GMV (OBFVOL VMAX=0).
 """
+
+"""
+    _on_vols_defect(c, sp, d, vn, vm, bf, defect) -> (CFV, WK1, BFV, DEFECT')
+
+canada/on/vols.f:186-337. ICDF/IBDF start from the record's input DEFECT digits; with LCVOLS (MCDEFECT/VOLUME) the cubic
+percent is the LARGEST of that, NINT(ALGSLP(D,DBHCLS,CFDEFT)·100) and the MCFDLN log-linear NINT((TEMVOL−VOLCOR)/TEMVOL·100)
+(TEMVOL = CFV−WK1), clamped 0..99; the board percent likewise (BFV>0 ∧ LBVOLS). PULPV=(CFV−WK1) takes ICDF, BFV and WK1 take
+IBDF (≥99 ⇒ 0), CFV=PULPV+WK1, and DEFECT=(DEFECT÷10⁴)·10⁴+ICDF·100+IBDF.
+"""
+function _on_vols_defect(c, sp::Int, d::Float32, vn::Float32, vm::Float32, bf::Float32, defect::Int)
+    icdf = defect ÷ 1000000
+    ibdf = defect ÷ 10000 - (defect ÷ 1000000) * 100
+    cfdef = c.sp_cf_defect; bfdef = c.sp_bf_defect
+    if vn > 0f0
+        if any(!iszero, view(cfdef, :, sp))
+            dli = round(Int, _algslp_col(d, _DBHCLS, cfdef, sp) * 100f0, RoundNearestTiesAway)
+            dli > icdf && (icdf = dli)
+        end
+        temvol = vn - vm
+        if temvol != 0f0 && (c.sp_cf_form0[sp] != 0f0 || c.sp_cf_form1[sp] != 1f0)
+            volcor = exp(c.sp_cf_form0[sp] + c.sp_cf_form1[sp] * log(temvol))
+            dll = round(Int, (temvol - volcor) / temvol * 100f0, RoundNearestTiesAway)
+            dll > icdf && (icdf = dll)
+        end
+        # LCVOLS is true only once VOLUME/MCDEFECT/MCFDLN ran; its absence leaves the input digits unclamped
+        (any(!iszero, view(cfdef, :, sp)) || c.sp_cf_form0[sp] != 0f0 || c.sp_cf_form1[sp] != 1f0) &&
+            (icdf = clamp(icdf, 0, 99))
+    end
+    if bf > 0f0 && (any(!iszero, view(bfdef, :, sp)) || c.sp_bf_form0[sp] != 0f0 || c.sp_bf_form1[sp] != 1f0)
+        dli = round(Int, _algslp_col(d, _DBHCLS, bfdef, sp) * 100f0, RoundNearestTiesAway)
+        dli > ibdf && (ibdf = dli)
+        if c.sp_bf_form0[sp] == 0f0 && c.sp_bf_form1[sp] == 1f0
+            volcor = bf
+        else
+            volcor = exp(c.sp_bf_form0[sp] + c.sp_bf_form1[sp] * log(bf))
+        end
+        dll = round(Int, (bf - volcor) / bf * 100f0, RoundNearestTiesAway)
+        dll > ibdf && (ibdf = dll)
+        ibdf = clamp(ibdf, 0, 99)
+    end
+    bf < 0f0 && (bf = 0f0)
+    cfv = max(vn, 0f0); wk1 = max(vm, 0f0)
+    pulpv = cfv - wk1
+    pulpv = icdf < 99 ? pulpv * (1f0 - Float32(icdf) / 100f0) : 0f0
+    if ibdf < 99
+        f = 1f0 - Float32(ibdf) / 100f0
+        bf = bf * f; wk1 = wk1 * f
+    else
+        bf = 0f0; wk1 = 0f0
+    end
+    return pulpv + wk1, wk1, bf, (defect ÷ 10000) * 10000 + icdf * 100 + ibdf
+end
+
 function compute_volumes_on!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; c = s.control; p = s.plot
@@ -459,6 +512,7 @@ function compute_volumes_on!(s::StandState)
             continue
         end
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        sp < 1 && continue                     # an emptied slot (no species) carries no volume
         # canada/on/vols.f:127-128 TKILL = H≥4.5 ∧ ITRUNC>0 ⇒ H = NORMHT/100 for BARK, OCFVOL and CFTOPK.
         tkill = h >= 4.5f0 && t.trunc[i] > 0
         tkill && (h = Float32(t.norm_ht[i]) / 100f0)
@@ -478,15 +532,9 @@ function compute_volumes_on!(s::StandState)
         if tkill && vn > 0f0
             vn, vm, _ = cftopk((stmp = stmp, topd = topd), sp, d, h, vn, vm, 0f0, vn, bark, Int(t.trunc[i]))
         end
-        t.cuft_vol[i] = vn
-        t.merch_cuft_vol[i] = vm
-        t.saw_cuft_vol[i] = vm
-        if d < dbhmin[sp]
-            t.bdft_vol[i] = 0f0
-            continue
-        end
+        bf = 0f0
         # Board section (NMV): only when D >= BFMIND and D > BFTOPD (vols.f board gate).
-        if d >= bfmind[sp] && d > bftopd[sp]
+        if d >= dbhmin[sp] && d >= bfmind[sp] && d > bftopd[sp]
             # volont.f:405 reads ABIRTH(IT) as it stands: dubbed ONCE for every inventory record by CRATET's FINDAG
             # (cratet_findag_dub!(::Ontario), from the INVENTORY height) and advanced by FINT after UPDATE's VOLS
             # (gradd.f:205) — never re-dubbed here from the grown height (a record with FINDAG age 0 keeps 0).
@@ -494,10 +542,16 @@ function compute_volumes_on!(s::StandState)
             # sentinel as the MOWRASKI input (its cubic OCFVOL volume is computed normally).
             # OBFVOL recomputes OVM from the untruncated (D, NORMHT) tree and sets VMAX=0 ⇒ vols.f:246 never calls BFTOPK.
             nmv = on_mowraski(sp, i > t.n ? 0.0001f0 : max(vm0, 0f0), t.birth_age[i])
-            t.bdft_vol[i] = nmv > 0f0 ? nmv : 0f0
-        else
-            t.bdft_vol[i] = 0f0
+            bf = nmv > 0f0 ? nmv : 0f0
         end
+        # vols.f:186-337: the cubic/board DEFECT correction (input DEFECT digits, the MCDEFECT/BFDEFECT DBH curves, the
+        # MCFDLN/BFFDLN log-linear forms), then DEFECT(I) is re-coded with the percentages APPLIED this cycle (11223344).
+        cfv, wk1, bfv, dcode = _on_vols_defect(c, sp, d, vn, vm, bf, Int(t.defect[i]))
+        t.cuft_vol[i] = cfv
+        t.merch_cuft_vol[i] = wk1
+        t.saw_cuft_vol[i] = wk1
+        t.bdft_vol[i] = bfv
+        t.defect[i] = Int32(dcode)
     end
     return s
 end

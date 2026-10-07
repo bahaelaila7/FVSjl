@@ -1277,6 +1277,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
     _wcbnd = _wc_dg || _pn_dg                 # FVSpn links the same dgbnd.f (FVSpn_buildDir/dgbnd.f == wc's)
     _wsbnd = s.variant isa WestSierra         # ws/dgbnd.f per-species DG envelope (ws/dgdriv.f:305, :349-351)
+    _onbnd = s.variant isa Ontario            # canada/on/dgbnd.f (no SIZCAP term)
     # WC applies dwarf-mistletoe MISDGF INSIDE DGDRIV, BEFORE DGBND, on the record and both tripled copies
     # (wc/dgdriv.f:216,245,252,260); so min(DG·MISDGF, DGMAX), not min(DG, DGMAX)·MISDGF (ie_dm_growth_loss!
     # skips WC via _mis_dg_in_driver). START-of-cycle DMR, same as the post-driver path.
@@ -1330,10 +1331,20 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # skipped WH ⇒ HCOR 0.00339259 (cycle 1) for the new WH seedlings; jl attenuated to 0.0059646 ⇒ HtG +0.26%).
     species_sort!(s)
     isct = s.control.sp_count_tab
+    # jl applies dgdriv's attenuation lazily at the START of the next cycle (the COR a cycle's DGF uses is the one the previous
+    # cycle's DGDRIV left). dgdriv.f:186-205 updates COR only for a species with records at THAT DGDRIV, so the update for
+    # this cycle is applied iff the species was present at the previous one — even when it is absent now (the value then waits
+    # for the species' return): MEASURED FVSws_g16 7689398010901 thinbba, species 29 (all thinned at the cycle-2 CUTS, back
+    # as sprouts in cycle 3): COR0/COR1 trace -0.0673 (cycle 1) -> -0.05918458 (the cycle-1 update, no update in cycle 2),
+    # DGF CONSPP -1.485131 in cycle 3; jl re-curved it to -0.0530 (CONSPP -1.4789) every cycle. The HCOR update is the
+    # same-cycle one (ESTAB/REGENT read it after DGDRIV) and needs the species present now.
     @inbounds for sp in 1:MAXSP
-        (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
-        c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
-        c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
+        present = !(sp <= size(isct, 1) && isct[sp, 1] == 0)
+        if elapsed == 0f0 ? present : c.dg_cor_present[sp]
+            c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+        end
+        present && (c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp]))
+        c.dg_cor_present[sp] = present
     end
 
     dgf!(s, s.variant)
@@ -1480,17 +1491,17 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd, _onbnd)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
                 crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
                 _misdrv && (dgu *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, bsfint, size_cap, yr, _wcbnd, _wsbnd)
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, bsfint, size_cap, yr, _wcbnd, _wsbnd, _onbnd)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
                 crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
                 _misdrv && (dgl *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, bsfint, size_cap, yr, _wcbnd, _wsbnd)
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, bsfint, size_cap, yr, _wcbnd, _wsbnd, _onbnd)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -1503,7 +1514,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd, _onbnd)
             end
         end
     end

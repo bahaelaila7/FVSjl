@@ -60,7 +60,12 @@ end
 function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    n = t.n; n == 0 && return s
+    n = t.n
+    if n == 0
+        # op/crown.f:122 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74: an all-dead inventory still dubs the dead records' crowns.
+        lstart && t.ndead > 0 && _op_dead_crown_dub!(s)
+        return s
+    end
     relden = p.relative_density
     sdiac = crown_sdi
     ba = p.basal_area
@@ -71,7 +76,10 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
     isort = crown_isort(s; lstart = lstart)
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
+        # op/crown.f DO 60 I3=I1,I2 visits EVERY record of ITRN (SPESRT lists them all), including one whose PROB MORTS/UPDATE just
+        # took to 0 this cycle — its crown still changes and prints in FVS_TreeList. MEASURED FVSop_tiered 30194263010497 TIMEINT 10:
+        # WH 336/338 (TPA 99.95 → 0) PctCr 12/21 live vs 10/20 when skipped.
+        (lstart && t.tpa[i] <= 0f0) && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 39) && continue
         (lstart && t.crown_pct[i] > 0) && continue          # op/crown.f:226 keep inventory crown
@@ -149,13 +157,17 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
-    # ol/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
-    if lstart && t.ndead > 0
-        prd, qmdplt, _ = point_crown_inputs(s)
-        dub_dead_crowns!(s) do i
-            pt = Int(t.plot_id[i])
-            icri_round(_op_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area, prd(pt), qmdplt(pt)))
-        end
+    lstart && t.ndead > 0 && _op_dead_crown_dub!(s)
+    return s
+end
+
+# op/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
+function _op_dead_crown_dub!(s::StandState)
+    t = s.trees
+    prd, qmdplt, _ = point_crown_inputs(s)
+    dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        icri_round(_op_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area, prd(pt), qmdplt(pt)))
     end
     return s
 end

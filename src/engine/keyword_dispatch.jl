@@ -156,7 +156,7 @@ function kw_nohtdreg!(s::StandState, rec::KeywordRecord)
     invoke = length(rec.present) >= 2 && rec.present[2] && Float32(rec.values[2]) > 0f0
     spfield = strip(rec.fields[1]); num = tryparse(Int, spfield)
     setflag(sp) = (1 <= sp <= length(s.control.ht_drag_sp)) && (s.control.ht_drag_sp[sp] = invoke)
-    if isempty(spfield) || spfield == "0"
+    if isempty(spfield) || spfield == "0" || _spf_all(spfield)
         fill!(s.control.ht_drag_sp, invoke)                 # all species
     elseif num !== nothing && num < 0                       # species group −N
         g = -num
@@ -321,7 +321,7 @@ so `calibrate_diameter_growth!` skips the COR fit (the species uses its uncalibr
 """
 function kw_nocalib!(s::StandState, rec::KeywordRecord)
     spfield = strip(rec.fields[1]); num = tryparse(Int, spfield)
-    if isempty(spfield) || spfield == "0"
+    if isempty(spfield) || spfield == "0" || _spf_all(spfield)
         fill!(s.control.dg_calib_sp, false)                 # all species
     elseif num !== nothing && num < 0                       # species group −N
         g = -num
@@ -511,7 +511,7 @@ function kw_sdimax!(s::StandState, rec::KeywordRecord)
         # NOT an FIA/alpha code. Parse as FLOAT (the field is written "19.0") then round — using tryparse(Int)
         # missed "19.0" (⇒ nothing), and resolve_species mis-read "19" as FIA-19→wrong species. Parsing the
         # float value ALSO makes the .key ("27") and yaml-roundtrip ("27.0") paths resolve identically.
-        numf = tryparse(Float64, spfield)
+        numf = _spf_num(spfield)
         num  = numf === nothing ? nothing : round(Int, numf)
         targets = Int[]
         if isempty(spfield) || num == 0
@@ -706,6 +706,8 @@ end
 # limits with CMtoIN, THINSDI/THINPT leave the SDI residual unconverted.
 const _ON_CMtoIN = 0.3937f0; const _ON_HAtoACR = 2.471f0; const _ON_MtoFT = 3.28084f0; const _ON_CMtoFT = 0.0328084f0
 const _ON_M2pHA = 4.3560773f0; const _ON_M3pHA = 14.291564f0; const _ON_KGtoLB = 2.2046226f0
+_on_tha(x) = x > 0f0 ? (x * 1.102311f0) / _ON_HAtoACR : x     # TMtoTI/HAtoACR (tonnes/ha -> tons/ac)
+_on_tha0(x) = x >= 0f0 ? (x * 1.102311f0) / _ON_HAtoACR : x
 _on_cm(x) = x * _ON_CMtoIN; _on_ha(x) = x / _ON_HAtoACR; _on_m(x) = x * _ON_MtoFT; _on_m2(x) = x * _ON_M2pHA
 const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "DESIGN"   => [1 => (x -> x < 0f0 ? x / _ON_HAtoACR : x * _ON_M2pHA), 2 => _on_ha, 3 => _on_cm],
@@ -749,6 +751,21 @@ const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "DATASCRN" => [1 => _on_cm, 2 => _on_cm],
     "TREESZCP" => [2 => _on_cm, 5 => _on_m],
     "MORTMSB"  => [1 => _on_cm, 4 => _on_cm, 5 => _on_cm],
+    # canada/fire (metric fmin.f) FFE keywords. TMtoTI/HAtoACR evaluated left to right in REAL*4 (fmin.f:1120, 1608-1641, 2530),
+    # applied only to the loads a card actually carries (>0 / >=0 per the option's own test).
+    "FUELINIT" => [i => _on_tha for i in 1:12],
+    "FUELSOFT" => [i => _on_tha for i in 1:9],
+    "FUELMOVE" => [4 => _on_tha0, 6 => _on_tha0, 7 => _on_tha0],
+    "MORTCLAS" => [i => _on_cm for i in 1:7],                                   # fmin.f:1476 LOWDBH = ARRAY*CMtoIN
+    "SNAGCLAS" => [i => _on_cm for i in 1:6],                                   # fmin.f:713  SNPRCL = ARRAY*CMtoIN
+    "SNAGINIT" => [2 => (x -> x > 0f0 ? x * _ON_CMtoIN : x), 3 => (x -> x > 0f0 ? x * _ON_MtoFT : x),
+                   4 => (x -> x > 0f0 ? x * _ON_MtoFT : x), 6 => (x -> x > 0f0 ? x / _ON_HAtoACR : x)],   # fmin.f:1165-1168
+    "SNAGPBN"  => [4 => _on_cm, 5 => _on_m],                                    # fmin.f:1255-1256
+    "POTFWIND" => [1 => (x -> x * 0.6214f0), 2 => (x -> x * 0.6214f0)],         # fmin.f:1673-1674 KMtoMI
+    "POTFTEMP" => [1 => (x -> x * 1.8f0 + 32f0), 2 => (x -> x * 1.8f0 + 32f0)], # fmin.f:1686-1687 CtoF1/CtoF2
+    "FIRECALC" => [4 => (x -> max(0f0, x) / 0.3048f0), 5 => (x -> max(0f0, x) / 0.3048f0), 6 => (x -> max(0f0, x) / 0.3048f0),
+                   7 => (x -> max(0f0, x) * 2.2046226f0 / 35.314455f0), 8 => (x -> max(0f0, x) * 2.2046226f0 / 35.314455f0),
+                   9 => (x -> max(0f0, x) * 0.9478171f0 / 2.2046226f0)],        # fmin.f:2373-2378
 )
 function _on_metric_decode!(rec::KeywordRecord)
     conv = get(_ON_KW_METRIC, strip(rec.name), nothing)
@@ -792,9 +809,15 @@ end
 
 # Decode a species keyword field into the `sp_field_matches` selector: 0 = all, −g = SPGROUP
 # group g, or the resolved 1-based species index. (Mirrors SPDECD's IS for a single field.)
+# SPDECD (spdecd.f:20-60): a species field whose alpha text is "ALL" (or blank/0) means ALL species (ISP=0), exactly like a
+# numeric 0. resolve_species("ALL") instead crosswalks the unknown code to the variant's "other" species, so every
+# per-species keyword handler that fell through to it applied the keyword to ONE unrelated species (or none).
+_spf_all(f::AbstractString) = uppercase(strip(f)) == "ALL"
+_spf_num(f::AbstractString) = _spf_all(f) ? 0.0 : tryparse(Float64, f)
+
 function species_selector(s::StandState, spfield::AbstractString)::Int
     f = strip(spfield)
-    isempty(f) && return 0
+    (isempty(f) || _spf_all(f)) && return 0
     # SPDECD (spdecd.f:34-114): ISP = IFIX(ARRAY(IPOS)) — a NUMERIC species field is decoded by its
     # numeric value, NOT by an alpha/FIA/PLANTS string match: negative = species GROUP code; 0 = ALL
     # (or alpha code in KARD); a positive integer 1..MAXSP is the species SEQUENCE INDEX directly
@@ -872,6 +895,10 @@ function apply_setsite!(s::StandState)::Bool
     # (SN dgcons! recomputes DGCON from site_coef·site_index; NE/CS zero DGCON and read site in the DDS
     # term, so their hooks avoid the SN-only :dg_prior_obs_count coefficient that crashed CS SETSITE).
     if applied
+        # grincr.f:197 `CALL RCON` → MORCON (morts.f ENTRY MORCON, identical in SN/NE/LS/CS/ON): CEPMRT=SLPMRT=TPAMRT=0.
+        # The latched self-thinning line is re-solved on the next MORTS. Without it jl kept the pre-SETSITE line ⇒ cs_setsite
+        # cycle-2 mortality differed from live (per-record TPA stamp: HT/DBH/HTG bit-equal, PROB differs) and cascaded.
+        s.density.mort_slope = 0f0; s.density.mort_intercept = 0f0; s.density.tpa_mort = 0f0
         if s.variant isa Southern
             dgcons!(s)
         elseif s.variant isa Northeast
@@ -894,6 +921,14 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     # multiplier), whereas MORTMULT etc. are (date, species, multiplier). It is also DBH-windowed.
     windowed = kind === :mort || kind === :fixdg || kind === :fixhtg || kind === :crn || kind === :fmort
     spfield, valfield = kind === :fmort ? (3, 2) : (2, 3)
+    if kind === :fmort && s.variant isa Ontario
+        # canada fire/vbase fmin.f:2549-2586 (METRIC FMORTMLT): `PRMS(1) = 1.0` is hard-wired — the multiplier field is only echoed —
+        # so the activity can never change a kill; `IF (ARRAY(4) .GE. ARRAY(5))` rejects the card (ERRGRO 4, nothing scheduled)
+        # when the DBH limits are blank/inverted (a blank upper limit is 0 there). MEASURED FVSon_tiered kwcov_on ffe_fmortmlt.
+        (Float32(v[4]) >= Float32(v[5])) && (errgro!(s, 4); return)
+        push!(s.control.multipliers, GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[3])), 1f0, 0f0, 99999f0, false))
+        return
+    end
     d1 = (windowed && pr[4]) ? Float32(v[4]) : 0f0
     # CRNMULT's upper-DBH default is 99.0, NOT "no limit": initre.f:3439 (option 96) does
     # `IF (ARRAY(5) .LE. 0.0) ARRAY(5)=99.0` before OPNEW stores it, so a blank or non-positive
@@ -979,7 +1014,7 @@ function kw_mistpinf!(s::StandState, rec::KeywordRecord)
     yr = pr[1] ? Int32(nint(v[1])) : Int32(1)                         # blank date ⇒ IDT=1
     # --- species field (SPDECD): 0/blank/"ALL"/"0" ⇒ all hosts; numeric ⇒ sequence index; alpha ⇒ resolve.
     spf = length(rec.fields) >= 2 ? strip(rec.fields[2]) : ""
-    numf = tryparse(Float64, spf)
+    numf = _spf_num(spf)
     num  = numf === nothing ? nothing : round(Int, numf)
     sp = if isempty(spf) || uppercase(spf) == "ALL" || num == 0
         Int32(0)
@@ -1006,21 +1041,28 @@ end
 """
     active_fmort_mult(control, sp, year, dbh) -> Float32
 
-The FMORTMLT fire-caused-mortality multiplier in effect for species `sp` at cycle `year`, applied only
-when the tree's `dbh` is in the keyword's half-open DBH window [d1, d2) (fmin.f:2506; fmeff.f:340
-`PMORT = PMORT*FMORTMLT(I)`). 1.0 when none applies. Same most-recent / species-specific precedence.
+The FMORTMLT fire-caused-mortality multiplier for a tree of species `sp` and `dbh` in the cycle containing `year`
+(fmin.f:2506 → FMMAIN fmmain.f:74-93; fmeff.f:340 `PMORT = PMORT*FMORTMLT(I)`). FMMAIN resets FMORTMLT=1 at EVERY
+cycle and applies only the FMORTMLT activities OPFIND returns for THIS cycle (date inside [IY(ICYC), IY(ICYC+1)); a
+cycle-number date maps to that cycle), in date order, each one overwriting the multiplier of every tree whose species
+matches and whose DBH is in [d1, d2). So a multiplier does NOT persist into later cycles, and a later activity whose
+window excludes a tree leaves the earlier one in force. 1.0 when none applies.
 """
 function active_fmort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
     isempty(c.multipliers) && return 1f0
-    val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
+    cyc = Int(c.cycle); cs = cycle_year_at(c, cyc); ce = cycle_year_at(c, cyc + 1)
+    ce <= cs && (ce = cs + 1)
+    val = 1f0; lastdate = typemin(Int)
     @inbounds for m in c.multipliers
-        (m.kind === :fmort && sp_field_matches(c, m.species, sp) && m.year <= year) || continue
-        spec = m.species != 0
-        if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
-            val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
-        end
+        m.kind === :fmort || continue
+        my = Int(m.year)
+        d = (0 < my < 1000) ? cycle_year_at(c, my - 1) : my          # OPNEW IDT ≤ MAXCYC ⇒ that cycle's start year
+        (cs <= d < ce) || continue
+        sp_field_matches(c, m.species, sp) || continue
+        (m.d1 <= dbh < m.d2) || continue
+        d >= lastdate && (val = m.value; lastdate = d)                # date order, ties in keyword order
     end
-    return (d1 <= dbh < d2) ? val : 1f0
+    return val
 end
 
 """
@@ -1269,6 +1311,40 @@ end
 # `params` tuple is already FULL (6 params + aux), so add a slot or a separate methc event; (c)
 # apply_volume_overrides! set sp_methc; (d) compute_volumes_ne! dispatch methc==5 → `r9vol_gevorkiantz`
 # (proven total cubic 0.42π·D²·H/576 + the r9vol.f board/merch polys). See DIVERGENCE_FIX_CAMPAIGN.md D35.
+# initre.f:1962-1999 (VOLUME) / 4640+ (BFVOLUME): a DATED card (IDT>0 ⇒ scheduled, OPNEW) FILLS every blank field from the
+# merch standard CURRENTLY IN FORCE at keyword-read time — species 1 for ISP=0, the first group member for ISP<0, else
+# that species — and the scheduled event later stores ALL of them (volkey.f:9915-9917). At read time SITSET has not run
+# (initre.f:442, after the keyword loop), so "in force" = the GRINIT default (grinit.f: STMP .5, DBHMIN/TOPD/SCFMIND/
+# SCFTOPD/BFMIND/BFTOPD 0, SCFSTMP/BFSTMP 1; identical in SN/NE/LS/CS) as changed by an earlier UNDATED card
+# (initre.f:1780-1850, non-blank fields only). jl used the raw blank (0) — e.g. SCFSTMP 0 for a blank field instead of 1.0
+# ⇒ CFTOPK's SCFSTMP/H stump ratio wrong on every top-killed saw tree (cs/ne/ls_volume SawCuFt ±1).
+# Undated events keep NaN for blank fields (applied non-blank-only, as initre does) so replaying them recovers the
+# card-time state.
+_vol_filled_variant(v) = v isa Union{Southern,Northeast,CentralStates,LakeStates}
+const _VOL_GRINIT = (dbhmin = 0f0, topd = 0f0, stmp = 0.5f0, scfmind = 0f0, scftopd = 0f0, scfstmp = 1f0,
+                     bfmind = 0f0, bftopd = 0f0, bfstmp = 1f0)
+# ev field slots: VOLUME (217) params[2..6] = dbhmin,topd,stmp,scfmind,scftopd, aux = scfstmp;
+#                 BFVOLUME (218) params[2..4] = bfmind,bftopd,bfstmp.
+function _vol_cardtime_default(c, icflag::Integer, slot::Int, sp::Int, grin::Float32)
+    val = grin
+    for ev in c.volume_events
+        (Int(ev.icflag) == icflag && ev.year <= 0) || continue
+        isp = round(Int, ev.params[1])
+        covered = isp == 0 || isp == sp ||
+                  (isp < 0 && -isp <= length(c.sp_groups) && sp in c.sp_groups[-isp])
+        covered || continue
+        x = slot == 7 ? ev.aux : ev.params[slot]
+        isnan(x) || (val = x)
+    end
+    return val
+end
+function _vol_fill_sp(c, isp::Int)
+    isp > 0 && return isp
+    isp == 0 && return 1
+    g = -isp
+    (1 <= g <= length(c.sp_groups) && !isempty(c.sp_groups[g])) ? Int(first(c.sp_groups[g])) : 1
+end
+
 function kw_volume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
@@ -1278,10 +1354,22 @@ function kw_volume!(s::StandState, rec::KeywordRecord)
     if length(rec.present) >= 7 && rec.present[7]
         _set_methc!(s.control, nint(v[2]), round(Int32, v[7]))
     end
+    pres(i) = length(rec.present) >= i && rec.present[i]
+    f = [Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9]), Float32(v[10])]
+    if _vol_filled_variant(s.variant)
+        c = s.control
+        dated = pres(1) && v[1] > 0
+        src = _vol_fill_sp(c, round(Int, isp))
+        gr = (_VOL_GRINIT.dbhmin, _VOL_GRINIT.topd, _VOL_GRINIT.stmp, _VOL_GRINIT.scfmind, _VOL_GRINIT.scftopd, _VOL_GRINIT.scfstmp)
+        slot = (2, 3, 4, 5, 6, 7); fld = (3, 4, 5, 8, 9, 10)
+        for k in 1:6
+            pres(fld[k]) && continue
+            f[k] = dated ? _vol_cardtime_default(c, 217, slot[k], src, gr[k]) : NaN32
+        end
+    end
     push!(s.control.volume_events,
           ScheduledActivity(Int32(nint(v[1])), Int32(217),
-              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9])),
-              Float32(v[10])))
+              (isp, f[1], f[2], f[3], f[4], f[5]), f[6]))
     return
 end
 
@@ -1307,9 +1395,21 @@ end
 function kw_bfvolume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
+    pres(i) = length(rec.present) >= i && rec.present[i]
+    f = [Float32(v[3]), Float32(v[4]), Float32(v[5])]
+    if _vol_filled_variant(s.variant)        # same blank-fill as kw_volume! (initre.f BFVOLUME 4640+)
+        c = s.control
+        dated = pres(1) && v[1] > 0
+        src = _vol_fill_sp(c, round(Int, isp))
+        gr = (_VOL_GRINIT.bfmind, _VOL_GRINIT.bftopd, _VOL_GRINIT.bfstmp)
+        for k in 1:3
+            pres(k + 2) && continue
+            f[k] = dated ? _vol_cardtime_default(c, 218, k + 1, src, gr[k]) : NaN32
+        end
+    end
     push!(s.control.volume_events,
           ScheduledActivity(Int32(nint(v[1])), Int32(218),
-              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), 0f0, 0f0), 0f0))
+              (isp, f[1], f[2], f[3], 0f0, 0f0), 0f0))
     return
 end
 
@@ -1388,7 +1488,7 @@ function _set_form!(s::StandState, b0::Vector{Float32}, b1::Vector{Float32}, rec
         (1 <= sp <= length(b0)) || return
         has0 && (b0[sp] = v0); has1 && (b1[sp] = v1)
     end
-    fnum = tryparse(Float64, spfield)        # numeric species field (may be "0." / "-1")
+    fnum = _spf_num(spfield)        # numeric species field (may be "0." / "-1")
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0                          # SPDECD IS=0 ⇒ all species
@@ -1613,6 +1713,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                 if act == 110
                     pkil > 1f0 && (pkil = 1f0)
                     t.ht_growth[i] *= pkil
+                    t.birth_age[i] = 0f0                    # htgstp.f:110-112 `HTG(I)=HTG(I)*PKIL; ABIRTH(I)=0.0` (the tree's age restarts)
                 else
                     pkil > 0.8f0 && (pkil = 0.8f0)
                     topk = h * pkil; toph = h - topk
@@ -1622,7 +1723,8 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         t.height[i] = toph
                         continue
                     end
-                    brk = s.variant isa Kootenai ? KT_BKRAT[sp] : bark_ratio(bark_a, bark_b, sp, t.dbh[i])   # kt/bratio.f BKRAT
+                    brk = s.variant isa Kootenai ? KT_BKRAT[sp] :
+                          s.variant isa Ontario ? on_bratio(sp, t.dbh[i], h) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])   # kt/bratio.f BKRAT; canada/on/bratio.f BRATIO(IS,D,H)
                     d = t.dbh[i] * brk
                     if !(h < 25f0 || d < 6f0)              # tall enough to maybe break permanently
                         af = t.cuft_vol[i] / (0.00545415f0 * d * d * h)
@@ -1633,6 +1735,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         if dtk >= 4f0                       # permanent broken top
                             t.trunc[i] = itrc2
                             t.norm_ht[i] = floor(Int32, h * 100f0 + 0.5f0)
+                            t.mort_code[i] = Int32(3)       # htgstp.f:140 IMC(I)=3 — permanently topkilled
                         end
                     end
                     t.height[i] = toph
@@ -1642,6 +1745,7 @@ function htgstp!(s::StandState; fint::Float32 = 5f0)
                         new = floor(Int32, cn / toph * 100f0 + 0.5f0)
                         new < 5 && (new = Int32(5))
                         t.crown_pct[i] = -new
+                        t.mort_code[i] == 1 && (t.mort_code[i] = Int32(2))   # htgstp.f:178 damaged trees get IMC>1 (cut priority)
                     end
                 end
             end
@@ -1686,6 +1790,10 @@ function kw_thinqfa!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     tarqfa = pr[7] ? Float32(v[7]) : 0f0
     iset   = something(tryparse(Int, strip(read_raw_line!(kr))), 0)   # 2nd record: units switch
     qfatar = iset <= 0 ? 0f0 : (iset <= 1 ? 1f0 : 2f0)
+    # metric/base initre.f THINQFA (ON/BC): the target's unit follows the 2nd record — BA ×M2pHAtoFT2pACR, TPA /HAtoACR, SDI /ACRtoHA
+    if _metric_variant(s.variant) && pr[7]
+        tarqfa = iset <= 0 ? tarqfa * _ON_M2pHA : (iset <= 1 ? tarqfa / _ON_HAtoACR : tarqfa / 0.4046945f0)
+    end
     push!(s.control.schedule,
           ScheduledActivity(Int32(yr), Int32(17), (valmin, valmax, spec, qfac, diacw, tarqfa), qfatar))
     return
@@ -2212,7 +2320,7 @@ function _snagfall!(s::StandState, rec::KeywordRecord)
         has_fx && (p.snag_fallx_ovr[Int32(sp)] = fx)
         has_ad && (p.snag_alldwn_ovr[Int32(sp)] = ad)
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0                                    # SPDECD IS=0 ⇒ all species
@@ -2245,7 +2353,7 @@ function _snagdcay!(s::StandState, rec::KeywordRecord)
         (1 <= sp <= length(s.species.class_codes[:, 1])) || return
         p.snag_decayx_ovr[Int32(sp)] = dx
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0
@@ -2273,28 +2381,56 @@ end
 function _snagbrk!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
     p = fs.params
-    HTR1 = 0.1f0; HTR2 = 0.01f0; HTXSFT = 2f0
-    yr(i) = rec.present[i] ? max(1, Int(trunc(Float64(rec.values[i])))) : 1   # INT, clamp ≥1 (fmin.f:526…)
-    y50h = yr(2); y50s = yr(3); y30h = yr(4); y30s = yr(5)
-    # HTX1/3: 50%-loss rate (>0.5·HTD regime, /HTR1); HTX2/4: 30%-loss rate in the <0.5·HTD regime (the 0.3/0.5
-    # step, over YRS30−YRS50 years, bumped to avoid div-0, /HTR2). Only fields actually given are written.
-    htx1 = rec.present[2] ? (1f0 - 0.5f0^(1f0 / y50h)) / HTR1 : 0f0
-    htx3 = rec.present[3] ? (1f0 - 0.5f0^(1f0 / y50s)) / (HTR1 * HTXSFT) : 0f0
-    dh = y30h > y50h ? Float32(y30h - y50h) : 0.001f0
-    ds = y30s > y50s ? Float32(y30s - y50s) : 0.001f0
-    htx2 = rec.present[4] ? (1f0 - 0.6f0^(1f0 / dh)) / HTR2 : 0f0            # 0.3/0.5 = 0.6
-    htx4 = rec.present[5] ? (1f0 - 0.6f0^(1f0 / ds)) / (HTR2 * HTXSFT) : 0f0
-    htx = (htx1, htx2, htx3, htx4)
+    # fmin.f:504-600 (opt 10) with the variant's own HTR1/HTR2/HTXSFT (fmvinit.f) — NOT a fixed 0.1: HTR1·HTX only cancels
+    # against the height-loss step when both use the same constant, and the product is not bit-exact otherwise (NE HTR1 .015).
+    HTR1 = _snag_htr1(s.variant); HTR2 = _snag_htr2(s.variant); HTXSFT = _snag_htxsft(s.variant)
+    fld(i) = rec.present[i] ? Float32(rec.values[i]) : 0f0
+    yi(i) = (x = Float32(trunc(Int, fld(i))); x < 1f0 ? 1f0 : x)            # YRS50/YRS30 = INT(ARRAY), clamp ≥ 1
+    y50 = Float32[yi(2), yi(3)]; y30 = Float32[yi(4), yi(5)]                 # REAL YRS50(2), YRS30(2) (fmin.f:39)
     spfield = strip(rec.fields[1])
-    setone(sp) = @inbounds begin
-        (1 <= sp <= length(s.species.class_codes[:, 1])) || return
-        p.snag_htx[Int32(sp)] = htx
+    nsp = length(s.species.class_codes[:, 1])
+    function setone(sp)
+        (1 <= sp <= nsp) || return
+        h1, h2, h3, h4 = get(p.snag_htx, Int32(sp), (0f0, 0f0, 0f0, 0f0))   # HTX(JSP,1:4): kept where a field is blank
+        # initially HARD snags (fmin.f:539-557)
+        if rec.present[2]
+            h1 = (1f0 - fpow(0.5f0, 1f0 / y50[1])) / HTR1
+        elseif h1 != 0f0
+            y50[1] = flog(0.5f0) / flog(1f0 - min(0.9f0, h1 * HTR1))
+        else
+            y50[1] = 999f0
+        end
+        if rec.present[4]
+            y30[1] <= y50[1] && (y30[1] = y50[1] + 0.001f0)
+            h2 = (1f0 - fpow(0.6f0, 1f0 / (y30[1] - y50[1]))) / HTR2
+        elseif h2 != 0f0
+            y30[1] = y50[1] + flog(0.6f0) / flog(1f0 - min(0.9f0, h2 * HTR2))
+        else
+            y30[1] = 999f0
+        end
+        # initially SOFT snags
+        if rec.present[3]
+            h3 = (1f0 - fpow(0.5f0, 1f0 / y50[2])) / (HTR1 * HTXSFT)
+        elseif h3 != 0f0 && HTXSFT != 0f0
+            y50[2] = flog(0.5f0) / flog(1f0 - min(0.9f0, h3 * HTR1 * HTXSFT))
+        else
+            y50[2] = 999f0
+        end
+        if rec.present[5]
+            y30[2] <= y50[2] && (y30[2] = y50[2] + 0.001f0)
+            h4 = (1f0 - fpow(0.6f0, 1f0 / (y30[2] - y50[2]))) / (HTR2 * HTXSFT)
+        elseif h4 != 0f0 && HTXSFT != 0f0
+            y30[2] = y50[2] + flog(0.6f0) / flog(1f0 - min(0.9f0, h4 * HTR2 * HTXSFT))
+        else
+            y30[2] = 999f0
+        end
+        p.snag_htx[Int32(sp)] = (h1, h2, h3, h4)
     end
-    fnum = tryparse(Float64, spfield)
+    fnum = _spf_num(spfield)
     if fnum !== nothing
         isp = round(Int, fnum)
         if isp == 0
-            for sp in 1:length(s.species.class_codes[:, 1]); setone(sp); end
+            for sp in 1:nsp; setone(sp); end
         elseif isp < 0
             g = -isp
             (1 <= g <= length(s.control.sp_groups)) || return
@@ -2311,16 +2447,23 @@ end
 
 # Lazily materialise the per-stand DKR override as a copy of the default decay-rate matrix, so a
 # FUELMULT/FUELDCAY keyword modifies a private copy and fmcwd! reads it (an empty matrix ⇒ default).
-function _ensure_dkr!(p::FFEParams)
-    size(p.dkr, 1) == 11 || (p.dkr = copy(_FM_DKR))
+function _ensure_dkr!(s::StandState, p::FFEParams)
+    # the VARIANT's own fmvinit.f DKR table (CS/LS/NE/CR/… differ from the SN `_FM_DKR`): copying SN's table made FUELMULT/FUELDCAY
+    # scale/replace the wrong base rates for every non-SN variant (ls/ne fueldcay + fuelmult 390/312 cells)
+    size(p.dkr, 1) == 11 || (p.dkr = copy(_fm_dkr_default(s.variant)))
     return p.dkr
+end
+# SETDECAY (fminit.f:84-89): -1 everywhere until FUELDCAY records the rate it set.
+function _ensure_setdecay!(p::FFEParams)
+    size(p.setdecay, 1) == 11 || (p.setdecay = fill(-1f0, 11, 4))
+    return p.setdecay
 end
 
 # FUELMULT (fmin.f:1368, opt 29): multiply the total fuel decay rate of every size class by a per-decay-
 # class multiplier (fields 1-4 = decay classes 1-4), capped at 1.0. A blank field leaves that class as-is.
 function _fuelmult!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
-    dkr = _ensure_dkr!(fs.params); v = rec.values
+    dkr = _ensure_dkr!(s, fs.params); v = rec.values
     @inbounds for idec in 1:4
         rec.present[idec] || continue
         m = Float32(v[idec])
@@ -2335,20 +2478,43 @@ end
 function _fueldcay!(s::StandState, rec::KeywordRecord)
     fs = s.fire; fs === nothing && return
     rec.present[1] || return                         # no decay class specified ⇒ keyword ignored
-    dkr = _ensure_dkr!(fs.params); v = rec.values
+    dkr = _ensure_dkr!(s, fs.params); v = rec.values
     id = Int(trunc(v[1])); idec = clamp(id, 1, 4)
+    sd = _ensure_setdecay!(fs.params)
     rec.present[2] && (dkr[10, idec] = Float32(v[2]))
     rec.present[3] && (dkr[11, idec] = Float32(v[3]))
     rec.present[4] && (dkr[1, idec]  = Float32(v[4]))
     rec.present[5] && (dkr[2, idec]  = Float32(v[5]))
     rec.present[6] && (dkr[3, idec]  = Float32(v[6]))
     rec.present[7] && (@inbounds for j in 4:9; dkr[j, idec] = Float32(v[7]); end)
+    # SETDECAY marks the elements the user set (fmin.f:831-844) so the first-year multipliers skip them
+    rec.present[2] && (sd[10, idec] = Float32(v[2]))
+    rec.present[3] && (sd[11, idec] = Float32(v[3]))
+    rec.present[4] && (sd[1, idec]  = Float32(v[4]))
+    rec.present[5] && (sd[2, idec]  = Float32(v[5]))
+    rec.present[6] && (sd[3, idec]  = Float32(v[6]))
+    rec.present[7] && (@inbounds for j in 4:9; sd[j, idec] = Float32(v[7]); end)
     if id < 5
         @inbounds for i in 1:10; dkr[i, idec] = min(dkr[i, idec], 1f0); end
-    else                                             # ID≥5: copy class-4 rates to all decay classes
-        @inbounds for d2 in 1:4, j in 1:11; dkr[j, d2] = dkr[j, 4]; end
+    else                                             # ID≥5: copy class-4 rates to all decay classes (fmin.f:853-863)
+        @inbounds for d2 in 1:4, j in 1:11
+            dkr[j, d2] = dkr[j, 4]; sd[j, d2] = min(sd[j, 4], 1f0)
+        end
         @inbounds for d2 in 1:4, i in 1:10; dkr[i, d2] = min(dkr[i, d2], 1f0); end
     end
+    return
+end
+
+# FUELFOTO (fmin.f:2137-2290, opt 48): PRMS(1)=NINT(ARRAY(1)) photo-series reference (1..32 except 4 and 10, else -1), PRMS(2)=NINT(ARRAY(2)) photo code (< 1 or past the
+# reference's last photo ⇒ -1); IDT = 1 (no date field); OPNEW(2548, 2 parms). FMCBA reads the LAST one of the first cycle (fmcba.f:222-244).
+function _fuelfoto!(s::StandState, rec::KeywordRecord)
+    s.fire === nothing && return
+    ref = rec.present[1] ? Int(round(Float32(rec.values[1]), RoundNearestTiesAway)) : -1
+    (ref == 4 || ref == 10 || ref < 1 || ref > 32) && (ref = -1)
+    code = rec.present[2] ? Int(round(Float32(rec.values[2]), RoundNearestTiesAway)) : -1
+    code < 1 && (code = -1)
+    (ref > 0 && code > 0 && !haskey(_PHOTO, (ref, code))) && (code = -1)      # the per-reference CASE(n) `IF (NINT(PRMS(2)) .GT. max)` tests
+    ffe_schedule!(s, 2548, 1, Float32[ref, code])
     return
 end
 
@@ -2424,34 +2590,48 @@ function _duffprod!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# FIRECALC (fmin.f:2293, opt 49, act 2549): PRMS(1:8) default to the model state at keyword time (fminit.f:824-831), then the card's
+# fields 2-9 (clamped) replace them. FMUSRFM (`_fmusrfm_update!`) turns the cycle's activity into IFLOGIC/IFMSET/USAV/UBD/ULHV.
+function _firecalc!(s::StandState, r::KeywordRecord)
+    u = s.fire.user; v = r.values
+    idt = r.present[1] ? Int(trunc(v[1])) : 1
+    prm = Float32[u.iflogic, u.ifmset, u.usav[1], u.usav[2], u.usav[3], u.ubd[1], u.ubd[2], u.ulhv]
+    r.present[2] && (prm[1] = Float32(max(0, min(2, Int(trunc(v[2]))))))
+    r.present[3] && (prm[2] = Float32(max(0, min(2, Int(trunc(v[3]))))))
+    for (k, j) in ((4, 3), (5, 4), (6, 5), (7, 6), (8, 7), (9, 8))
+        r.present[k] && (prm[j] = max(0f0, Float32(v[k])))
+    end
+    ffe_schedule!(s, 2549, idt, prm)
+    return
+end
+
 # DEFULMOD (fmin.f:1795, opt 39, act 2539): define/alter a fuel model. Field 2 = model#; fields 3-7 =
 # PRMS(2-6) = dead 1/10/100-hr SAV, live SAV, dead 1-hr load; a SUPPLEMENTAL record (7×F10) = PRMS(7-13) =
 # dead 10/100-hr load, live-woody load, depth, mext, live-herb SAV, live-herb load. −1/blank = keep the
 # standard model's value. Stores the resolved (load, sav, depth, mext) override read by fuel_model_resolved.
 function _defulmod!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     fs = s.fire; fs === nothing && return
+    # fmin.f:1795-1960: IDT = field 1 when ≥ 0 (a 0 date is every cycle), the supplemental record is read for the PRMS(7:13) fields; the
+    # activity (2539) is evaluated by FMBURN in its cycle (`_fmburn_acts!`) — the SURFVL/FMLOAD table changes only from that date on.
+    v = rec.values
+    idt = (rec.present[1] && v[1] >= 0f0) ? Int(trunc(v[1])) : 1
     rec.present[2] || (read_raw_line!(kr); return)         # no model# ⇒ still consume the supplemental line
-    model = Int(trunc(rec.values[2]))
+    model = Int(trunc(v[2]))
     (1 <= model <= size(s.coef.ffe_fuel_models, 1)) || (read_raw_line!(kr); return)  # invalid model ⇒ skip (still consume the record)
-    load, sav, depth, mext = standard_fuel_model(s.coef, model)
-    load = copy(load); sav = copy(sav)
-    p = fill(-1f0, 13)
-    @inbounds for i in 2:6                                  # PRMS(2-6) from fields 3-7
-        (rec.present[i+1] && rec.values[i+1] >= 0f0) && (p[i] = Float32(rec.values[i+1]))
-    end
-    line = read_raw_line!(kr)                               # supplemental record: PRMS(7-13), 7×10-char fields
+    load, sav, depth, mext = fuel_model_resolved(s, model)
+    p = fill(-1f0, 13); p[1] = Float32(model)
+    # PRMS(2:6): the card's value, else the model's CURRENT table value at keyword time (fmin.f:1862-1888)
+    for i in 2:4; p[i] = rec.present[i + 1] ? Float32(v[i + 1]) : sav[1, i - 1]; end
+    p[5] = rec.present[6] ? Float32(v[6]) : sav[2, 1]
+    p[6] = rec.present[7] ? Float32(v[7]) : load[1, 1]
+    line = read_raw_line!(kr)                               # supplemental record: PRMS(7-13), 7×10-char fields (blank ⇒ −1)
     @inbounds for j in 0:6
         lo = j * 10 + 1; hi = min((j + 1) * 10, length(line))
         lo <= hi || continue
         val = tryparse(Float32, strip(line[lo:hi]))
-        (val !== nothing && val >= 0f0) && (p[7+j] = val)
+        val !== nothing && (p[7 + j] = val)
     end
-    p[2] >= 0f0 && (sav[1, 1] = p[2]); p[3] >= 0f0 && (sav[1, 2] = p[3]); p[4] >= 0f0 && (sav[1, 3] = p[4])
-    p[5] >= 0f0 && (sav[2, 1] = p[5]); p[12] >= 0f0 && (sav[2, 2] = p[12])
-    p[6] >= 0f0 && (load[1, 1] = p[6]); p[7] >= 0f0 && (load[1, 2] = p[7]); p[8] >= 0f0 && (load[1, 3] = p[8])
-    p[9] >= 0f0 && (load[2, 1] = p[9]); p[13] >= 0f0 && (load[2, 2] = p[13])
-    p[10] >= 0f0 && (depth = p[10]); p[11] >= 0f0 && (mext = p[11])
-    fs.defulmod[Int32(model)] = (load, sav, depth, mext)
+    ffe_schedule!(s, 2539, idt, p)
     return
 end
 
@@ -2534,6 +2714,7 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
+        s.variant isa Ontario && _on_metric_decode!(r)     # canada metric fmin.f: tonnes/ha, cm, m, km/h, degC fields -> imperial in place
         isempty(k) && continue
         if k == "END"
             break
@@ -2569,19 +2750,21 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             ev = fs.fire_schedule[1]
             fs.fire_year = Int32(ev[1]); fs.swind = ev[2]; fs.fmois = Int32(ev[3])
             fs.atemp = ev[4]; fs.mortcode = Int32(ev[5]); fs.psburn = ev[6]; fs.burnseas = Int32(ev[7])
-        elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
+        elseif k == "FLAMEADJ"                             # schedule act 2507 (fmin.f:365-440); consumed by FMBURN per cycle
             v = r.values
-            # fmin.f:394-414 PRMS defaults FLMULT 1, FLAME −1, CRBURN −1, SCH −1 (only when field 5 is set); bounds
-            # FLMULT<0 ⇒ 1, FLAME<0 ⇒ −1, CRBURN<0 ⇒ −1, CRBURN>100 ⇒ 100. fmburn.f:337-351 then CRBURN·.01 when > −1.
-            fs.flameadj_on = true
-            fm = r.present[2] ? Float32(v[2]) : 1f0;  fs.flmult = fm < 0f0 ? 1f0 : fm            # FLMULT = FPRMS(1)
-            # metric/fire/base/fmin.f (BC/ON): FLAME and SCH are read in metres, ×MtoFT (3.28084)
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[1f0, -1f0, -1f0, -1f0]; np = 3
+            r.present[2] && (prm[1] = Float32(v[2]))              # PRMS(1) flame-length multiplier
+            # metric/fire/base/fmin.f (BC/ON): FLAME and SCH are read in metres and multiplied by MtoFT (3.28084)
             mtf = _metric_variant(s.variant) ? 3.28084f0 : 1f0
-            fl = r.present[3] ? Float32(v[3]) * mtf : -1f0; fs.user_flame = fl < 0f0 ? -1f0 : fl   # FLAME = FPRMS(2)
-            # a blank/negative CRBURN stays −1 = "not set" (FMCFIR's own crown fraction is used), NOT 0 (surface-only)
-            cb = r.present[4] ? Float32(v[4]) : -1f0; cb < 0f0 && (cb = -1f0); cb > 100f0 && (cb = 100f0)
-            fs.crburn = cb > -1f0 ? cb * 0.01f0 : cb
-            fs.user_sch = (length(r.present) >= 5 && r.present[5]) ? Float32(v[5]) * mtf : -1f0    # SCH = FPRMS(4)
+            r.present[3] && (prm[2] = Float32(v[3]) * mtf)         # PRMS(2) flame length (ft), −1 = computed
+            r.present[4] && (prm[3] = Float32(v[4]))              # PRMS(3) % crowning, −1 = modelled
+            r.present[5] && (prm[4] = Float32(v[5]) * mtf; np = 4)   # PRMS(4) scorch height (ft)
+            prm[1] < 0f0 && (prm[1] = 1f0)
+            prm[2] < 0f0 && (prm[2] = -1f0)
+            prm[3] < 0f0 && (prm[3] = -1f0)
+            prm[3] > 100f0 && (prm[3] = 100f0)
+            ffe_schedule!(s, 2507, idt, prm[1:np])
         elseif k == "CARBREPT"                             # request the FFE Stand Carbon Report (fmcrbout.f)
             s.control.carbon_report_on = true
         elseif k == "POTFIRE" || k == "POTFLAME"           # request the Potential Fire report (fmpofl.f)
@@ -2591,6 +2774,13 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "CARBCALC"                             # FLD1 method 0=FFE*/1=Jenkins, FLD2 units 0=US-t/ac*/1=t-ha/2=t-ac
             r.present[1] && (s.control.carbon_method = Int32(clamp(nint(r.values[1]), 0, 1)))
             r.present[2] && (s.control.carbon_units  = Int32(clamp(nint(r.values[2]), 0, 2)))
+            r.present[3] && (fs.user.crdcay = max(0f0, min(1f0, Float32(r.values[3]))))               # CRDCAY (fmin.f:2105)
+            if r.present[4] || r.present[5]                                                           # CDBRK(1:2) (fmin.f:2106-2107)
+                c1, c2 = fs.user.cdbrk
+                r.present[4] && (c1 = max(0f0, min(999f0, Float32(r.values[4]))))
+                r.present[5] && (c2 = max(0f0, min(999f0, Float32(r.values[5]))))
+                fs.user.cdbrk = (c1, c2)
+            end
         elseif k == "FMORTMLT"                             # fire-caused mortality multiplier (fmin.f:2506)
             kw_mult!(s, r, :fmort)
         elseif k == "SNAGFALL"                             # per-species snag fall rates (fmin.f:464, opt 9)
@@ -2636,25 +2826,33 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "DEFULMOD"                             # define/alter a fuel model (fmin.f:1795, opt 39, act 2539)
             _defulmod!(s, r, kr)
         elseif k == "FUELMODL"                             # force standard fuel models (fmin.f:1717, opt 38, act 2538)
-            # field 1 = date, then up to 3 (model#, weight) pairs (fields 2-7). Valid models 0<m≤MXDFMD;
-            # a blank/≤0 weight defaults to 1; weights normalized to sum 1 (fmin.f:1767). No valid model ⇒
-            # auto-selection (no override stored).
+            # field 1 = date, fields 2-7 = (model, weight) pairs 1-3, and a SUPPLEMENTAL record (2F10.0) = pair 4 (fmin.f:1751-1752).
+            # A pair is valid while 0 < model ≤ MXDFMD (256); the first invalid one ends the list. A blank/≤0 weight is 1; the
+            # weights are scaled to sum to 1. No valid pair ⇒ the activity unsets any forced list (FMUSRFM: NPRM ≤ 0 ⇒ LUSRFM off).
             v = r.values
-            date = r.present[1] ? nint(v[1]) : Int32(1)
-            pairs = Tuple{Int32,Float32}[]
-            for p in 0:2
-                mi = 2 + 2p; wi = 3 + 2p
-                r.present[mi] || continue
-                m = Int(trunc(v[mi]))
-                (m > 0 && m <= 53) || continue            # MXDFMD ≈ 53 standard models
-                w = (r.present[wi] && v[wi] > 0f0) ? Float32(v[wi]) : 1f0
-                push!(pairs, (Int32(m), w))
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = zeros(Float32, 8)
+            for i in 1:6; prm[i] = r.present[i + 1] ? Float32(v[i + 1]) : 0f0; end
+            line = read_raw_line!(kr)
+            for j in 0:1                                                      # READ(IREAD,'(2F10.0)') PRMS(7),PRMS(8)
+                lo = j * 10 + 1; hi = min((j + 1) * 10, length(line))
+                (lo <= hi && (x = tryparse(Float32, strip(line[lo:hi]))) !== nothing) && (prm[7 + j] = x)
             end
-            if !isempty(pairs)
-                tot = sum(p[2] for p in pairs)
-                tot > 0f0 && (pairs = [(p[1], p[2] / tot) for p in pairs])
-                push!(fs.fuelmodl, (date, pairs))
+            np = 0
+            for i in 1:2:7
+                if prm[i] > 0f0 && prm[i] <= 256f0
+                    np += 2
+                    prm[i + 1] <= 0f0 && (prm[i + 1] = 1f0)
+                else
+                    break
+                end
             end
+            if np > 0
+                x = 0f0; for i in 2:2:np; x += prm[i]; end
+                x = 1f0 / x
+                for i in 2:2:np; prm[i] = prm[i] * x; end
+            end
+            ffe_schedule!(s, 2538, idt, prm[1:np])
         elseif k == "PILEBURN"                             # jackpot/pile burn (fmin.f:1161, opt 23, act 2523)
             # field 1 = date, 2 = type, 3 = AFFECT %, 4 = ATREAT %, 5 = FULCON %, 6 = TRMORT %.
             # Type-1 defaults (fmin.f:1196): 70 / 10 / 80 / 0.
@@ -2686,27 +2884,38 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             push!(s.control.schedule,
                   ScheduledActivity(date, Int32(2501), (Float32(sel), mode, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "FUELTRET"                             # fuel-treatment depth adjustment (fmin.f:1264, opt 25, act 2525)
-            # field 1 = date, 2 = treatment type (0-2), 3 = harvest type (1-3), 4 = depth mult (−1 = use the
-            # DPMULT table). DPMULT(HARTYP, FTREAT+1): FTREAT 0 → 1.0/1.3/1.6 by harvest, FTREAT 1 → 0.83, 2 → 0.75.
             v = r.values
-            date = r.present[1] ? nint(v[1]) : Int32(1)
-            ftreat = r.present[2] ? clamp(Int(trunc(v[2])), 0, 2) : 0
-            hartyp = r.present[3] ? clamp(Int(trunc(v[3])), 1, 3) : 1
-            dpmod = (r.present[4] && v[4] >= 0f0) ? Float32(v[4]) :
-                    (ftreat == 0 ? (1f0, 1.3f0, 1.6f0)[hartyp] : ftreat == 1 ? 0.83f0 : 0.75f0)
-            push!(fs.fueltret, (date, dpmod))
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[0f0, 1f0, -1f0]
+            r.present[2] && (prm[1] = Float32(v[2])); r.present[3] && (prm[2] = Float32(v[3])); r.present[4] && (prm[3] = Float32(v[4]))
+            prm[1] < 0f0 && (prm[1] = 0f0); prm[1] > 2f0 && (prm[1] = 2f0)
+            prm[2] < 1f0 && (prm[2] = 1f0); prm[2] > 3f0 && (prm[2] = 3f0)
+            ffe_schedule!(s, 2525, idt, prm)
+        elseif k == "FMODLIST"                             # fmin.f:2375 (opt 50, act 2550): PRMS = (model, -1 default/0 on/1 off)
+            v = r.values
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            prm = Float32[1f0, -1f0]
+            r.present[2] && (prm[1] = Float32(max(0, Int(trunc(v[2])))))
+            r.present[3] && (prm[2] = Float32(max(-1, min(1, Int(trunc(v[3]))))))
+            ffe_schedule!(s, 2550, idt, prm)
         elseif k == "FIRECALC"                             # fire-calc method (fmin.f:2293, opt 49, act 2549)
-            # SN default IFLOGIC=0 (OLD FM logic, fminit.f:824) — exactly jl's FMCFMD path. The USAV/UBD/heat
-            # overrides (fields 4-9) apply ONLY to method 1 (new FM logic) / 2 (modelled loads → FM89), which
-            # are alternative fire-behavior models not ported. So method 0 is a faithful no-op; warn otherwise.
-            (r.present[2] && Int(trunc(r.values[2])) != 0) &&
-                @warn "FIRECALC method 1/2 (new FM logic / modelled loads) not ported — defaulting to the faithful old-FM-logic (method 0) path"
-        elseif k == "DROUGHT"
-            # SN no-op: DROUGHT sets IDRYB/IDRYE (drought years), but those affect the fuel model only in the
-            # UT/CR/LS variants — "not used in OZ-FFE" (the Southern FFE; fmvinit.f:1113). Recognized.
-        elseif k == "CANCALC"
-            # SN no-op: CANCALC sets canopy base-height / bulk-density options for the CROWN-fire model
-            # (FMCFIR), which the SN variant does not run (potential_fire/fmburn skip crown fire). Recognized.
+            _firecalc!(s, r)
+        elseif k == "DROUGHT"                              # fmin.f:1475 (opt 33, act 2529): years of drought / dormancy
+            v = r.values
+            idt = r.present[1] ? Int(nint(v[1])) : 1
+            dur = (r.present[2] && v[2] > 0f0) ? Float32(v[2]) : 1f0
+            ffe_schedule!(s, 2529, idt, Float32[dur])
+        elseif k == "STATFUEL"                             # fmin.f:1323: disable the dynamic fuel model (LDYNFM=.FALSE.)
+            fs.user.ldynfm = false
+        elseif k == "MORTCLAS"                             # fmin.f:1458: lower DBH bound of each FVS_Mortality class (LOWDBH)
+            for i in 1:7; r.present[i] && (fs.user.lowdbh[i] = Float32(r.values[i])); end
+        elseif k == "CANCALC"                              # fmin.f:1972 (opt 40): canopy base height / bulk density options
+            u = fs.user
+            r.present[1] && (u.icbhmt = Int32(trunc(r.values[1])))
+            r.present[2] && (u.canmht = Float32(r.values[2]))
+            r.present[3] && (u.icansp = Int32(trunc(r.values[3])))
+            r.present[4] && (u.cbhcut = Float32(r.values[4]))
+            r.present[5] && (u.folmc = Float32(r.values[5]))
         elseif k == "SOILHEAT"
             # report-only: SOILHEAT requests the soil-heating report when a fire occurs; jl emits no
             # soil-heating report, so this is a recognized no-op (like the other FFE report keywords).
@@ -2729,6 +2938,8 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                     end
                 end
             end
+        elseif k == "FUELFOTO"                             # initial fuels from a photo series (fmin.f:2137-2290, opt 48, act 2548)
+            _fuelfoto!(s, r)
         elseif k == "FUELINIT"                             # initial hard fuel loadings (fmin.f:1066, opt 21)
             _fuelinit!(s, r)
         elseif k == "FUELSOFT"                             # initial soft fuel loadings (fmin.f:2459, opt 53)
@@ -2770,14 +2981,14 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "POTFPAB"                              # PotFire % area burned (fmin.f:2012, opt 42)
             r.present[1] && (fs.params.potf[1].pab = Float32(r.values[1]))
             r.present[2] && (fs.params.potf[2].pab = Float32(r.values[2]))
-        elseif k == "MOISTURE"                             # fuel-moisture override (fmin.f:237, opt 5)
+        elseif k == "MOISTURE"                             # fuel-moisture override (fmin.f:237, opt 5, act 2505)
             v = r.values
-            idt = r.present[1] ? Int32(trunc(v[1])) : Int32(1)            # IDT = date/cycle (default 1)
+            idt = r.present[1] ? Int(trunc(v[1])) : 1                     # IDT = date/cycle (default 1)
             # 7 fuel-moisture % (1hr/10hr/100hr/3+/duff/live-woody/live-herb); blank → 0, except a blank
             # live-herb (field 8) defaults to the live-woody value (fmin.f:277-279).
-            pr = ntuple(i -> r.present[i+1] ? Float32(v[i+1]) : 0f0, 7)
-            (!r.present[8]) && (pr = (pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[6]))
-            push!(fs.moisture_ovr, (idt, pr))
+            pr = Float32[r.present[i+1] ? Float32(v[i+1]) : 0f0 for i in 1:7]
+            (!r.present[8]) && (pr[7] = pr[6])
+            ffe_schedule!(s, 2505, idt, pr)
         elseif k == "SNAGPBN"                              # post-burn snag-fall params (fmin.f:1233, opt 24)
             v = r.values; p = fs.params
             r.present[1] && (p.pb_soft = clamp(Float32(v[1]), 0f0, 1f0))   # PBSOFT, clamp [0,1]
@@ -2824,6 +3035,9 @@ costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest reve
 species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
 are recognized but not yet ported.
 """
+# the ECIN (ecin.f) SELECT CASE keywords
+const _ECON_KEYWORDS = Set(["ANNUCST", "ANNURVN", "BURNCST", "END", "HRVFXCST", "HRVVRCST", "HRVRVN", "LBSCFV", "MECHCST", "NOTABLE",
+                            "PCTFXCST", "PCTSPEC", "PCTVRCST", "PLANTCST", "PRETEND", "SPECCST", "SPECRVN", "STRTECON"])
 function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block::Bool = false)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
@@ -2835,6 +3049,11 @@ function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        # ecin.f `CASE DEFAULT: CALL ERRGRO(.TRUE.,1)`: a keyword outside ECIN's SELECT CASE list is FVS01 with the record count
+        if !(k in _ECON_KEYWORDS)
+            errgro!(s, 1; irecnt = kr.record_count)
+            continue
+        end
         # Faithful ECIN storage (econ_calc.jl) for the per-cycle ECCALC / FVS_EconSummary engine. Runs first
         # so a supplemental '&' rate/duration record is consumed here (ecin.f ratesAndDurations reads it).
         k == "END" || econ_keyword!(s, k, r, kr)
@@ -3007,6 +3226,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         # not in keywds.f's TABLE is ERRGRO(.TRUE.,1) FVS01 and is otherwise ignored.
         if kw in ext_stub_keywords(s.variant)
             errgro!(s, 11); s.control.ext_stub_strict = true; continue
+        elseif kw in ext_silent_stub_keywords(s.variant)
+            s.control.ext_stub_strict = true; continue
         elseif s.control.ext_stub_strict && !(kw in FVS_BASE_KEYWORDS)
             errgro!(s, 1; irecnt = kr.record_count); continue
         end

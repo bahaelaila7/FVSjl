@@ -310,7 +310,10 @@ function bc_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atba::Fl
             xmx = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
             d >= xmx && continue
             pr = t.tpa[i]; h1 = wk3[i]
-            bal = (1f0 - t.crown_ratio[i] / 100f0) * baj                       # PCT=0 on a new record (estab.f:640)
+            # PCT(new record)=0 (estab.f ITRN init) until the post-ESTAB DENSE, so BAL = (1-0/100)*BAJ = BAJ. jl's t.crown_ratio
+            # (PCT) of the new records already held a percentile from an earlier density pass (0.6386, 0.8284, ... on FVSbc
+            # SkyRanch-0.3m plant 2039; oracle BAL 0.99426961 = BAJ): the small-tree HTGR1 came out 3e-6 low, every birth HT/DBH 1 ULP+ off.
+            bal = baj
             incr = v2 ? fexp(max(-40f0, con_v2[sp] + BC_RG_V2_RHLH[sp]*flog(h1) +
                                 BC_RG_V2_RHCCF[sp]*rdj + BC_RG_V2_RHBAL[sp]*bal)) :
                         bc_v3_sthg(sp, ip[sp], h1, bal, rdj, rhcon[sp], s.plot.aspect, s.plot.slope)
