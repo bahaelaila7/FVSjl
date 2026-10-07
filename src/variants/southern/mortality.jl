@@ -374,7 +374,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
         # thinning line is solved once (persisted in s.density) and reused each pass.
         const_v = sdimax / PRETZSCH_SDIK
         d10cur = d10
-        @inbounds for _ in 1:10
+        @inbounds for ipass in 1:10
             tn10 = _pretzsch_tn10(s.density, tt, dia0, d10cur, const_v, pmsdil, pmsdiu)
             tn10 = clamp(tn10, 0f0, tt); tn10 < 0.1f0 && (tn10 = 0f0)
             rn = 1f0 - fpow(1f0 - (tt - tn10) / tt, 1f0 / fint)          # morts.f:468 **(1./FINT) → gfortran powf
@@ -408,6 +408,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
                 ttn += pr
             end
             d10n = ttn <= 0f0 ? 0f0 : (zeide ? fpow(sdr / ttn, 1f0 / 1.605f0) : sqrt(sdr / ttn))   # morts.f:590/593
+            # morts.f:599 `IF(IPASS .EQ. 10) GO TO 35` precedes the convergence test: the 10th pass keeps its INPUT D10
+            ipass == 10 && break
             (abs(d10cur - d10n) <= 0.1f0 || d10n <= dia0) && break
             d10cur = d10n
         end
