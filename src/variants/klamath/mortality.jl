@@ -81,6 +81,7 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         dr10 = sqrt(sd2sq / tt); dia0 = sqrt(sdq0 / tt)
     end
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
+    tt > 35000f0 && (tt = 35000f0)          # nc/morts.f:322 `IF(T .GT. 35000.) T=35000.` (after the DIA0<0.3 reset; DR0/DR10 use the true T)
     sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
     sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
@@ -147,7 +148,8 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
                     killed[i] > pr && (killed[i] = pr)
                 end
             end
-            density_on || break                                 # background ⇒ no d10 dependence, one pass
+            # NO early exit on a background pass: morts.f runs the IPASS QMD-convergence test after every pass, and a
+            # re-entry with D10=D10N can switch the density rate on (same mechanism as southern/mortality.jl, LS 18406903010661).
             # Post-mortality diameter d10n from the survivors (morts.f:551-582) — same LZEIDE branch as above.
             ttn = 0f0; sdr = 0f0; sd2sqn = 0f0
             for i in 1:n

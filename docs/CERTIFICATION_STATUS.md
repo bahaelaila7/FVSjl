@@ -1,6 +1,6 @@
 # FVSjl — certification status
 
-_Last updated 2026-10-06 evening (integ-1006f = master `6a81e8ec` + eastern extension coverage + ORGANON TIMEINT>5 + western round 3; measured on that branch). **16 of 24 variants at 0 tiered cells; 176 cells left in 8 variants; no crash cases.**14 of 24 variants at 0 tiered cells; 231 cells left in 10 variants; no crash cases.** Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
+_Last updated 2026-10-07 (integ-1007a = master `afe0f659` + eastern FIA sweep fixes + NC/UT morts + all keyword-coverage OPEN entries closed; measured on that branch). **16 of 24 variants at 0 tiered cells; 176 cells left in 8 variants; no crash cases; 0 OPEN keyword-coverage entries.** Roadmap and remaining work: **[ROADMAP.md](ROADMAP.md)**.
 Method: **[DOCTRINE.md](DOCTRINE.md)**. Older narrative status (FIA sweeps, extensions, PPE): [PORT_STATUS.md](PORT_STATUS.md)._
 
 ## What "certified" means here
@@ -60,8 +60,16 @@ stricter than.
 
 | Branch | Content | State |
 |---|---|---|
-| `integ-1006f` | eastern FFE keyword suites + stub parity + FIRECALC/FMODLIST (one implementation per FFE mechanism with the western code), ORGANON TIMEINT>5, western round 3 (DCYMLT per-element FUELDCAY, all-dead crown dub ×11, AK/KT/WS/BC fixes); ON → 0, BC → 0 | suite; 7 kwcov OPEN entries now pass (awaiting the user's go-ahead to promote) |
-| `ocop-2` | OC 15,700 → 4,300, OP 19,545 → 6,762 | Sonnet agent working |
+| `west-tail-4` | the last 176 western cells, OP redwood small-tree growth, ESTAB-density class, BC V2 DUBSCR | Sonnet agent working |
+| `fia-east-2` | eastern FIA sweep round 2 digs | Sonnet agent working |
+
+## Phase 4 — eastern FIA full-population re-sweep
+
+Every FIA stand of the four eastern variants (1,472,391: SN 637,641, NE 178,149, CS 255,952, LS 400,649), `.sum` vs the
+live stock oracle, cap-and-fix (dig cap 100). Three lanes; on 2026-10-07 ~04:00 SN had 64,618 ledger rows and LS ~49,000 stands; NE and CS had
+not started. Of the SN stands so far, ~94% were bit-exact, ~6% differed only at print rounding and ~0.8%
+were material — on the round-1 engine, so provisional. Round 1 (above) fixed 21 of 22 SN and 15 of 18 LS dig stands;
+round 2 is re-classifying the material rows on the fixed engine. A final clean pass on the frozen final engine follows.
 
 ## How work lands (the gate)
 
@@ -98,6 +106,8 @@ KT volume setup.
 | `810f78e7` | 10-06 | OC 955, OP 2,092 (ORGANON round) | 140,367 / 0 / 0 / 12 |
 | `51a539b9` | 10-06 | western tail → 253, BC 8; all test files registered | 140,367 / 0 / 0 / 12 (+7 newly registered files pass) |
 | `6a81e8ec` | 10-06 | OC/OP/CA → 0 (14 variants at 0) | 140,647 / 0 / 0 / 12 |
+| `afe0f659` | 10-07 | eastern extension coverage, ORGANON TIMEINT>5, western round 3; BC, ON → 0 (16 variants at 0) | 141,846 / 0 / 0 / 43 |
+| integ-1007a | 10-07 | eastern FIA sweep round 1 + NC/UT morts + all 36 kwcov OPEN entries closed; 67 allowlist caps tightened | 141,933 / 0 / 0 / 7 (3 test_west_tail expectations promoted to all-cells-exact) |
 
 ## Oracles
 

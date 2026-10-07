@@ -58,7 +58,7 @@ function ffe_down_wood(s::StandState)
     ccf = ((4, 0.0166f0, 0.8715f0), (5, 0.0092f0, 0.8795f0), (6, 0.0063f0, 0.8728f0),
            (7, 0.0069f0, 0.8134f0), (8, 0.0033f0, 0.8617f0), (9, 0.0949f0, 0.5f0))
     function cbins(K)
-        c = ntuple(i -> (let (sz, a, b) = ccf[i]; a * vol(sz, K)^b end), 6)
+        c = ntuple(i -> (let (sz, a, b) = ccf[i]; a * fpow(vol(sz, K), b) end), 6)   # CWDCOV = a*CWDVOL**b is gfortran powf (doctrine #8)
         (c..., sum(c))
     end
     return (vol_hard = vbins(2), vol_soft = vbins(1), cov_hard = cbins(2), cov_soft = cbins(1))
@@ -471,6 +471,13 @@ function fmscut_removal!(s::StandState)
         wk3, ssng, dsng, ctcrwn, tkcrwn = acc[i]
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
+        # fmscut.f:79-96 in record order: crown slash into the category-2 CWD of the species' decay class (foliage → litter 10,
+        # branches 1-5; X = CTCRWN·P2T, CWD += CROWNW·X), then CWD3 of the downed yarding loss DSNG
+        let idc = ffe_dkr_cls(s, sp), xcr = ctcrwn * _FM_P2T
+            fs.cwd[10, 2, idc] += xv[1] * xcr
+            for isz in 1:5; fs.cwd[isz, 2, idc] += xv[isz + 1] * xcr; end
+        end
+        dsng > 0f0 && _cwd3!(s, sp, d, dsng, h)
         y = tkcrwn * _FM_P2T; z = (ctcrwn - dsng) * _FM_P2T
         tkcrbm = tkcrbm + xv[1] * y; lvcrwn = lvcrwn + xv[1] * z
         for isz in 1:5

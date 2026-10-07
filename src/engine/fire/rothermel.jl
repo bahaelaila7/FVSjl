@@ -44,8 +44,28 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     # classes, matching the Fortran's KMAX≠0 guard (so IFINES(2)=0/NL=0 needs no special case).
     ifines = (1, 1)
 
-    # order each category's classes finest-first (descending SAV); drop classes SAV<16
-    isize = [sortperm([load[i, j] > 0f0 ? sav[i, j] : -1f0 for j in 1:4]; rev = true) for i in 1:2]
+    # MPS is INTEGER(2,4) in FMFCOM (MPS(I,J)=SURFVL(IFMD,I,J) truncates)
+    sav = Float32[Float32(trunc(Int32, sav[i, j])) for i in 1:2, j in 1:4]
+    # fmfint.f:158-209 class order — NOT a true finest-first sort: a bubble sort of the FIRST NOCLAS(I) positions only (stable on SAV ties),
+    # then three position fix-ups that swap a zero-load class out of the used window, then the SAV<16 cut.
+    isize = [collect(1:4), collect(1:4)]
+    for i in 1:2
+        jmax = noclas[i]
+        jmax > 1 || continue
+        for jj in 1:(jmax - 1), k in 1:(jmax - jj)
+            ida = isize[i][k]; idb = isize[i][k + 1]
+            if sav[i, ida] < sav[i, idb]; isize[i][k + 1] = ida; isize[i][k] = idb; end
+        end
+    end
+    let ida = isize[2][1], idb = isize[2][2]
+        load[2, ida] <= 0f0 && (isize[2][2] = ida; isize[2][1] = idb)
+    end
+    let ida = isize[1][3], idb = isize[1][4]
+        load[1, ida] <= 0f0 && (isize[1][4] = ida; isize[1][3] = idb)
+    end
+    let ida = isize[1][2], idb = isize[1][3]
+        load[1, ida] <= 0f0 && (isize[1][3] = ida; isize[1][2] = idb)
+    end
     mext = Float32[mext_dead, 0f0]
     for i in 1:2
         k = noclas[i]
