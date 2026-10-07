@@ -98,11 +98,9 @@ const _WT_TABLES4 = ("FVS_BurnReport", "FVS_PotFire", "FVS_Fuels", "FVS_Summary"
 @testset "Post-activity fuel models: FMTRET SLCHNG + fmcfmd.f AFWT/LATFUEL (THINBBA + SIMFIRE same cycle) vs live" begin
     # fmtret.f:372-400 SLCHNG, {ie,nc}/fmcfmd.f AFWT block: the thin's slash jump (≥10%) opens the ≤5-yr FM11(/14) window.
     # Before: IE 11855985010690 PotFire 50 / Fuels 32 / Summary 38 cells off, NC 15303130010497 PotFire 50 / Summary 61.
-    # Remaining: ULP-level cells of other mechanisms (listed).
-    known = Dict("ie_11855985010690_thinfire" => Set(["FVS_PotFire 2016 Surf_Flame_Sev", "FVS_PotFire 2016 Tot_Flame_Sev",
-                                                       "FVS_PotFire 2016 PTorch_Sev"]),
-                 "nc_15303130010497_thinfire" => Set(["FVS_Fuels 2015 Surface_ge3", "FVS_Fuels 2015 Surface_3to6",
-                                                       "FVS_Fuels 2015 Surface_Total"]))
+    # 2026-10-07: the last ULP cells closed with kwcov-open (FMFINT bubble class order → flame/torch; FMSCUT record-order
+    # crown slash → Fuels 3-6"); every cell now equals live.
+    known = Dict("ie_11855985010690_thinfire" => Set{String}(), "nc_15303130010497_thinfire" => Set{String}())
     for (v, name) in (("ie", "ie_11855985010690_thinfire"), ("nc", "nc_15303130010497_thinfire"))
         db = _wt_run(v, name)
         off = union((Set("$(t) $(c)" for c in _wt_offcells(name, db, t)) for t in _WT_TABLES4)...)
@@ -114,8 +112,7 @@ end
 @testset "SO activity-fuel FMCONS (so/fmcons.f:146-225) + SO AFWT models 11/14 vs live FVSso_g16" begin
     # Before: 15364795010497 PotFire 44 / Fuels 33 off; 15184869010497 PotFire 40 / Fuels 31.
     for (name, exp) in (("so_15364795010497_thinfire", Set{String}()),
-                        ("so_15184869010497_thinfire", Set(["FVS_BurnReport 2020 Flame_length", "FVS_BurnReport 2020 Scorch_height",
-                                                            "FVS_PotFire 2020 Torch_Index"])))
+                        ("so_15184869010497_thinfire", Set{String}()))   # flame/scorch/torch closed by the FMFINT class-order fix (2026-10-07)
         db = _wt_run("so", name)
         off = union((Set("$(t) $(c)" for c in _wt_offcells(name, db, t)) for t in _WT_TABLES4)...)
         @test off == exp

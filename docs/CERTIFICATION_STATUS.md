@@ -60,7 +60,6 @@ stricter than.
 
 | Branch | Content | State |
 |---|---|---|
-| `integ-1007a` | eastern FIA sweep round 1 (morts.f IPASS loop ran one pass after a background pass; SN LSTART crown RELDEN without the cycle-0 dead; DQ0/DQ10 on the clamped T; LS/CS REGCAL BA and RMSQD), the same IPASS/T-clamp defects in NC and UT, and all 36 OPEN keyword-coverage entries (22 eastern FFE, 14 ON) closed by faithful fixes (THINQFA single DO 1700 pass, FMKILL ESTUMP gate, FMSCUT record-order slash, FM10 DPMOD, ON FMSALV carbon, FUELMOVE and FMFINT order). Tiered = master (176); 67 allowlist caps tightened to the measured counts | full suite |
 | `west-tail-4` | the last 176 western cells, OP redwood small-tree growth, ESTAB-density class, BC V2 DUBSCR | Sonnet agent working |
 | `fia-east-2` | eastern FIA sweep round 2 digs | Sonnet agent working |
 
@@ -108,6 +107,7 @@ KT volume setup.
 | `51a539b9` | 10-06 | western tail → 253, BC 8; all test files registered | 140,367 / 0 / 0 / 12 (+7 newly registered files pass) |
 | `6a81e8ec` | 10-06 | OC/OP/CA → 0 (14 variants at 0) | 140,647 / 0 / 0 / 12 |
 | `afe0f659` | 10-07 | eastern extension coverage, ORGANON TIMEINT>5, western round 3; BC, ON → 0 (16 variants at 0) | 141,846 / 0 / 0 / 43 |
+| integ-1007a | 10-07 | eastern FIA sweep round 1 + NC/UT morts + all 36 kwcov OPEN entries closed; 67 allowlist caps tightened | 141,933 / 0 / 0 / 7 (3 test_west_tail expectations promoted to all-cells-exact) |
 
 ## Oracles
 
