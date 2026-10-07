@@ -1,3 +1,4 @@
+# (2026-10 east re-sweep) verdicts use the WORST-cycle residual, not the last cycle. Example: LS 176160295010661 = -6 TPA @2017 on every seed (SEED-INVARIANT) though 0 @2057.
 # seed_test.jl — the SEED-PERTURBATION adjudicator: does a per-stand jl−oracle divergence FLIP with the RNG
 # seed (⇒ a genuine RANSED realization STRADDLE, cornerable) or is it SEED-INVARIANT and one-directional
 # (⇒ a REAL deterministic count/height bug, must be FIXED not cornered)?
@@ -54,15 +55,26 @@ seed_oracle_bin(v, override) =
     get(BIN, v) do; "/workspace/.$(lowercase(v))work/FVS$(lowercase(v))_g16"; end
 seed_variant(v) = get(VAR, v) do; FVSjl.variant_from_code(v); end
 
-# last common .sum cycle's signed residual (jl − oracle) for every metric col; nothing if no comparable cycle.
+# WORST-cycle signed residual (jl − oracle) over EVERY common .sum cycle, per metric. The earlier version used
+# only the LAST common cycle, which is blind to a seed-invariant early-cycle deficit that later reconverges
+# (east re-sweep 2026-10: LS 176160295010661 is -6 TPA at 2017 on every seed yet 0 at 2057 ⇒ falsely "MATCH").
+# For each metric we keep the signed residual at the year of largest |residual| (the "worst cycle").
 function last_cycle_residuals(livetext, jltext)
     L = parse_sum10(livetext); J = parse_sum10(jltext)
     (isempty(L) || isempty(J)) && return nothing
-    Jd = Dict(y=>vv for (y,vv) in J)
+    Jd = Dict(y=>vv for (y,vv) in J); Ld = Dict(L)
     ys = sort([y for (y,_) in L if haskey(Jd, y)])
     isempty(ys) && return nothing
-    y = last(ys); lv = Dict(L)[y]; jv = Jd[y]
-    (year=y, res=Dict(name => jv[k]-lv[k] for (name,k,_) in METRICS))
+    res = Dict{String,Float64}(); wyear = Dict{String,Int}()
+    for (name,k,_) in METRICS
+        best = 0.0; by = last(ys)
+        for y in ys
+            r = Jd[y][k] - Ld[y][k]
+            abs(r) > abs(best) && (best = r; by = y)
+        end
+        res[name] = best; wyear[name] = by
+    end
+    (year=last(ys), res=res, wyear=wyear)
 end
 
 # verdict over the signed residuals of ONE metric across all seeds.
@@ -79,7 +91,7 @@ function seedtest_stand(v, cn, seeds, bin, regime)
     var = seed_variant(v)
     # residual[metric] = Vector aligned with `seeds` (missing seeds recorded as NaN, shown as "·")
     resid = Dict(name => Float64[] for (name,_,_) in METRICS)
-    ok_seeds = Int[]; last_year = 0
+    ok_seeds = Int[]; last_year = 0; wy = Dict{String,Int}[]
     for s in seeds
         live, _ = run_live(bin, cn, sub, regime, dir, 0, s)
         keyf = joinpath(dir, "jl.key"); write(keyf, keytext(cn, sub, regime, 0, s))
@@ -88,11 +100,11 @@ function seedtest_stand(v, cn, seeds, bin, regime)
         if r === nothing
             for (name,_,_) in METRICS; push!(resid[name], NaN); end
         else
-            last_year = r.year; push!(ok_seeds, s)
+            last_year = r.year; push!(ok_seeds, s); push!(wy, r.wyear)
             for (name,_,_) in METRICS; push!(resid[name], r.res[name]); end
         end
     end
-    (resid=resid, seeds=seeds, ok=ok_seeds, year=last_year)
+    (resid=resid, seeds=seeds, ok=ok_seeds, year=last_year, wyear=wy)
 end
 
 fmt(x) = isnan(x) ? "    ·" : (x == round(x) ? lpad(string(Int(round(x))),6) : lpad(string(round(x,digits=1)),6))
@@ -102,7 +114,7 @@ function main_seedtest(v, cns, seeds, binoverride, regime)
     isfile(bin) || error("oracle binary not found: $bin  (pass --bin=... )")
     println("SEED-PERTURBATION TEST  variant=$v  oracle=$bin  regime=$regime")
     println("seeds (RANNSEED, cols 11-20 of the record): $(join(seeds, ", "))")
-    println("residual = jl − oracle at the last common .sum cycle. ε(TPA/BA/TopHt/QMD)=4/3/3/1.")
+    println("residual = jl − oracle at the WORST (max |res|) common .sum cycle per metric. ε(TPA/BA/TopHt/QMD)=4/3/3/1.")
     println("⚠ establishment stream (ESRANN=55329) does NOT reseed — an estab-cohort divergence is seed-invariant")
     println("  BY CONSTRUCTION; for bare-estab stands use the population one-directional signature, not this alone.\n")
     ndeterm = 0; nstraddle = 0
@@ -117,7 +129,7 @@ function main_seedtest(v, cns, seeds, binoverride, regime)
             verdict, amax = isempty(good) ? ("no-data", 0.0) : metric_verdict(good, eps)
             vd[name] = (verdict, amax)
             println("  " * rpad(name,6) * " | " * join([fmt(x) for x in vals], " ") *
-                    "  |  $verdict  (|max|=$(round(amax,digits=1)))")
+                    "  |  $verdict  (|max|=$(round(amax,digits=1)); worst yr(s) $(join(unique([w[name] for w in t.wyear]), ',')))")
         end
         isd(m) = occursin("determ", vd[m][1]); iss(m) = occursin("straddle", vd[m][1])
         # decisive-count bug: TPA (or density BA) seed-invariant & material. height bug: TopHt seed-invariant AND
