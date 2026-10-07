@@ -11,12 +11,8 @@
 using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "kwcov_ffe", "runner.jl"))
 
-# OPEN causes (2026-10-07): PotFire flame/torch cells under FIRECALC IFLOGIC 1/2 (cs/ne firecalc_*), see each entry.
+# No OPEN entries (2026-10-07): every case is bit-exact vs the live oracle.
 const _KWFFE_OPEN = Dict{String,String}(
-    "cs_firecalc_40" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire_East",
-    "cs_firecalc_off" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire_East",
-    "ne_firecalc_40" => "OPEN (measured 2026-10-06, stock-flag live oracle): 5 cells in FVS_PotFire",
-    "ne_firecalc_sav" => "OPEN (measured 2026-10-06, stock-flag live oracle): 1 cells in FVS_PotFire",
 )
 
 @testset "eastern FFE keyword-isolation vs live" begin
