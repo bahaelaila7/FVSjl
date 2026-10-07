@@ -80,6 +80,7 @@ using FVSjl
     include("unit/test_nc_habitat.jl")     # NC (Klamath Wykoff-DDS) alpha plant-association PV_CODE → NC_PCOML KODTYP decode + faithful nc/sitset.f ECOCLS PA SDImax seed + C6 fan; fixes R6 SDIMAX (default 720→815-fan, HTS221 830)
     include("unit/test_ec_fia_habitat.jl") # EC (EastCascades) FIA-DB PV_CODE decode (ec habtyp+pvref6+hbdecd) + omitted ec/sitset.f SDIDEF(ISEQ) seed; fixes FIA-stand SDIMAX (CDG131/626 uniform 331→530-fan) on the DB read path the keyword fix (70535053) never covered
     include("unit/test_east_sweep_mort.jl") # eastern FIA full-population re-sweep regression stands vs live .sum (morts.f IPASS loop: background pass must still run the QMD-convergence test)
+    include("unit/test_dense_morts_ncut.jl") # NC/UT morts.f T>35000 clamp + no early IPASS exit on a background pass: synthetic dense stand vs live FVSnc_g16/FVSut_g16
     include("unit/test_ca_so_forkod_crash.jl") # CA/SO forest-index-overflow SIGSEGV: ca/so forkod.f "FOREST MAPPING CORRECTION" (CA 518→IFOR5, SO 514→4/702→8) remaps IFOR into the 1..10 array range; + SO WB(16) small-tree t.plot_id/point_ccf field fix. 3 previously-crashing FIA stands run end-to-end
     include("unit/test_forkod_default.jl")     # forkod.f KODFOR→IFOR vs a 346-code table extracted from the Fortran: not-found keeps grinit IFOR (was forced 1), CA/OC/SO BIA reservation codes
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
