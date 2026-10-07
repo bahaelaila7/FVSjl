@@ -1100,7 +1100,7 @@ function _fmsalv!(s::StandState)::Bool
             # fmsalv.f:270-285: the salvage joins the harvested-wood C accounting — X = (CUTDIS·ISOFTV2 + CUTDIH·IHARDV2)·V2T·(1−PROPLV) with
             # ISOFTV2/IHARDV2 = FMSVL2('D', LMERCH) at HTDEAD cut at HTIS/HTIH; the eastern LMERCH=FALSE form (MAX(0.005454154·H, MCF)) is the
             # same volume as ISOFTV/IHARDV. FATE(J,K,ICYC): K = softwood/hardwood by BIOGRP, J = pulp/saw by DBHS vs CDBRK(K).
-            _snag_east_vol(s.variant) &&
+            (_snag_east_vol(s.variant) || s.variant isa Ontario) &&
                 accrue_harvest_carbon!(s, Int(sn.sp[i]), sn.dbh[i],
                                        (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv), yr)
             fired = true

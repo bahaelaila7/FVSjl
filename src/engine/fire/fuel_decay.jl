@@ -550,7 +550,8 @@ function apply_fuelmove!(s::StandState)::Bool
     cwd = fs.cwd
     # FORG/FSRC/FTRG by size class 0:11 (0 = outside sink); +1 offset so idx 1 = class 0, idx j+1 = class j.
     forg = zeros(Float32, 12)
-    @inbounds for j in 1:11; forg[j+1] = sum(@view cwd[j, :, :]); end
+    # fmtret.f:243-251 FORG(J1) += CWD(I,J1,K,L) with K outer, L inner (REAL*4, left to right): Base.sum walks (k fastest) — 1 ULP apart
+    @inbounds for j in 1:11; a = 0f0; for k in 1:2, l in 1:4; a += cwd[j, k, l]; end; forg[j+1] = a; end
     fsrc = copy(forg); ftrg = zeros(Float32, 12); altered = false
     for a in s.control.schedule
         a.icflag == Int32(2530) || continue
