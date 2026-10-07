@@ -379,7 +379,10 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             density_on = !(tt <= tem_v2 || rn <= 0f0)
             tokill = density_on ? max(tt - tn10, 0f0) : bg_tokill
             _varmrt!(killed, efftr, temwk2, s, v, t, n, tokill)
-            density_on || break              # background ⇒ no d10 dependence, one pass
+            # NO early exit when the density rate is off: morts.f runs the IPASS QMD-convergence test after EVERY
+            # pass, background or density. A background pass (RN=0 ⇒ TN10=T) still recomputes D10N and, when
+            # |D10-D10N|>0.1, re-enters the loop with D10=D10N — a larger D10 can switch the density rate on in the
+            # next pass (live FVSls_new, LS 18406903010661 cycle 2: 10-pass bg/density limit cycle, final state = pass 10).
             # recompute the post-mortality QMD (d10n) from the surviving TPA
             ttn = 0f0; sdr = 0f0
             for i in 1:n
