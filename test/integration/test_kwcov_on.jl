@@ -12,8 +12,6 @@ using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "kwcov_ffe", "runner.jl"))
 
 const _KWON_OPEN = Dict{String,String}(
-    "on_21769405010661_ffe_fuelmove" => "OPEN (measured 2026-10-06, FVSon_tiered): 8 cells in FVS_Consumption_Metric,FVS_Down_Wood_Cov_Metric,FVS_Down_Wood_Vol_Metric",
-    "on_64767919010661_ffe_salvage" => "OPEN (measured 2026-10-06, FVSon_tiered): 24 cells in FVS_Carbon_Metric,FVS_Hrv_Carbon",
 )
 
 @testset "ON keyword-isolation vs live" begin
