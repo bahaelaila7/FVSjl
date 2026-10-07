@@ -363,6 +363,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # past BA/PCT/point_ba), EXCEPT the AVHT40 top height (AVH), which stays at the
     # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+    # CS/LS: the CRATET-DENSE COMMON BA must be taken BEFORE the IDG=1/3 outside→inside-bark conversion of t.diam_growth below
+    # (dense.f backdates with the RAW measured increment ÷ BRATIO), exactly like the init-crown `_cs/_ls_init_crowns!` call.
+    bd_ba_cratet = (s.variant isa CentralStates || s.variant isa LakeStates) ? eastern_cratet_ba(s) : 0f0
     _ut_cal = s.variant isa Utah              # #199: UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766)
     _tt_bd_ba = 0f0; _tt_bd_ccf = 0f0; _tt_bd_pccf = Float32[]   # TT REGCAL stand values (backdated DENSE)
     _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
@@ -859,7 +862,19 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         dd = t.dbh[i]; bd_ba_hcor += dd * dd * t.tpa[i] * 0.005454154f0
         bd_sd2_hcor += dd * dd * t.tpa[i]; bd_tpa_hcor += t.tpa[i]
     end
-    rmsqd_bd_hcor = bd_tpa_hcor > 0f0 ? sqrt(bd_sd2_hcor / bd_tpa_hcor) : 0f0   # backdated stand QMD (RMSQD basis for LS balmod)
+    # RMSQD for LS balmod (ls/regent.f REGCAL reads COMMON RMSQD): dense.f:216-221 computes it from TSUMD2 of the SECOND
+    # (current-DBH) pass over IND1 incl. the cycle-0 dead records (only BA/RELDEN are swapped back to the backdated pass,
+    # dense.f:222-232) — so it is the CURRENT-diameter live+dead QMD, NOT the backdated one. MEASURED live FVSls_new FIA
+    # 1686722694290487 LSTART DENSE: TSUMD2 33195.79 / TPROB 2708.43 ⇒ RMSQD 3.5009 (jl backdated 2.9848 ⇒ GMOD 0.836 vs
+    # 0.611 ⇒ HCOR 0.18 vs 0.10 ⇒ small WC heights 2-3% high from cycle 1).
+    rmsqd_bd_hcor = let sd2c = 0f0, tpc = 0f0
+        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        @inbounds for i in 1:(t.n + t.ndead)
+            dd = i <= t.n ? saved_dbh[i] : t.dbh[i]; pp = i <= t.n ? t.tpa[i] : t.tpa[i] * fintr
+            sd2c += dd * dd * pp; tpc += pp
+        end
+        tpc > 0f0 ? sqrt(sd2c / tpc) : 0f0
+    end
     # The regent HCOR calibration reads the BACKDATED-stand PCT for BALMOD's BAL. It uses the CRATET DENSE
     # percentile, which INCLUDES ALL recently-dead records incl. history-8 (dense.f keeps WK3=dbh; only IMC=9 is
     # zeroed) — UNLIKE the dgf percentile above (which zeroes history-8). So recompute the percentile here over
@@ -878,6 +893,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
+    # CS/LS REGCAL BALMOD BA = the CRATET DENSE's backdated BA over IND1 incl. the cycle-0 dead, IMC=9 (HISTORY 8-9) at D=0
+    # (dense.f:11-12 WK3=0), dead P x FINT/FINTM — eastern_cratet_ba (the init-crown COMMON BA). MEASURED live FVSls_new
+    # FIA 1831986061290487: BA 54.5269 vs the history-8/9-inclusive sum 57.27 ⇒ EDH 3481 vs 3445 ⇒ HCOR -0.05 vs -0.04.
+    (s.variant isa CentralStates || s.variant isa LakeStates) && (bd_ba_hcor = bd_ba_cratet)
     compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
     # BM REGENT(.FALSE.,1) small-tree HEIGHT calibration (bm/regent.f:657-829; cratet.f:667) — current dbh,
     # AVHT40 AVH (cycle-0 CRATET IND), RELDEN from the cratet.f:195 DENSE (stashed by crown_init_lstart_dead_inclusive!).
