@@ -82,11 +82,16 @@ reported as `out_of_region` (use FVSjl there).
   TreeMap within ~3 %. `FiaSim._parse_sum_and_carbon` now converts (× 2.2417).
 
 ## Alternatives (equifinality)
-`gafl_hbad_alt{1..4}` come from Pan's anchor-and-explore search (Pan `docs/cmaes_gdigel.md` §4): lineages start at the
-calibrated set and move as far apart as possible while every species group stays within its bias tolerance; four
-behavioural sets far apart in parameter space are then picked. Over 100 years on 60 GA/FL plots they keep mean biomass
-within ±8 % of each other (CV ≤ 6.5 %) but differ in stand structure — e.g. at year 60, 196 vs 357 trees/ac — because
-the biomass data constrain growth × survival, not how it splits between density and tree size.
+`gafl_{hbad,biomass}_alt{1..4}` come from Pan's anchor-and-explore search (Pan `docs/cmaes_gdigel.md` §4): lineages start at
+the calibrated set and move apart while every species group stays within its bias tolerance on the training plots; among the
+behavioural sets found, four are picked whose **100-year projections** differ most (biomass, density, species shares).
+- **HBAD**: biomass spread up to ±7 % (CV 6.6 % at year 60) and clearly different stand density (157–295 trees/ac at year 60
+  vs 204 for v1) — the biomass data constrain growth × survival, not how it splits between density and tree size.
+- **Biomass Succession**: projected biomass stays within CV 1.7 % over 100 years; parameter differences (D, S, B_MAX) compensate
+  each other — the data pin the biomass trajectory tightly; only late-century tree counts diverge.
+- Held-out (val/test, ±10 %): alternatives pass 25–29 (HBAD) and 14–20 (Biomass Succession) of 46–47 groups, versus 30–32 and
+  15–18 for a coordinate calibration fitted on the same training plots — plausible, slightly less supported than the best fit.
+Use v1 as the reference and the alternatives to bracket projection uncertainty.
 
 ## Tests
 - `python3 test/pan_api_smoke.py` — end-to-end API test (meta, samples, parameter upload incl. a bad file, AOI, Pan HBAD /
