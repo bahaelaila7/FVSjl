@@ -121,7 +121,7 @@ async function boot() {
   el('compareModal').onclick = e => { if(e.target===el('compareModal')) closeCompare(); };
   document.addEventListener('keydown', e => { if(e.key==='Escape' && el('compareModal').style.display==='flex') closeCompare(); });
   el('runLandscape').onclick = runLandscape;
-  for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init()]) {
+  for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init(), () => FiaUI.init()]) {
     try { f(); } catch (err) { console.error(err); setStatus('UI init error: ' + err.message); }
   }
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };

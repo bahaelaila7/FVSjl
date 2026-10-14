@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.13.0"
+julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "8e0022e5a5e4c912f9c7a9c3b6f7c639a7f0f40a"
+project_hash = "0ad7cb9ef9022e7b466fec0854b07b238aadb89c"
 
 [[deps.ArchGDAL]]
 deps = ["CEnum", "ColorTypes", "Dates", "DiskArrays", "Extents", "GDAL", "GeoFormatTypes", "GeoInterface", "ImageCore", "Tables"]
@@ -39,6 +39,13 @@ version = "1.11.0"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
+
+[[deps.BitIntegers]]
+deps = ["Random"]
+git-tree-sha1 = "091d591a060e43df1dd35faab3ca284925c48e46"
+registries = "General"
+uuid = "c3b6d118-76ef-56ca-8cc7-ebb389d030a1"
+version = "0.3.7"
 
 [[deps.Blosc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Lz4_jll", "Zlib_jll", "Zstd_jll"]
@@ -199,6 +206,20 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.7.0"
 
+[[deps.DuckDB]]
+deps = ["DBInterface", "Dates", "DuckDB_jll", "FixedPointDecimals", "Tables", "UUIDs", "WeakRefStrings"]
+git-tree-sha1 = "656133510fa02a4f70a9d3ce6c1d083318406550"
+registries = "General"
+uuid = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
+version = "1.5.2"
+
+[[deps.DuckDB_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "3a1f1414db56a663bdff3b1c756d2cfd2c090a93"
+registries = "General"
+uuid = "2cbbab25-fc8b-58cf-88d4-687a02676033"
+version = "1.5.5+0"
+
 [[deps.EnumX]]
 git-tree-sha1 = "c49898e8438c828577f04b92fc9368c388ac783c"
 registries = "General"
@@ -243,6 +264,13 @@ version = "0.9.24"
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
 
+[[deps.FixedPointDecimals]]
+deps = ["BitIntegers", "Parsers"]
+git-tree-sha1 = "41d3a5de0eab320cc04833a373f0fcb3640073d5"
+registries = "General"
+uuid = "fb4d412d-6eee-574d-9565-ede6634db7b0"
+version = "0.6.5"
+
 [[deps.FixedPointNumbers]]
 deps = ["Random", "Statistics"]
 git-tree-sha1 = "59af96b98217c6ef4ae0dfe065ac7c20831d1a84"
@@ -256,6 +284,12 @@ git-tree-sha1 = "38ac3c197b18d75111a531bf7faa83519cdfff02"
 registries = "General"
 uuid = "5dc1e892-f187-50dd-85f3-7dff85c47fc5"
 version = "11.1.1+0"
+
+[[deps.ForestExplorer]]
+deps = ["ArchGDAL", "CSV", "ColorTypes", "DBFTables", "DBInterface", "DataFrames", "DuckDB", "FVSjl", "FixedPointNumbers", "HTTP", "JSON3", "Oxygen", "PNGFiles", "SHA", "SQLite"]
+path = "."
+uuid = "b2d4e6a8-1c3f-4a5b-9d7e-0f1a2b3c4d5e"
+version = "0.1.0"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -508,7 +542,7 @@ version = "16.14.0+0"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl", "OpenSSL_jll", "Zlib_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.103+0"
+version = "1.11.104+0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"

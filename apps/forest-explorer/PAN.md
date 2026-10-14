@@ -25,6 +25,7 @@ checkout (e.g. `~/Documents/projects`). Any single path can still be overridden.
 | `PAN_REPO` | `$WORKSPACE/landis_scen` | Pan checkout (branch `scenario-engine`) — the Pan worker runs from here |
 | `PAN_DEPOT_PATH` | `$PAN_REPO/.julia_depot_wt` (+ `$WORKSPACE/landis_parametrization_julia/.julia_depot` if present) | depot of the Pan worker |
 | `PAN_FIA_DB` | `$WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb` | curated FIA cohorts for Pan (read only) |
+| `FIA_TRAJ_DB` | `$PAN_FIA_DB` | DuckDB for the optional FIA plots / tree-trajectories layer (read only) |
 | `PAN_CLIMATE_DB` | `$WORKSPACE/pan_climate/pan_climate.duckdb` | PRISM baseline + forecasts (PnET climate) |
 | `PAN_SOIL_CSV`, `PAN_PNET_CLIMATE`, `PAN_CO2_CSV` | `$WORKSPACE/landis_region4/data_r4/…` | PnET plot soils, L4 climate, CO₂ |
 | `PAN_THREADS` | `4` | threads of the Pan worker |
@@ -74,6 +75,36 @@ species × 2-inch DBH tally (each cohort's QMD stands for its trees). Plots: Tre
 cohorts of that visit. Coverage: GA+FL ecoregions (8.3.4, 8.3.5, 8.5.3, 8.4.1, 8.4.4, 8.4.9, 15.4.1); other plots are
 reported as `out_of_region` (use FVSjl there). With the default Region 4 sets this covers the 8 Region-4 states; e.g. the
 NC sample AOI simulates 163 of 208 plots (the rest have no curated FIA cohort data for that visit or lie outside the 14 L3s).
+
+## FIA plots — tree trajectories (optional layer)
+A sidebar accordion **FIA plots — tree trajectories** with an on/off switch (off by default; nothing is requested until it is
+switched on). On, it draws one dot per FIA plot in the map view (zoom ≥ 6; at most 5,000 dots — an evenly spaced sample is
+shown and reported if more plots match). Dot size grows modestly with the number of visits; hovering shows the plot key,
+tree and visit counts and the main species. **Click a dot** to open a panel with the plot's info (key, mean coordinates,
+visits and years, EPA L3/L4, land use, ownership, cut events) and an SVG chart of the per-tree trajectories. Esc or ✕ closes
+the panel; changing any option re-renders the open chart.
+- **Coordinates are fuzzed.** Public FIA plot coordinates are perturbed (up to about a mile; some private plots are swapped);
+  the dot is the mean LAT/LON of the plot's visits in the FIADB `PLOT` table. The tooltip and the info panel say so.
+- **Filters** (also filter the dots): species (multi-select by symbol), ecoregion level (EPA L3 / L4) + ecoregion, land use
+  (STDORGCD), cut event (ever), terminal fate, ownership group, soft/hardwood, cycle. As in the marimo notebook a tree is
+  kept if any of its rows satisfies all selected filters, and then its *full* trajectory is drawn. The dot filter uses per-plot
+  value sets (a plot is shown if each filter has at least one matching row on it) — slightly more permissive than the exact
+  per-tree test applied when a plot is opened (the info panel then shows "n match filters").
+- **Chart options** (same as `FIA_DATA_PREP/tree_trajectories.py`): X / Y axis (biomass, five age sources, diameter, height),
+  colour by (species, land use, terminal fate, cut event, ownership, soft/hardwood, cycle, age source, species changed),
+  max trajectories (reservoir sample, seed 42), mark imputed points, growth rate Δy/Δx, points All / First / Last per tree
+  (first/last use real measurements only), log X, log Y, linear fit + R² (OLS in the displayed — log10 where log — space).
+  Rows with a null on either axis are dropped, so phantom back-fill rows disappear from diameter/height axes. Drawing:
+  contiguous lines, dashed phantom-backfill prefix, single-measurement trees as dots, open markers for imputed points,
+  terminal-fate marker (○ alive, ▽ dead-natural, ✕ dead-disturbance, ▣ harvest — filled when explicit, ◇ disappeared),
+  colours tab10 (≤ 10 levels) or turbo. The fit line and its R² are computed server-side; log axes drop non-positive values.
+- **API** (`src/FiaTrajectories.jl`): `GET /api/fiaplots/options` (filter values, axes; builds the plot summary on first use,
+  ~15–20 s once per server start, then cached in memory), `POST|GET /api/fiaplots/points` (`west,south,east,north` + filters
+  → plots, `n_match`, `truncated`), `POST /api/fiaplots/trajectories` (`{plot, filters, options}` → per-tree series, levels
+  with colours, fit). Filter values are validated against the known option lists before they reach SQL.
+- **Data**: table `tree_trajectories` + `PLOT` of the curated FIA DuckDB, opened **read-only** (never written). Path:
+  `FIA_TRAJ_DB`, else `PAN_FIA_DB`, else `$WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb` (`serve_pan.sh` exports it and warns
+  if missing). Adds the Julia package `DuckDB` to this app.
 
 ## Design decisions (this fork)
 - **DD-P1 Separate Pan process.** FE and Pan have independent Julia projects (different package versions); a worker

@@ -7,9 +7,12 @@
 #   $WORKSPACE/FVSclaude/treemap                   TREEMAP_DATA   TreeMap raster/VAT/trees (read only)
 #   $WORKSPACE/landis_scen                         PAN_REPO       Pan checkout, branch scenario-engine
 #   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    PAN_FIA_DB     curated FIA cohorts for Pan (read only)
+#   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    FIA_TRAJ_DB     FIA plots / tree-trajectories layer (read only; default PAN_FIA_DB)
 #   $WORKSPACE/pan_climate/pan_climate.duckdb      PAN_CLIMATE_DB PRISM baseline + forecasts (PnET climate)
 #   $WORKSPACE/landis_region4/data_r4/{plot_soil_r4.csv, pnet_climate_r4_l4.jld2, co2_annual.csv}
 #                                                  PAN_SOIL_CSV, PAN_PNET_CLIMATE, PAN_CO2_CSV
+#   $WORKSPACE/EPA_ECOREGIONS/us_eco_l4/us_eco_l4_no_st.shp   ECO_L4_SHP  EPA L4 polygons (AOI location → ecoregion for Pan)
+#   $WORKSPACE/SOLUS/SOLUS100                      PAN_SOLUS      SOLUS soil rasters (PnET soils at the AOI location)
 # Julia packages: private depots inside this app (.julia_depot_fe) and the Pan checkout (.julia_depot_wt), layered over the
 # workspace's shared depots when those exist. Missing packages are installed automatically on first start (and again
 # whenever a Manifest.toml changes); SETUP=1 forces it, SETUP=0 skips it.
@@ -24,14 +27,17 @@ export TREEMAP_DATA="${TREEMAP_DATA:-$ws/FVSclaude/treemap}"
 export FE_CACHE_DIR="${FE_CACHE_DIR:-$here/cache/sim_cache}"
 export PAN_REPO="${PAN_REPO:-$ws/landis_scen}"
 export PAN_FIA_DB="${PAN_FIA_DB:-$ws/FIA/FIASQLITE2PGSQL/FIADB.duckdb}"
+export FIA_TRAJ_DB="${FIA_TRAJ_DB:-$PAN_FIA_DB}"
 export PAN_CLIMATE_DB="${PAN_CLIMATE_DB:-$ws/pan_climate/pan_climate.duckdb}"
 export PAN_SOIL_CSV="${PAN_SOIL_CSV:-$ws/landis_region4/data_r4/plot_soil_r4.csv}"
 export PAN_PNET_CLIMATE="${PAN_PNET_CLIMATE:-$ws/landis_region4/data_r4/pnet_climate_r4_l4.jld2}"
 export PAN_CO2_CSV="${PAN_CO2_CSV:-$ws/landis_region4/data_r4/co2_annual.csv}"
+export ECO_L4_SHP="${ECO_L4_SHP:-$ws/EPA_ECOREGIONS/us_eco_l4/us_eco_l4_no_st.shp}"
+export PAN_SOLUS="${PAN_SOLUS:-$ws/SOLUS/SOLUS100}"
 export PAN_THREADS="${PAN_THREADS:-4}"
 export PAN_WORKER_LOG="${PAN_WORKER_LOG:-$here/cache/pan_worker.log}"
 mkdir -p "$FE_CACHE_DIR"
-for v in FIA_DB TREEMAP_DATA PAN_REPO PAN_FIA_DB PAN_CLIMATE_DB PAN_SOIL_CSV PAN_PNET_CLIMATE PAN_CO2_CSV; do
+for v in FIA_DB TREEMAP_DATA PAN_REPO PAN_FIA_DB FIA_TRAJ_DB PAN_CLIMATE_DB PAN_SOIL_CSV PAN_PNET_CLIMATE PAN_CO2_CSV ECO_L4_SHP PAN_SOLUS; do
     [[ -e "${!v}" ]] || echo "WARNING: $v=${!v} does not exist — set $v (or WORKSPACE) to its location" >&2
 done
 

@@ -180,6 +180,36 @@ function _resolve_plots(geom5070)
     acres, tm2cn
 end
 
+const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", "/workspace/EPA_ECOREGIONS/us_eco_l4/us_eco_l4_no_st.shp"))
+
+"Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
+function _plot_sites(geom5070, tm2cn)
+    app = APP[]
+    sites = try
+        Raster.aoi_sites(app.rasterctx, geom5070, ECO_L4_SHP[])
+    catch e
+        @warn "AOI site lookup failed; Pan falls back to the FIA plots' own locations" exception = e
+        return Dict{String,Any}()
+    end
+    acc = Dict{String,Any}()          # cn => (l4 counts, sx, sy, n) over its TM_IDs
+    for (tm, s) in sites
+        cn = get(tm2cn, tm, nothing); cn === nothing && continue
+        d, sx, sy, n = get(acc, cn, (Dict{String,Int}(), 0.0, 0.0, 0))
+        isempty(s.l4) || (d[s.l4] = get(d, s.l4, 0) + s.n)
+        acc[cn] = (d, sx + s.x * s.n, sy + s.y * s.n, n + s.n)
+    end
+    out = Dict{String,Any}()
+    src = ArchGDAL.importEPSG(5070); dst = ArchGDAL.importEPSG(4326)
+    ArchGDAL.GDAL.osrsetaxismappingstrategy(dst.ptr, ArchGDAL.GDAL.OAMS_TRADITIONAL_GIS_ORDER)
+    ArchGDAL.createcoordtrans(src, dst) do ct
+        for (cn, (d, sx, sy, n)) in acc
+            p = ArchGDAL.createpoint(sx / n, sy / n); ArchGDAL.transform!(p, ct)
+            out[cn] = (l4 = isempty(d) ? "" : first(argmax(last, collect(d))), lon = ArchGDAL.getx(p, 0), lat = ArchGDAL.gety(p, 0))
+        end
+    end
+    out
+end
+
 function _parse_plan(o)
     acts = FiaSim.PlanAction[]
     for a in get(o, :actions, ())
@@ -282,7 +312,8 @@ function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_
     res = if is_pan
         # Pan engines take the frontend plan JSON as-is (grow/thin/plant + the LANDIS-style `harvest` kind)
         r, warnings, engine_info, _ = PanEngine.pan_simulate(sim_cns, acres, raw_plan, engine;
-                                                             params_id = params_id, climate = climate)
+                                                             params_id = params_id, climate = climate,
+                                                             sites = _plot_sites(geom5070, tm2cn))
         r
     else
         FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
@@ -393,11 +424,11 @@ end
 
 "AOI-weighted climate series for the climate modal (Pan PnET)."
 function _climate_preview_response(geom5070, climate, start_year, years)
-    acres, _ = _resolve_plots(geom5070)
+    acres, tm2cn = _resolve_plots(geom5070)
     cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
     length(cns) > MAX_SIM_PLOTS && (cns = cns[1:MAX_SIM_PLOTS])
     isempty(cns) && return (; error = "no plots resolved in the AOI")
-    PanEngine.pan_climate_preview(cns, acres, climate; start_year = start_year, years = years)
+    PanEngine.pan_climate_preview(cns, acres, climate; start_year = start_year, years = years, sites = _plot_sites(geom5070, tm2cn))
 end
 
 function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
@@ -525,6 +556,9 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
             return HTTP.Response(400, JSON3.write((; error = sprint(showerror, e))))
         end
     end
+
+    # optional layer: FIA plots -> tree trajectories (src/FiaTrajectories.jl; read-only DuckDB)
+    FiaTrajectories.register!()
 
     # static frontend
     staticfiles(PUBLIC, "/")

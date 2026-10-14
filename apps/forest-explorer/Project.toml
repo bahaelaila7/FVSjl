@@ -9,6 +9,7 @@ ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 DBFTables = "75c7ada1-017a-5fb6-b8c7-2125ff2d6c93"
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DuckDB = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
 FVSjl = "f5d3a1c2-9b4e-4a7d-8c61-2e0f7b9a4d33"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
@@ -23,5 +24,6 @@ FVSjl = {path = "../.."}
 
 [compat]
 DBInterface = "2.7.0"
+DuckDB = "1.5.2"
 SHA = "1.0.0"
 SQLite = "1.8.2"

@@ -134,13 +134,24 @@ function _with_params(f, params_id)
     end
 end
 
+"Plot records for the worker: CN, acres and — when known — the AOI location of its pixels (l4, lon, lat)."
+function _plot_records(cns, acres, sites)
+    map(cns) do cn
+        d = Dict{String,Any}("cn" => cn, "acres" => Float64(acres[cn]))
+        s = sites === nothing ? nothing : get(sites, cn, nothing)
+        s === nothing || (d["l4"] = s.l4; d["lon"] = s.lon; d["lat"] = s.lat)
+        d
+    end
+end
+
 """
-    pan_simulate(cns, acres, plan_json, engine; params_id=nothing, climate=nothing) -> (Dict{cn => FiaSim.PlotResult}, warnings, engine_info, status_counts)
+    pan_simulate(cns, acres, plan_json, engine; params_id=nothing, climate=nothing, sites=nothing) -> (Dict{cn => FiaSim.PlotResult}, warnings, engine_info, status_counts)
 """
-function pan_simulate(cns::Vector{String}, acres::AbstractDict, plan, engine::AbstractString; params_id = nothing, climate = nothing)
+function pan_simulate(cns::Vector{String}, acres::AbstractDict, plan, engine::AbstractString; params_id = nothing, climate = nothing,
+                      sites = nothing)
     plugin = get(ENGINE_PLUGIN, engine, nothing)
     plugin === nothing && error("unknown Pan engine $engine")
-    plots = [Dict("cn" => cn, "acres" => Float64(acres[cn])) for cn in cns]
+    plots = _plot_records(cns, acres, sites)
     prog(d, n) = (FiaSim._PROG.total[] = n; FiaSim._PROG.done[] = d)
     FiaSim._PROG.total[] = 1; FiaSim._PROG.done[] = 0; FiaSim._PROG.running[] = true
     r = try
@@ -173,12 +184,12 @@ function pan_simulate(cns::Vector{String}, acres::AbstractDict, plan, engine::Ab
     warnings = String.(r.warnings)
     nbad = sum(v for (k, v) in counts if k != "ok"; init = 0)
     nbad > 0 && pushfirst!(warnings, "$(nbad) of $(length(cns)) plots not simulated by Pan: " *
-        join(["$(v) $(k)" for (k, v) in counts if k != "ok"], ", ") * " (out_of_region = outside the parameter set's ecoregions)")
+        join(["$(v) $(k)" for (k, v) in counts if k != "ok"], ", ") * " (out_of_region = the AOI location is outside the parameter set's ecoregions; no_data = no FIA cohorts and no donor)")
     out, warnings, r.engine_info, counts
 end
 
-pan_climate_preview(cns, acres, climate; start_year = 2025, years = 100) =
-    pan_call("climate_preview"; plots = [Dict("cn" => cn, "acres" => Float64(acres[cn])) for cn in cns],
+pan_climate_preview(cns, acres, climate; start_year = 2025, years = 100, sites = nothing) =
+    pan_call("climate_preview"; plots = _plot_records(cns, acres, sites),
              climate = climate, start_year = start_year, years = years)
 
 end

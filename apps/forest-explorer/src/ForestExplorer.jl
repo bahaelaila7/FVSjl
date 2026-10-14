@@ -19,6 +19,7 @@ include("Aoi.jl")
 include("Aggregate.jl")
 include("FiaSim.jl")
 include("PanEngine.jl")
+include("FiaTrajectories.jl")   # optional FIA plots / tree-trajectories layer
 
 using .Raster, .TreeList, .VAT, .Color, .Aoi, .Aggregate, .FiaSim, .PanEngine
 
