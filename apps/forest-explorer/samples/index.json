@@ -26,28 +26,56 @@
    "file": "params/gafl_hbad_alt1.yaml",
    "plugin": "hbad",
    "name": "GA+FL HBAD alternative 1",
-   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore): fits training data about as well (\u00b110 % pass 39 vs anchor \u224838 of 61 fine groups) with different parameters (G_MULT 10.4%; M_MULT 24.0%; SDIMAX 20.3% median change vs v1)"
+   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: G_MULT 8.4%; M_MULT 24.2%; SDIMAX 12.2%"
   },
   {
    "id": "gafl_hbad_alt2",
    "file": "params/gafl_hbad_alt2.yaml",
    "plugin": "hbad",
    "name": "GA+FL HBAD alternative 2",
-   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore): fits training data about as well (\u00b110 % pass 35 vs anchor \u224838 of 61 fine groups) with different parameters (G_MULT 12.7%; M_MULT 39.9%; SDIMAX 26.6% median change vs v1)"
+   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: G_MULT 10.2%; M_MULT 20.7%; SDIMAX 15.9%"
   },
   {
    "id": "gafl_hbad_alt3",
    "file": "params/gafl_hbad_alt3.yaml",
    "plugin": "hbad",
    "name": "GA+FL HBAD alternative 3",
-   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore): fits training data about as well (\u00b110 % pass 35 vs anchor \u224838 of 61 fine groups) with different parameters (G_MULT 12.8%; M_MULT 33.6%; SDIMAX 16.3% median change vs v1)"
+   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: G_MULT 11.6%; M_MULT 27.8%; SDIMAX 15.4%"
   },
   {
    "id": "gafl_hbad_alt4",
    "file": "params/gafl_hbad_alt4.yaml",
    "plugin": "hbad",
    "name": "GA+FL HBAD alternative 4",
-   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore): fits training data about as well (\u00b110 % pass 37 vs anchor \u224838 of 61 fine groups) with different parameters (G_MULT 12.5%; M_MULT 35.4%; SDIMAX 28.7% median change vs v1)"
+   "description": "Distinct behavioural alternative to HBAD v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: G_MULT 5.6%; M_MULT 12.8%; SDIMAX 7.6%"
+  },
+  {
+   "id": "gafl_biomass_alt1",
+   "file": "params/gafl_biomass_alt1.yaml",
+   "plugin": "biomass",
+   "name": "GA+FL Biomass Succession alternative 1",
+   "description": "Distinct behavioural alternative to Biomass Succession v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: D 10.3%; S 19.7%; B_MAX_SPP 3.9%; ANPP_MAX_SPP 7.4%"
+  },
+  {
+   "id": "gafl_biomass_alt2",
+   "file": "params/gafl_biomass_alt2.yaml",
+   "plugin": "biomass",
+   "name": "GA+FL Biomass Succession alternative 2",
+   "description": "Distinct behavioural alternative to Biomass Succession v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: D 17.0%; S 21.7%; B_MAX_SPP 6.2%; ANPP_MAX_SPP 8.3%"
+  },
+  {
+   "id": "gafl_biomass_alt3",
+   "file": "params/gafl_biomass_alt3.yaml",
+   "plugin": "biomass",
+   "name": "GA+FL Biomass Succession alternative 3",
+   "description": "Distinct behavioural alternative to Biomass Succession v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: D 19.7%; S 15.6%; B_MAX_SPP 7.2%; ANPP_MAX_SPP 9.2%"
+  },
+  {
+   "id": "gafl_biomass_alt4",
+   "file": "params/gafl_biomass_alt4.yaml",
+   "plugin": "biomass",
+   "name": "GA+FL Biomass Succession alternative 4",
+   "description": "Distinct behavioural alternative to Biomass Succession v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: D 15.9%; S 19.0%; B_MAX_SPP 6.8%; ANPP_MAX_SPP 9.2%"
   }
  ],
  "aois": [
