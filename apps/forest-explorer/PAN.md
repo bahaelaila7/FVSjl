@@ -29,12 +29,14 @@ restarted automatically if it dies, and uploaded parameter files are re-sent to 
 1. **AOI**: draw or upload polygons as before (samples: `samples/aois/*.geojson`, e.g. Oconee NF GA).
 2. **Engine** (plan panel): FVSjl, *Pan · Biomass Succession*, *Pan · PnET-Succession*, *Pan · HBAD*. Each scenario keeps its
    own engine, parameter set and climate.
-3. **Parameter set** (Pan engines): the default GA+FL set of the engine is used unless you upload a YAML file
+3. **Parameter set** (Pan engines): the default is the engine's **EPA Region 4** set (AL FL GA KY MS NC SC TN, 14 L3
+   ecoregions; in-sample 46–49 of 50 species groups within ±10 %), unless you upload a YAML file
    (*Upload YAML…*) or pick a sample. The file's header (`pan_params: {plugin: …}`) decides which engine it belongs to; a
    mismatching file is refused with an offer to switch engine. Format and full roster: Pan `docs/scenario_engine.md` §1.
-   Samples: `gafl_{biomass,pnet,hbad}_v1.yaml` (calibrated) and `gafl_hbad_alt{1..4}.yaml` — **distinct alternatives** that fit
-   the training data about as well as `gafl_hbad_v1` but differ in growth/mortality/SDImax; running a plan with each brackets
-   the projection uncertainty that the data cannot resolve (see "Alternatives" below).
+   Samples: `r4_{biomass,pnet,hbad}_v1.yaml` (defaults), `gafl_{biomass,pnet,hbad}_v1.yaml` (GA+FL-specific, cross-validated)
+   and `gafl_{hbad,biomass,pnet}_alt{1..4}.yaml` — **distinct alternatives** that fit the data about as well as v1 but differ
+   in parameters and projections; running a plan with each brackets the projection uncertainty the data cannot resolve
+   (see "Alternatives" below).
 4. **Plan**: `+ Thin / harvest` (FVS-style residual BA/TPA/SDI, from below/above, DBH range, species — Pan maps it to a
    harvest), `+ Plant`, and for Pan engines `+ Harvest` (LANDIS Biomass Harvest style):
    - cohort selection by species, age range and DBH range;
@@ -61,7 +63,8 @@ BA ft²/ac, TPA, QMD, total cubic volume and board feet (**approximations**: BA 
 live aboveground carbon (0.5 × AGB), total carbon (adds roots at 0.25 × AG; no dead pools), removed volume and carbon, and the
 species × 2-inch DBH tally (each cohort's QMD stands for its trees). Plots: TreeMap pixel → FIA plot CN → the curated FIA
 cohorts of that visit. Coverage: GA+FL ecoregions (8.3.4, 8.3.5, 8.5.3, 8.4.1, 8.4.4, 8.4.9, 15.4.1); other plots are
-reported as `out_of_region` (use FVSjl there).
+reported as `out_of_region` (use FVSjl there). With the default Region 4 sets this covers the 8 Region-4 states; e.g. the
+NC sample AOI simulates 163 of 208 plots (the rest have no curated FIA cohort data for that visit or lie outside the 14 L3s).
 
 ## Design decisions (this fork)
 - **DD-P1 Separate Pan process.** FE and Pan have independent Julia projects (different package versions); a worker
@@ -91,6 +94,11 @@ behavioural sets found, four are picked whose **100-year projections** differ mo
   each other — the data pin the biomass trajectory tightly; only late-century tree counts diverge.
 - Held-out (val/test, ±10 %): alternatives pass 25–29 (HBAD) and 14–20 (Biomass Succession) of 46–47 groups, versus 30–32 and
   15–18 for a coordinate calibration fitted on the same training plots — plausible, slightly less supported than the best fit.
+- **PnET**: anchored exploration could not move PnET (its influential parameters are per-species traits that affect many
+  groups at once, so a block step breaks some group's tolerance); the alternatives are instead independent CMA-ES
+  (gdigel optimize-mode) fits from random starts with different species traits. Held-out they match a train-only reference
+  fit (val 13–15 vs 16, test 9–15 vs 8 groups at ±10 %), yet their 100-year biomass spans 26–39 kg/m² at year 60
+  (CV ≈ 15 %) — PnET's long-run projections are the least constrained by the plot data.
 Use v1 as the reference and the alternatives to bracket projection uncertainty.
 
 ## Tests

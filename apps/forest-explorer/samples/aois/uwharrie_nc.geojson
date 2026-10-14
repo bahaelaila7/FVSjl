@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Uwharrie NF, NC Piedmont",
+    "description": "Piedmont (8.3.4) oak\u2013hickory\u2013pine, North Carolina \u2014 needs the Region 4 parameter sets"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -79.99211,
+       35.40198
+      ],
+      [
+       -79.94789,
+       35.40198
+      ],
+      [
+       -79.94789,
+       35.43802
+      ],
+      [
+       -79.99211,
+       35.43802
+      ],
+      [
+       -79.99211,
+       35.40198
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

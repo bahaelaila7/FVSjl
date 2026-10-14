@@ -1,25 +1,46 @@
 {
  "params": [
   {
+   "id": "r4_biomass_v1",
+   "file": "params/r4_biomass_v1.yaml",
+   "plugin": "biomass",
+   "name": "Region 4 Biomass Succession v1",
+   "description": "DEFAULT. EPA Region 4 (AL FL GA KY MS NC SC TN, 14 L3 ecoregions) coordinate calibration on all R4 plots; in-sample 44/46/49 of 50 groups at \u00b15/10/20 %; no cross-validation yet"
+  },
+  {
+   "id": "r4_pnet_v1",
+   "file": "params/r4_pnet_v1.yaml",
+   "plugin": "pnet",
+   "name": "Region 4 PnET-Succession v1",
+   "description": "DEFAULT. EPA Region 4 (AL FL GA KY MS NC SC TN, 14 L3 ecoregions) coordinate calibration on all R4 plots; in-sample 42/47/47 of 50; no cross-validation yet"
+  },
+  {
+   "id": "r4_hbad_v1",
+   "file": "params/r4_hbad_v1.yaml",
+   "plugin": "hbad",
+   "name": "Region 4 HBAD v1",
+   "description": "DEFAULT. EPA Region 4 (AL FL GA KY MS NC SC TN, 14 L3 ecoregions) coordinate calibration on all R4 plots; in-sample 45/49/49 of 50; no cross-validation yet"
+  },
+  {
    "id": "gafl_biomass_v1",
    "file": "params/gafl_biomass_v1.yaml",
    "plugin": "biomass",
    "name": "GA+FL Biomass Succession v1",
-   "description": "Coordinate-calibrated on all GA+FL plots; held-out \u224820/46 groups at \u00b110 %"
+   "description": "GA+FL-specific, 3-fold cross-validated calibration (better validated inside GA/FL). Coordinate-calibrated on all GA+FL plots; held-out \u224820/46 groups at \u00b110 %"
   },
   {
    "id": "gafl_pnet_v1",
    "file": "params/gafl_pnet_v1.yaml",
    "plugin": "pnet",
    "name": "GA+FL PnET-Succession v1",
-   "description": "FolN calibrated per group; held-out \u224816/46 at \u00b110 %; responds to climate scenarios"
+   "description": "GA+FL-specific, 3-fold cross-validated calibration (better validated inside GA/FL). FolN calibrated per group; held-out \u224816/46 at \u00b110 %; responds to climate scenarios"
   },
   {
    "id": "gafl_hbad_v1",
    "file": "params/gafl_hbad_v1.yaml",
    "plugin": "hbad",
    "name": "GA+FL HBAD v1",
-   "description": "Growth/mortality multipliers on empirical priors; held-out \u224834/46 at \u00b110 % (best)"
+   "description": "GA+FL-specific, 3-fold cross-validated calibration (better validated inside GA/FL). Growth/mortality multipliers on empirical priors; held-out \u224834/46 at \u00b110 % (best)"
   },
   {
    "id": "gafl_hbad_alt1",
@@ -76,6 +97,34 @@
    "plugin": "biomass",
    "name": "GA+FL Biomass Succession alternative 4",
    "description": "Distinct behavioural alternative to Biomass Succession v1 (anchor-and-explore, picked for distinct 100-yr projections): every species group within tolerance on train; median parameter change vs v1: D 15.9%; S 19.0%; B_MAX_SPP 6.8%; ANPP_MAX_SPP 9.2%"
+  },
+  {
+   "id": "gafl_pnet_alt1",
+   "file": "params/gafl_pnet_alt1.yaml",
+   "plugin": "pnet",
+   "name": "GA+FL PnET-Succession alternative 1",
+   "description": "Independently fitted PnET set with different species traits; held-out groups passing \u00b110/20 %: val 15/35, test 10/30 (train-only reference fit: 16/30, 8/32). 100-yr biomass differs from v1 by up to \u00b130 % \u2014 brackets PnET projection uncertainty"
+  },
+  {
+   "id": "gafl_pnet_alt2",
+   "file": "params/gafl_pnet_alt2.yaml",
+   "plugin": "pnet",
+   "name": "GA+FL PnET-Succession alternative 2",
+   "description": "Independently fitted PnET set with different species traits; held-out groups passing \u00b110/20 %: val 13/31, test 15/29 (train-only reference fit: 16/30, 8/32). 100-yr biomass differs from v1 by up to \u00b130 % \u2014 brackets PnET projection uncertainty"
+  },
+  {
+   "id": "gafl_pnet_alt3",
+   "file": "params/gafl_pnet_alt3.yaml",
+   "plugin": "pnet",
+   "name": "GA+FL PnET-Succession alternative 3",
+   "description": "Independently fitted PnET set with different species traits; held-out groups passing \u00b110/20 %: val 14/32, test 9/33 (train-only reference fit: 16/30, 8/32). 100-yr biomass differs from v1 by up to \u00b130 % \u2014 brackets PnET projection uncertainty"
+  },
+  {
+   "id": "gafl_pnet_alt4",
+   "file": "params/gafl_pnet_alt4.yaml",
+   "plugin": "pnet",
+   "name": "GA+FL PnET-Succession alternative 4",
+   "description": "Independently fitted PnET set with different species traits; held-out groups passing \u00b110/20 %: val 14/33, test 9/27 (train-only reference fit: 16/30, 8/32). 100-yr biomass differs from v1 by up to \u00b130 % \u2014 brackets PnET projection uncertainty"
   }
  ],
  "aois": [
@@ -93,6 +142,16 @@
    "name": "Apalachicola NF, FL panhandle",
    "file": "aois/apalachicola_fl.geojson",
    "description": "Southern Coastal Plain longleaf/slash pine flatwoods (4\u00d74 km)"
+  },
+  {
+   "name": "Uwharrie NF, NC Piedmont",
+   "file": "aois/uwharrie_nc.geojson",
+   "description": "Piedmont (8.3.4) oak\u2013hickory\u2013pine, North Carolina \u2014 needs the Region 4 parameter sets (4\u00d74 km)"
+  },
+  {
+   "name": "Cumberland Plateau, TN",
+   "file": "aois/cumberland_plateau_tn.geojson",
+   "description": "Southwestern Appalachians (8.4.9) mixed mesophytic/oak forest, Tennessee \u2014 Region 4 sets (4\u00d74 km)"
   }
  ],
  "climates": [

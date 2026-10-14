@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cumberland Plateau, TN",
+    "description": "Southwestern Appalachians (8.4.9) mixed mesophytic/oak forest, Tennessee \u2014 Region 4 sets"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -85.07226,
+       35.93198
+      ],
+      [
+       -85.02774,
+       35.93198
+      ],
+      [
+       -85.02774,
+       35.96802
+      ],
+      [
+       -85.07226,
+       35.96802
+      ],
+      [
+       -85.07226,
+       35.93198
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

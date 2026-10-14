@@ -68,5 +68,10 @@ check("params/engine mismatch rejected", st == 400, str(r)[:160])
 st, r = req("/api/pan/climate_preview", {"geometry": geom, "climate": hot, "start_year": 2025, "years": 80})
 good = st == 200 and len(r.get("vars", [])) >= 4
 check("climate preview", good, (f"L4s {r['l4s']}; " + "; ".join(f"{v['name']} {v['baseline_annual'][0]}→{v['modified_annual'][-1]} {v['annual_units']}" for v in r["vars"])) if good else str(r)[:300])
+# Region 4 coverage: default parameter sets (Region 4) on an AOI outside GA/FL
+g2 = json.load(open(os.path.join(SAMPLES, "aois", "uwharrie_nc.geojson")))["features"][0]["geometry"]
+st, r = req("/api/simulate", {"geometry": g2, "plan": {"name": "nc", "cycles": 3, "period": 10, "actions": []}, "engine": "pan-hbad"})
+good = st == 200 and r.get("nplots_sim", 0) > 0.7 * r.get("nplots_aoi", 1)
+check("Region 4 default set covers an NC AOI", good, f"{r.get('nplots_sim')} of {r.get('nplots_aoi')} plots; params {r.get('engine_info', {}).get('params_name') if isinstance(r, dict) else r}; {(r.get('warnings') or [''])[0][:120] if isinstance(r, dict) else ''}")
 print("ALL PASS" if ok else "SOME CHECKS FAILED")
 sys.exit(0 if ok else 1)
