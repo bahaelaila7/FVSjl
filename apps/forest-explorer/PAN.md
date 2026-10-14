@@ -10,14 +10,23 @@ and export/import of whole sessions. The FVSjl engine works as before.
 cd apps/forest-explorer
 ./serve_pan.sh            # http://127.0.0.1:8088   (HOST/PORT/JULIA_NUM_THREADS override)
 ```
-`serve_pan.sh` sets everything explicitly and writes only inside this app folder:
+The script is **relocatable**: every path derives from the workspace root `WORKSPACE` (default: the folder that holds
+`fe_pan/`, three levels above the script), so the same command works in the container (`/workspace`) and on a host
+checkout (e.g. `~/Documents/projects`). Any single path can still be overridden. On first start (and whenever a
+`Manifest.toml` changes) it installs the Julia packages of this app and of the Pan checkout into their private depots
+(several minutes; `SETUP=1` forces, `SETUP=0` skips). Missing data paths are reported as warnings at start.
 | variable | default | meaning |
 |---|---|---|
-| `JULIA_DEPOT_PATH` | `./.julia_depot_fe:/workspace/FVSclaude/.julia_depot` | private depot layered over the workspace FVSjl depot |
-| `TREEMAP_DATA` | `/workspace/FVSclaude/treemap` | TreeMap raster/VAT/tree table (read only) |
-| `FIA_DB` | `/workspace/FVSclaude/SQLite_FIADB_ENTIRE.db` | FVSjl master FIA DB (read only) |
+| `WORKSPACE` | folder containing `fe_pan/` | root the defaults below derive from |
+| `JULIA_DEPOT_PATH` | `./.julia_depot_fe` (+ `$WORKSPACE/FVSclaude/.julia_depot` if present) | depot of this app |
+| `TREEMAP_DATA` | `$WORKSPACE/FVSclaude/treemap` | TreeMap raster/VAT/tree table (read only) |
+| `FIA_DB` | `$WORKSPACE/FVSclaude/SQLite_FIADB_ENTIRE.db` | FVSjl master FIA DB (read only) |
 | `FE_CACHE_DIR` | `./cache/sim_cache` | FVSjl sub-DB cache (kept out of the TreeMap data dir) |
-| `PAN_REPO` | `/workspace/landis_scen` | Pan checkout (branch `scenario-engine`) — the Pan worker runs from here |
+| `PAN_REPO` | `$WORKSPACE/landis_scen` | Pan checkout (branch `scenario-engine`) — the Pan worker runs from here |
+| `PAN_DEPOT_PATH` | `$PAN_REPO/.julia_depot_wt` (+ `$WORKSPACE/landis_parametrization_julia/.julia_depot` if present) | depot of the Pan worker |
+| `PAN_FIA_DB` | `$WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb` | curated FIA cohorts for Pan (read only) |
+| `PAN_CLIMATE_DB` | `$WORKSPACE/pan_climate/pan_climate.duckdb` | PRISM baseline + forecasts (PnET climate) |
+| `PAN_SOIL_CSV`, `PAN_PNET_CLIMATE`, `PAN_CO2_CSV` | `$WORKSPACE/landis_region4/data_r4/…` | PnET plot soils, L4 climate, CO₂ |
 | `PAN_THREADS` | `4` | threads of the Pan worker |
 | `PAN_AUTOSTART` | `1` | start (and compile) the Pan worker in the background at server start (~1–2 min first time) |
 | `PAN_WORKER_LOG` | `./cache/pan_worker.log` | the worker's log |

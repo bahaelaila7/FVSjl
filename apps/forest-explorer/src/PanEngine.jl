@@ -41,7 +41,10 @@ function _start!()
     repo = pan_repo()
     isfile(joinpath(repo, "tools", "pan_worker.jl")) || error("Pan repo not found at $repo (set PAN_REPO)")
     th = get(ENV, "PAN_THREADS", "auto")
-    script = "cd '$repo' && { [ -f wt_env.sh ] && source wt_env.sh; true; } && exec ./julia_gdal.sh --project=. --threads=$th tools/pan_worker.jl"
+    # depot: PAN_DEPOT_PATH (set by serve_pan.sh) > the checkout's wt_env.sh > julia_gdal.sh's own default (repo depot / ~/.julia)
+    script = "cd '$repo' && if [ -n \"\${PAN_DEPOT_PATH:-}\" ]; then export JULIA_DEPOT_PATH=\"\$PAN_DEPOT_PATH\"; " *
+             "elif [ -f wt_env.sh ]; then source wt_env.sh; else unset JULIA_DEPOT_PATH; fi && " *
+             "exec ./julia_gdal.sh --project=. --threads=$th tools/pan_worker.jl"
     STATE[] = :starting
     proc = open(pipeline(`bash -c $script`; stderr = worker_log()), "r+")
     line = eof(proc) ? "" : readline(proc)    # {"id":null,"ok":true,"result":{"ready":true}}
