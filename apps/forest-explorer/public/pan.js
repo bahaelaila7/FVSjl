@@ -69,9 +69,7 @@ const PanUI = (() => {
     if (typeof renderActions === 'function') renderActions();
     refreshSpecies();
     refreshLabels();
-    // header subline names the ACTIVE engine (it used to stay on the first entry of /api/meta engines)
-    const sub = el('subline');
-    if (sub) sub.textContent = sub.textContent.replace(/engine: .*$/, 'engine: ' + engineLabel());
+    updateSubline();
     if (!quiet) setStatus('engine: ' + engineLabel());
     return true;
   }
@@ -222,9 +220,15 @@ const PanUI = (() => {
     const e = engineById(PAN.engine);
     return { engine: PAN.engine, params, climate: (e && e.climate && PAN.climate) ? clone(PAN.climate) : null };
   }
+  // header subline names the ACTIVE engine (it used to stay on the first entry of /api/meta engines)
+  function updateSubline() {
+    const sub = el('subline');
+    if (sub) sub.textContent = sub.textContent.replace(/engine: .*$/, 'engine: ' + engineLabel());
+  }
+
   function restore(s) {
     const eng = s.engine && engineById(s.engine) ? s.engine : 'fvs';
-    PAN.engine = eng; el('engine').value = eng;
+    PAN.engine = eng; el('engine').value = eng; updateSubline();
     PAN.climate = s.climate ? clone(s.climate) : null;
     const pr = s.params;
     if (pr && pr.plugin) {
