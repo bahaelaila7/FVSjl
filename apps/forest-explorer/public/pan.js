@@ -253,7 +253,7 @@ const PanUI = (() => {
     return t;
   }
 
-  function approx(engineId) { return isPanId(engineId) ? ' (approx.)' : ''; }
+  function approx(engineId) { return ''; }   // Pan volumes now come from FIA species equations (no longer flagged)
   // relabel volume metrics when the shown/selected engine is a Pan one
   function refreshLabels() {
     const id = (typeof lastSim !== 'undefined' && lastSim && lastSim.engine) || PAN.engine;

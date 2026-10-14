@@ -842,8 +842,7 @@ const CMP_LABEL = { carbon_total:'Total carbon (t)', carbon_live_ag:'Live carbon
   volume:'Standing volume (ft³)', ba_ac:'Basal area (ft²/ac)', removed_volume:'Removed volume (ft³)' };
 const CMP_ORDER = ['carbon_total','carbon_live_ag','volume','ba_ac','removed_volume'];
 const cmpS = () => scenarios.filter(s=>s.result);
-// volume metrics are approximate when any compared scenario came from a Pan engine
-const cmpLabel = m => CMP_LABEL[m] + ((m==='volume'||m==='removed_volume') && cmpS().some(s=>PanUI.isPanId(s.engine)) ? ' (approx., Pan)' : '');
+const cmpLabel = m => CMP_LABEL[m];
 const SCEN_COLORS = ['#4ade80','#facc15','#38bdf8','#f472b6','#fb923c','#a78bfa','#34d399','#f87171'];
 const scenColor = i => SCEN_COLORS[i % SCEN_COLORS.length];
 

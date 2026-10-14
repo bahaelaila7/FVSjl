@@ -61,7 +61,7 @@ restarted automatically if it dies, and uploaded parameter files are re-sent to 
    max temperature or precipitation; add °C or % change; step or linear ramp between years; optional months). The modal
    shows AOI-weighted annual charts and a monthly waveform of baseline vs modified; *Reset* restores the default.
 6. **Run scenario**, compare scenarios, report — as before. Engine warnings (plots outside the parameter set's ecoregions,
-   approximations) appear under the plan and in the status line; Pan volumes are labelled "(approx.)".
+   donors, method notes) appear under the plan and in the status line.
 7. **Session bundle** (sidebar): *Export* writes a JSON with the AOI patches, every scenario's engine, embedded parameter
    YAML, climate settings and plan; *Import…* restores them (scenarios come back un-run). Sample:
    `samples/bundles/ga_fl_demo_bundle.json` (Oconee AOI, 6 scenarios: FVSjl, HBAD grow/thin+clearcut+replant, Biomass
@@ -69,12 +69,20 @@ restarted automatically if it dies, and uploaded parameter files are re-sent to 
 
 ## What Pan reports
 Per cycle (start-of-cycle state, before that cycle's management; removals on the row of the cycle they happen in):
-BA ft²/ac, TPA, QMD, total cubic volume and board feet (**approximations**: BA × H × 0.42; 4 bd ft per ft³ for cohorts ≥ 9 in),
-live aboveground carbon (0.5 × AGB), total carbon (adds roots at 0.25 × AG; no dead pools), removed volume and carbon, and the
-species × 2-inch DBH tally (each cohort's QMD stands for its trees). Plots: TreeMap pixel → FIA plot CN → the curated FIA
-cohorts of that visit. Coverage: GA+FL ecoregions (8.3.4, 8.3.5, 8.5.3, 8.4.1, 8.4.4, 8.4.9, 15.4.1); other plots are
-reported as `out_of_region` (use FVSjl there). With the default Region 4 sets this covers the 8 Region-4 states; e.g. the
-NC sample AOI simulates 163 of 208 plots (the rest have no curated FIA cohort data for that visit or lie outside the 14 L3s).
+BA ft²/ac, TPA, QMD, total cubic volume and board feet, live aboveground carbon (0.5 × AGB), total carbon (adds roots at
+0.25 × AG; no dead pools), removed volume and carbon, and the species × 2-inch DBH tally (each cohort's QMD stands for its trees).
+- **Volumes** come from FIA Region-4 per-tree equations by species (→ species group → softwood/hardwood) evaluated at each
+  cohort's QMD and height: total-stem cubic feet (FIA VOLTSGRS) and board feet **International ¼-inch** (FIA VOLBFGRS, with a
+  fitted sawtimber-qualifying probability; FVSjl reports its own board-foot rule). On held-out FIA plots: cubic R² 0.997, bias
+  ≈ 0; board feet R² 0.93, bias +1 % (Pan `docs/volume_equations.md`).
+- **Vegetation vs site**: a TreeMap pixel resolves to an FIA plot CN whose curated cohorts give the starting vegetation. The
+  site comes from **where the pixels are**: the app sends Pan, per plot, the majority EPA L4 ecoregion of its pixels in the AOI
+  (`ECO_L4_SHP`) and their centroid, so the parameter eco cell, PnET climate, soils (SOLUS) and site class are those of the AOI —
+  TreeMap often imputes plots measured far away (e.g. Oklahoma plots in a Georgia AOI).
+- **Plots without curated cohorts** (13 % of TreeMap plots, mostly FIA visits before 2008) use a TreeMap donor plot of the same
+  forest type and similar structure (Pan `docs/treemap_donors.md`); the share of area affected is reported.
+- **Coverage** = the parameter set's ecoregions at the AOI location: the default Region 4 sets cover AL FL GA KY MS NC SC TN
+  (14 L3s). Sample AOIs: Oconee GA 193/193 plots simulated, Uwharrie NC 200/200 (the app caps a run at 200 plots).
 
 ## FIA plots — tree trajectories (optional layer)
 A sidebar accordion **FIA plots — tree trajectories** with an on/off switch (off by default; nothing is requested until it is
