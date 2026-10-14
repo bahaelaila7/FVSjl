@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Coastal Plain pines, SE GA",
+    "description": "Southern Coastal Plain (8.5.3) / SE Plains pine plantations near Waycross"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -82.37108,
+       31.23198
+      ],
+      [
+       -82.32892,
+       31.23198
+      ],
+      [
+       -82.32892,
+       31.26802
+      ],
+      [
+       -82.37108,
+       31.26802
+      ],
+      [
+       -82.37108,
+       31.23198
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

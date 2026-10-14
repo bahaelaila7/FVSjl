@@ -228,11 +228,16 @@ function _parse_sum_and_carbon(out::AbstractString)::Vector{CycleMetrics}
     out2 = CycleMetrics[]
     for y in sort(collect(keys(sumrows)))
         ba,tpa,qmd,tcuft,bdft,rtc,rbd = sumrows[y]
-        ct,cl,cr = get(carbon, y, (NaN,NaN,NaN))
+        # FFE's Stand Carbon Report is in US (short) tons/acre; CycleMetrics carries t C/ha (the Server aggregates it with
+        # HA_PER_ACRE). Verified on the Oconee sample AOI: FVS cycle-0 live AG carbon = TreeMap CARBON_L (tons/ac) to 0.4 %.
+        # forest-explorer-pan DD-P8: convert here (was reported 2.24× too low).
+        ct,cl,cr = get(carbon, y, (NaN,NaN,NaN)) .* SHORT_TONS_AC_TO_T_HA
         push!(out2, CycleMetrics(y, ba,tpa,qmd,tcuft,bdft,rtc,rbd, ct,cl,cr))
     end
     out2
 end
+
+const SHORT_TONS_AC_TO_T_HA = 0.90718474 / 0.404685642   # 2.2417
 
 dbh_class_lo(dia) = min(2 * floor(Int, dia / 2), 40)   # 2-inch DBH class, 40+ cap
 

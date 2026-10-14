@@ -4,3 +4,5 @@
 # (default /workspace/treemap) — never commit the 4.85 GB raster or derivatives
 /data/*
 !/data/.gitkeep
+cache/
+.julia_depot_fe/

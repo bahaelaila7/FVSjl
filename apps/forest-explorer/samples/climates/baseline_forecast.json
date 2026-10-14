@@ -1,0 +1,11 @@
+{
+ "baseline": {
+  "mode": "forecast",
+  "T": 30,
+  "K": 3
+ },
+ "co2": {
+  "mode": "constant"
+ },
+ "changes": []
+}

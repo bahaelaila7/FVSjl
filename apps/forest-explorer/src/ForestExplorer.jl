@@ -18,8 +18,9 @@ include("Color.jl")
 include("Aoi.jl")
 include("Aggregate.jl")
 include("FiaSim.jl")
+include("PanEngine.jl")
 
-using .Raster, .TreeList, .VAT, .Color, .Aoi, .Aggregate, .FiaSim
+using .Raster, .TreeList, .VAT, .Color, .Aoi, .Aggregate, .FiaSim, .PanEngine
 
 export App, init_app, AttrSpec, ATTRS
 

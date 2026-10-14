@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Apalachicola NF, FL panhandle",
+    "description": "Southern Coastal Plain longleaf/slash pine flatwoods"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -84.67086,
+       30.23198
+      ],
+      [
+       -84.62914,
+       30.23198
+      ],
+      [
+       -84.62914,
+       30.26802
+      ],
+      [
+       -84.67086,
+       30.26802
+      ],
+      [
+       -84.67086,
+       30.23198
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -49,7 +49,7 @@ async function boot() {
 
   // source & engine selectors (extension points; one option each for now)
   const fill=(id,items)=>{ const s=el(id); (items||[]).forEach(it=>{ const o=document.createElement('option'); o.value=it.id; o.textContent=it.name; o.title=it.detail||''; s.appendChild(o); }); };
-  fill('source', meta.sources); fill('engine', meta.engines);
+  fill('source', meta.sources);
   const src0=(meta.sources||[])[0], eng0=(meta.engines||[])[0];
   el('subline').textContent = [src0&&src0.detail, eng0&&('engine: '+eng0.name)].filter(Boolean).join(' · ');
 
@@ -121,6 +121,9 @@ async function boot() {
   el('compareModal').onclick = e => { if(e.target===el('compareModal')) closeCompare(); };
   document.addEventListener('keydown', e => { if(e.key==='Escape' && el('compareModal').style.display==='flex') closeCompare(); });
   el('runLandscape').onclick = runLandscape;
+  for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init()]) {
+    try { f(); } catch (err) { console.error(err); setStatus('UI init error: ' + err.message); }
+  }
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
   el('simSlider').oninput = e => onSlider(e.target.value);
   el('simPlay').onclick = toggleSimPlay;
@@ -483,7 +486,7 @@ let scenSeq = 0;
 const MAX_SCENARIOS = 8;                    // DD9: soft cap (also = SCEN_COLORS length)
 function planSummary(p){
   if(!p.actions || !p.actions.length) return 'grow-only';
-  return p.actions.map(a => a.kind==='thin'
+  return p.actions.map(a => a.kind==='harvest' ? PanUI.harvestSummary(a,p) : a.kind==='thin'
     ? `thin ${a.metric}→${a.target}${a.species&&a.species!=='all'?' '+a.species:''}`
       + (a.mode==='ppe' ? ` via PPE budget ${a.target_expr||''}/cycle from +${a.cycle*p.period}yr`
                         : `@+${a.cycle*p.period}yr`)
@@ -491,15 +494,15 @@ function planSummary(p){
 }
 function clearScenarios(){
   scenarios = []; activeIdx = -1; lastSim = null;
-  renderScenarioChips(); clearSimLayer(); drawSimChart();
+  renderScenarioChips(); clearSimLayer(); drawSimChart(); PanUI.showWarnings(null); PanUI.refreshLabels();
 }
 function renderScenarioChips(){
   const host = el('scenarioChips'); if(!host) return;
   host.innerHTML = scenarios.map((s,i)=>
-    `<span class="chip${i===activeIdx?' on':''}" data-scen="${i}" title="${planSummary(s.plan)}"
+    `<span class="chip${i===activeIdx?' on':''}${s.result?'':' unrun'}" data-scen="${i}" title="${PanUI.esc(PanUI.scenMeta(s)+' · '+planSummary(s.plan)+(s.result?'':' · not simulated — Run to compute'))}"
        style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;cursor:pointer;
        border:1px solid ${i===activeIdx?'var(--accent)':'var(--line)'};color:${i===activeIdx?'var(--accent)':'var(--muted)'};font-size:12px">
-       ${s.name}<span class="rm" data-del="${i}" style="margin-left:2px" title="delete scenario">×</span></span>`).join('');
+       ${PanUI.esc(s.name)}${PanUI.chipTag(s)}<span class="rm" data-del="${i}" style="margin-left:2px" title="delete scenario">×</span></span>`).join('');
   host.querySelectorAll('[data-scen]').forEach(c=>c.onclick=e=>{
     if(e.target.dataset.del!==undefined) return;   // handled below
     activateScenario(+c.dataset.scen);
@@ -507,7 +510,7 @@ function renderScenarioChips(){
   host.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{
     e.stopPropagation(); deleteScenario(+b.dataset.del);
   });
-  el('compareBtn').disabled = scenarios.length < 2;
+  el('compareBtn').disabled = cmpS().length < 2;
 }
 function deleteScenario(i){
   scenarios.splice(i,1);
@@ -520,10 +523,18 @@ function activateScenario(i){
   const s = scenarios[i];
   plan = JSON.parse(JSON.stringify(s.plan));           // load its plan into the builder
   el('pCycles').value=plan.cycles; el('pPeriod').value=plan.period; el('scenName').value=s.name;
+  PanUI.restore(s);                                    // engine / params / climate of this scenario
   renderActions();
+  if(!s.result){                                       // imported, not simulated yet
+    lastSim = null; clearSimLayer(); drawSimChart(); PanUI.showWarnings(null); PanUI.refreshLabels();
+    renderScenarioChips();
+    setStatus(`scenario “${s.name}” — not simulated — Run to compute`);
+    return;
+  }
   lastSim = s.result; drawSimChart(); setupSlider(s.result);
+  PanUI.refreshLabels(); PanUI.showWarnings(s.result);
   renderScenarioChips();
-  setStatus(`scenario “${s.name}” · ${fmt(s.result.nplots_sim)} plots · ${s.result.ncycles} cycles`);
+  setStatus(`scenario “${s.name}” (${PanUI.engineLabel(s.engine||'fvs')}) · ${fmt(s.result.nplots_sim)} plots · ${s.result.ncycles} cycles`);
 }
 function newScenario(){
   // fork a fresh draft FROM the current builder plan (DD6): keep its actions/cycles so the
@@ -533,7 +544,7 @@ function newScenario(){
   plan.cycles = +el('pCycles').value||plan.cycles||10; plan.period = +el('pPeriod').value||plan.period||10;
   el('scenName').value = '';
   renderActions();
-  lastSim = null; clearSimLayer(); drawSimChart();
+  lastSim = null; clearSimLayer(); drawSimChart(); PanUI.showWarnings(null); PanUI.refreshLabels();
   el('statsGrp') && (el('cycleBadge').textContent='cycle 0 · current');
   renderScenarioChips();
   setStatus('new scenario forked from the current plan — tweak it and Run (or clear actions for grow-only)');
@@ -552,10 +563,13 @@ function renderActions(){
   plan.actions.forEach((a,i)=>{
     const d=document.createElement('div'); d.className='act '+a.kind;
     const cy = a=>`<label>at</label><input type="number" class="num" min="0" max="${plan.cycles-1}" value="${a.cycle}" data-i="${i}" data-f="cycle" title="cycles from now (0 = immediately)"><span style="color:var(--muted);font-size:11px">${a.cycle===0?'now':'+'+a.cycle*plan.period+'yr'}</span>`;
-    if(a.kind==='thin'){
-      const ppe = a.mode==='ppe';
+    if(a.kind==='harvest'){
+      d.innerHTML = PanUI.harvestRow(a,i,plan);
+      if(!PanUI.isPan()) d.title = 'Harvest actions need a Pan engine (FVSjl uses thin/plant)';
+    } else if(a.kind==='thin'){
+      const ppe = a.mode==='ppe' && !PanUI.isPan();
       d.innerHTML = `<span class="tag thin">Thin</span>${cy(a)}
-        <label>where</label><select data-i="${i}" data-f="mode" title="every stand, or let the PPE cross-stand harvest budget pick which stands to cut each cycle to meet a resource flow target">${_opt([['rule','every stand'],['ppe','PPE budget picks stands']],a.mode||'rule')}</select>
+        ${PanUI.isPan() ? '' : `<label>where</label><select data-i="${i}" data-f="mode" title="every stand, or let the PPE cross-stand harvest budget pick which stands to cut each cycle to meet a resource flow target">${_opt([['rule','every stand'],['ppe','PPE budget picks stands']],a.mode||'rule')}</select>`}
         <label>sp</label><input list="splist" value="${a.species||'all'}" data-i="${i}" data-f="species" style="width:80px" title="species to cut: 'all', or one/more FVS alpha codes (comma-separated)">
         <label>to</label><select data-i="${i}" data-f="metric">${_opt(['BA','TPA','SDI'],a.metric)}</select>
         <input type="number" class="num" value="${a.target}" data-i="${i}" data-f="target" title="residual (0 = clearcut)">
@@ -589,6 +603,7 @@ function renderActions(){
   });
   host.querySelectorAll('[data-rm]').forEach(b => b.onclick = e => {
     plan.actions.splice(+e.currentTarget.dataset.rm,1); renderActions(); });
+  PanUI.bindActions(host);
 }
 function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',species:'all',dbh_lo:0,dbh_hi:999,mode:'rule',target_expr:'1000',priority_expr:'BBA',credit_expr:'BBA'}); renderActions(); }
 function addPlant(){ plan.actions.push({kind:'plant',cycle:1,species:'DF',tpa:300,survival:85}); renderActions(); }
@@ -614,7 +629,9 @@ async function loadPlan(e){
 async function runSim(){
   if(!currentAoiGeom){ setStatus('select an AOI first'); return; }
   plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
-  setStatus('running FVS simulation…');
+  const pe = PanUI.preflight(plan); if(pe){ setStatus(pe); return; }
+  setStatus(`running ${PanUI.engineLabel()} simulation…`);
+  PanUI.showWarnings(null);
   el('runSim').disabled=true;
   el('simprog').style.display='block'; el('simprogbar').style.width='4%'; el('simprogtxt').textContent='starting…';
   const poll=setInterval(async()=>{
@@ -629,9 +646,14 @@ async function runSim(){
     }catch(_){}
   }, 400);
   try{
-    const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({geometry:currentAoiGeom, plan})});
-    const d=await res.json();
+    let res, d;
+    for(let attempt=0; attempt<2; attempt++){
+      res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(PanUI.simBody(currentAoiGeom, plan))});
+      d=await res.json();
+      if((!res.ok||d.error) && attempt===0 && await PanUI.recoverFromError(d.error)) continue;   // stale params_id -> re-upload once
+      break;
+    }
     if(!res.ok||d.error){ setStatus('simulate error: '+(d.error||res.status)); return; }
     plan.period=d.period||plan.period;
     // store as a scenario (update the active one if re-running it, else append)
@@ -641,12 +663,12 @@ async function runSim(){
       return;
     }
     const nm = el('scenName').value.trim() || `Scenario ${++scenSeq}`;
-    const scen = { name:nm, plan:JSON.parse(JSON.stringify(plan)), result:d };
+    const scen = { name:nm, plan:JSON.parse(JSON.stringify(plan)), result:d, ...PanUI.snapshot() };
     if(updating){ scenarios[activeIdx]=scen; }
     else { scenarios.push(scen); activeIdx=scenarios.length-1; }
     el('scenName').value = nm;
-    lastSim=d; drawSimChart(); setupSlider(d); renderScenarioChips();
-    setStatus(`“${nm}”: ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
+    lastSim=d; drawSimChart(); setupSlider(d); renderScenarioChips(); PanUI.refreshLabels();
+    PanUI.statusWithWarnings(`“${nm}” (${PanUI.engineLabel(scen.engine)}): ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`, d);
   }catch(err){ setStatus('simulate error: '+err.message); }
   finally{ clearInterval(poll); el('runSim').disabled=false; el('simprog').style.display='none'; }
 }
@@ -694,8 +716,8 @@ function updateLeftForCycle(){
     ['When', when, 'cyc '+simCycle],
     ['Basal area', fmt(c.ba_ac,1), 'ft²/ac'],
     ['Live carbon', fmt(c.carbon_total), 'tons AG'],
-    ['Live volume', fmt(c.volume), 'ft³'],
-    ['Removed vol', fmt(c.removed_volume), 'ft³'],
+    ['Live volume'+PanUI.approx(lastSim.engine), fmt(c.volume), 'ft³'],
+    ['Removed vol'+PanUI.approx(lastSim.engine), fmt(c.removed_volume), 'ft³'],
     ['Plots', fmt(lastSim.nplots_sim), 'simulated'],
   ];
   el('cards').innerHTML = cards.map(([k,v,u])=>
@@ -774,13 +796,13 @@ function drawSimChart(){
 
 function onAoiReady(cells){
   el('runSim').disabled = false;
-  el('landscapeGrp').hidden = false;
+  el('landscapeGrp').hidden = PanUI.isPan();      // PPE budget is FVS-only
   // seed the plant species picker with the AOI's own species + common western codes
   const dl=el('splist'); if(!dl) return;
   const seen=new Set(), out=[];
   ['DF','PP','LP','ES','AF','WL','GF','WP','WH','RC','WF','JU','PI','AS','LM'].forEach(s=>{seen.add(s);out.push(s);});
   (cells||[]).forEach(c=>{ const s=(c.symbol||'').slice(0,2).toUpperCase(); if(s&&!seen.has(s)){seen.add(s);out.push(s);} });
-  dl.innerHTML = out.map(s=>`<option value="${s}">`).join('');
+  PanUI.setFvsSpecies(out);
 }
 
 // PPE cross-stand harvest budget — pick which plots to cut each cycle to meet a target flow
@@ -819,11 +841,14 @@ async function runLandscape(){
 const CMP_LABEL = { carbon_total:'Total carbon (t)', carbon_live_ag:'Live carbon (t)',
   volume:'Standing volume (ft³)', ba_ac:'Basal area (ft²/ac)', removed_volume:'Removed volume (ft³)' };
 const CMP_ORDER = ['carbon_total','carbon_live_ag','volume','ba_ac','removed_volume'];
+const cmpS = () => scenarios.filter(s=>s.result);
+// volume metrics are approximate when any compared scenario came from a Pan engine
+const cmpLabel = m => CMP_LABEL[m] + ((m==='volume'||m==='removed_volume') && cmpS().some(s=>PanUI.isPanId(s.engine)) ? ' (approx., Pan)' : '');
 const SCEN_COLORS = ['#4ade80','#facc15','#38bdf8','#f472b6','#fb923c','#a78bfa','#34d399','#f87171'];
 const scenColor = i => SCEN_COLORS[i % SCEN_COLORS.length];
 
 function openCompare(){
-  if(scenarios.length<2){ return; }
+  if(cmpS().length<2){ return; }
   el('compareModal').style.display='flex';   // toggle display (inline style beats [hidden])
   renderCompare();
 }
@@ -832,7 +857,7 @@ function closeCompare(){ el('compareModal').style.display='none'; }
 // build a multi-line SVG (one line per scenario) for the chosen metric; returns SVG markup
 function compareChartSVG(metric, W=880, H=280){
   const ns='http://www.w3.org/2000/svg', mL=64, mB=28, mT=12, mR=140, pw=W-mL-mR, ph=H-mT-mB;
-  const series = scenarios.map((s,i)=>({name:s.name, color:scenColor(i),
+  const series = cmpS().map((s,i)=>({name:s.name, color:scenColor(i),
     pts:(s.result.cycles||[]).map(c=>({x:c.elapsed, y:+c[metric]||0}))}));
   const xmax=Math.max(1,...series.flatMap(s=>s.pts.map(p=>p.x)));
   const ymax=Math.max(1,...series.flatMap(s=>s.pts.map(p=>p.y)))*1.08;
@@ -848,19 +873,19 @@ function compareChartSVG(metric, W=880, H=280){
     if(!s.pts.length) return;
     g+=`<path d="M${s.pts.map(p=>X(p.x)+','+Y(p.y)).join(' L')}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
     s.pts.forEach(p=>{ g+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="2.3" fill="${s.color}"/>`; });
-    g+=`<text x="${W-mR+8}" y="${mT+14*si+10}" fill="${s.color}" font-size="11">■ ${s.name}</text>`;
+    g+=`<text x="${W-mR+8}" y="${mT+14*si+10}" fill="${s.color}" font-size="11">■ ${PanUI.esc(s.name)}</text>`;
   });
   return g+'</svg>';
 }
 function compareTableHTML(){
-  const base = scenarios[0].result.cycles;
+  const base = cmpS()[0].result.cycles;
   const last = r => (r.cycles && r.cycles.length) ? r.cycles[r.cycles.length-1] : {};
   const totRem = r => (r.cycles||[]).reduce((a,c)=>a+(+c.removed_volume||0),0);
-  const rows = scenarios.map((s,i)=>{
+  const rows = cmpS().map((s,i)=>{
     const L=last(s.result), b=last({cycles:base});
     const d=(k)=> i===0 ? '' : `<span style="color:var(--muted)">(${(L[k]-b[k])>=0?'+':''}${fmt(L[k]-b[k])})</span>`;
     return `<tr>
-      <td><span style="color:${scenColor(i)}">■</span> ${s.name}<div style="color:var(--muted);font-size:11px">${planSummary(s.plan)}</div></td>
+      <td><span style="color:${scenColor(i)}">■</span> ${PanUI.esc(s.name)}<div style="color:var(--muted);font-size:11px">${PanUI.esc(PanUI.scenMeta(s))}</div><div style="color:var(--muted);font-size:11px">${PanUI.esc(planSummary(s.plan))}</div></td>
       <td>${fmt(L.ba_ac,1)}</td>
       <td>${fmt(L.carbon_total)} ${d('carbon_total')}</td>
       <td>${fmt(L.volume)} ${d('volume')}</td>
@@ -875,25 +900,25 @@ function compareTableHTML(){
 // which metrics have any non-zero data across scenarios (skip all-zero charts, e.g.
 // "removed volume" when every scenario is grow-only)
 function activeMetrics(){
-  return CMP_ORDER.filter(m => scenarios.some(s =>
+  return CMP_ORDER.filter(m => cmpS().some(s =>
     (s.result.cycles||[]).some(c => Math.abs(+c[m]||0) > 0)));
 }
 function renderCompare(){
-  const sub = el('cmpSub'); if(sub) sub.textContent = `${scenarios.length} scenarios · all metrics vs. time`;
+  const sub = el('cmpSub'); if(sub) sub.textContent = `${cmpS().length} scenarios · all metrics vs. time`;
   const charts = activeMetrics().map(m =>
     `<div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px">
-       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${CMP_LABEL[m]} vs. time</div>
+       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${cmpLabel(m)} vs. time</div>
        ${compareChartSVG(m, 560, 230)}</div>`).join('');
   el('cmpBody').innerHTML =
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px">${charts}</div>
      <div style="margin-top:14px">${compareTableHTML()}</div>`;
 }
 function downloadReport(){
-  const plans = scenarios.map((s,i)=>
-    `<li><b style="color:${scenColor(i)}">${s.name}</b> — ${planSummary(s.plan)} · ${s.plan.cycles}×${s.plan.period}yr</li>`).join('');
+  const plans = cmpS().map((s,i)=>
+    `<li><b style="color:${scenColor(i)}">${PanUI.esc(s.name)}</b> — ${PanUI.esc(planSummary(s.plan))} · ${s.plan.cycles}×${s.plan.period}yr<br><span class="muted">${PanUI.esc(PanUI.scenMeta(s))}</span>${(s.result&&s.result.warnings&&s.result.warnings.length)?`<br><span class="muted">warnings: ${s.result.warnings.map(PanUI.esc).join('; ')}</span>`:''}</li>`).join('');
   const aoi = el('cards') ? el('cards').innerText.replace(/\n+/g,' · ') : '';
   const charts = activeMetrics().map(m =>
-    `<div class="chart"><h3>${CMP_LABEL[m]} over time</h3>${compareChartSVG(m, 760, 300)}</div>`).join('');
+    `<div class="chart"><h3>${cmpLabel(m)} over time</h3>${compareChartSVG(m, 760, 300)}</div>`).join('');
 
   // AOI snapshot — the map exactly as it is on screen (basemap + patches + any projected overlay)
   const snap = mapSnapshot();
@@ -907,22 +932,22 @@ function downloadReport(){
     ? s.result.dist[s.result.dist.length-1] : null;
   const sppCharts = [
     aoiCells.length ? `<div class="chart">${speciesDbhSVG(aoiCells, 420, 240, 'Inventory today (cycle 0)')}</div>` : '',
-    ...scenarios.map((s,i)=>{ const d=endDist(s); if(!d) return '';
+    ...cmpS().map((s,i)=>{ const d=endDist(s); if(!d) return '';
       const yrs=(s.result.ncycles-1)*(s.result.period||s.plan.period);
       return `<div class="chart">${speciesDbhSVG(d, 420, 240,
-        `<span style="color:${scenColor(i)}">${s.name}</span> — at +${yrs}yr`)}</div>`; })
+        `<span style="color:${scenColor(i)}">${PanUI.esc(s.name)}</span> — at +${yrs}yr`)}</div>`; })
   ].filter(Boolean).join('');
   const sppHTML = sppCharts
     ? `<h2>Species × diameter (basal area ft²/ac)</h2><div class="charts">${sppCharts}</div>` : '';
 
   // PPE harvest budget flow, for any scenario whose thin is scheduled by the budget
-  const ppeHTML = scenarios.map((s,i)=>{
+  const ppeHTML = cmpS().map((s,i)=>{
     const p = s.result && s.result.ppe; if(!p) return '';
     const rows = (p.cycles||[]).map(c=>
       `<tr><td>+${c.elapsed}yr</td><td>${c.ncut}/${c.nstands}</td><td>${fmt(c.resource,0)}</td>`
       + `<td>${fmt(c.target,0)}</td><td>${Math.round(c.pct_of_target)}%</td></tr>`).join('');
     const a = (s.plan.actions||[]).find(x=>x.kind==='thin'&&x.mode==='ppe') || {};
-    return `<h3 style="color:${scenColor(i)}">${s.name} — PPE harvest budget</h3>
+    return `<h3 style="color:${scenColor(i)}">${PanUI.esc(s.name)} — PPE harvest budget</h3>
       <div class="muted">${p.variant} · ${p.nplots} stands${p.nexcluded?` · ${p.nexcluded} excluded (other variant)`:''}
         · target <code>${a.target_expr||''}</code> · priority <code>${a.priority_expr||''}</code> · credit <code>${a.credit_expr||''}</code></div>
       <table><tr><th>when</th><th>stands cut</th><th>resource</th><th>target</th><th>% of target</th></tr>${rows}</table>`;
@@ -937,7 +962,7 @@ function downloadReport(){
     .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
     svg text{fill:#374151 !important} svg line{stroke:#e5e7eb !important}</style></head><body>
     <h1>🌲 Forest Growth Explorer — scenario comparison</h1>
-    <div class="muted">Generated ${new Date().toLocaleString()} · ${scenarios.length} scenarios</div>
+    <div class="muted">Generated ${new Date().toLocaleString()} · ${cmpS().length} scenarios</div>
     ${snapHTML}
     <h2>Metrics over time</h2><div class="charts">${charts}</div>
     ${sppHTML}

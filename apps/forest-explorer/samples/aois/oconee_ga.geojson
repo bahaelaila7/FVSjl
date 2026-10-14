@@ -1,0 +1,39 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Oconee NF, Piedmont GA",
+    "description": "Piedmont (8.3.4) mixed pine\u2013hardwood, Oconee National Forest area"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -83.42159,
+       33.40198
+      ],
+      [
+       -83.37841,
+       33.40198
+      ],
+      [
+       -83.37841,
+       33.43802
+      ],
+      [
+       -83.42159,
+       33.43802
+      ],
+      [
+       -83.42159,
+       33.40198
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

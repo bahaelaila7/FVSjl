@@ -1,0 +1,30 @@
+{
+ "baseline": {
+  "mode": "forecast",
+  "T": 30,
+  "K": 3
+ },
+ "co2": {
+  "mode": "ssp245"
+ },
+ "changes": [
+  {
+   "var": "tmean",
+   "kind": "add",
+   "value": 2.0,
+   "shape": "ramp",
+   "start_year": 2025,
+   "end_year": 2075,
+   "months": null
+  },
+  {
+   "var": "ppt",
+   "kind": "mul",
+   "value": 10.0,
+   "shape": "step",
+   "start_year": 2030,
+   "end_year": 2030,
+   "months": null
+  }
+ ]
+}

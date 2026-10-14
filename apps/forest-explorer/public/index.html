@@ -84,6 +84,7 @@
   .act .rm{margin-left:auto;color:var(--muted);cursor:pointer;border:none;background:none;font-size:16px;line-height:1}
   .planR .empty{color:var(--muted);font-size:12px;padding:8px 2px}
 </style>
+<link rel="stylesheet" href="/pan.css">
 </head>
 <body>
 <div id="app">
@@ -94,11 +95,10 @@
     </header>
 
     <div class="grp">
-      <h2>Source &amp; engine</h2>
-      <label class="field">Data source</label>
+      <h2>Data source</h2>
+      <label class="field" for="source">Data source</label>
       <select id="source"></select>
-      <label class="field">Simulation engine</label>
-      <select id="engine"></select>
+      <div class="hint" style="margin-top:6px">Simulation engine and parameter set: see the plan panel below.</div>
     </div>
 
     <div class="grp">
@@ -138,6 +138,18 @@
         double-click to finish) or upload a <b>GeoJSON</b> / <b>zipped shapefile</b>. Patches
         need not be contiguous; the AOI resolves to the union of their FIA plots.
       </div>
+    </div>
+
+    <div class="grp" id="bundleGrp">
+      <h2>Session bundle</h2>
+      <div class="row">
+        <button class="btn sec" id="bundleExport" title="Download AOI patches + scenarios (plans, engines, parameter YAML, climate) as one JSON file">↓ Export</button>
+        <button class="btn sec" id="bundleImport" title="Restore a bundle exported earlier">Import…</button>
+        <input type="file" id="bundleFile" accept=".json,application/json" hidden>
+      </div>
+      <label class="field" for="bundleSample">Sample bundle</label>
+      <select id="bundleSample" aria-label="Load sample bundle"><option value="">(Pan samples unavailable)</option></select>
+      <div class="hint" id="bundleMsg" style="margin-top:6px" role="status" aria-live="polite"></div>
     </div>
 
     <div class="grp" id="simLayerGrp" hidden>
@@ -212,6 +224,22 @@
         <span class="sp"></span>
         <button class="mini" id="compareBtn" disabled title="run 2+ scenarios to compare">⇄ Compare</button>
       </div>
+      <div class="panbar">
+        <label class="lbl" for="engine">Engine</label>
+        <select id="engine" class="mini" aria-label="Simulation engine"></select>
+        <button class="mini" id="climateBtn" hidden title="Edit climate scenario (PnET only)">Climate…</button>
+        <span id="climateSummary" class="hint" hidden></span>
+      </div>
+      <div id="panParams" class="panparams" hidden>
+        <div class="pinfo" id="panParamsInfo"></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap">
+          <button class="mini" id="panUpload">Upload YAML…</button>
+          <input type="file" id="panFile" accept=".yml,.yaml,.txt,text/yaml" hidden>
+          <button class="mini" id="panDefault">Use default</button>
+          <select id="panSamples" class="mini" aria-label="Sample parameter sets"></select>
+        </div>
+        <div id="panMsg" class="panmsg" role="status" aria-live="polite"></div>
+      </div>
       <div class="planhdr">
         <h2>Plan</h2>
         <input id="scenName" placeholder="scenario name" title="scenario name" style="width:130px">
@@ -222,6 +250,7 @@
         <span class="sp"></span>
         <button class="mini" id="addThin">+ Thin / harvest</button>
         <button class="mini" id="addPlant">+ Plant</button>
+        <button class="mini" id="addHarvest" hidden title="Pan engines: harvest prescription (selection, removal, stand ranking, replant)">+ Harvest</button>
         <button class="mini" id="savePlan">Save plan</button>
         <button class="mini" id="loadPlan">Load plan</button>
         <input type="file" id="planFile" accept=".json,.geojson" hidden>
@@ -233,6 +262,7 @@
         Select an AOI, then add <b>Thin/harvest</b> or <b>Plant</b> actions (or leave empty to grow only)
         and Run. Actions apply to every plot in the AOI at their scheduled cycle.
       </div>
+      <div id="simWarn" class="simwarn" hidden></div>
       <div id="simprog" style="display:none;margin-top:10px">
         <div style="height:6px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;overflow:hidden">
           <div id="simprogbar" style="height:100%;width:0;background:var(--accent2);transition:width .25s"></div>
@@ -274,6 +304,10 @@
   </div>
 </div>
 
+<script>if(/[?&]mock=1\b/.test(location.search)) document.write('<script src="/mock_pan.js"><\/script>');</script>
+<script src="/pan.js"></script>
+<script src="/climate.js"></script>
+<script src="/bundle.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

@@ -225,13 +225,14 @@ function _landscape_response(geom5070, pol)
     if capped
         cns = sort(cns; by = cn -> -acres[cn])[1:MAX_SIM_PLOTS]
     end
-    cache = joinpath(app.datadir, "derived", "sim_cache")
+    cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))   # FE_CACHE_DIR keeps runs out of the data dir
     r = FiaSim.simulate_landscape(cns, acres, pol; cache_dir = cache)
     (; variant = r.variant, nplots = r.nplots, nexcluded = r.nexcluded, capped = capped,
        master_years = r.master_years, cycles = r.cycles)
 end
 
-function _simulate_response(geom5070, plan)
+function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_plan = nothing,
+                            params_id = nothing, climate = nothing)
     app = APP[]
     acres, tm2cn = _resolve_plots(geom5070)
     total_aoi_acres = sum(values(acres); init = 0.0)
@@ -239,12 +240,13 @@ function _simulate_response(geom5070, plan)
     cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
     capped = length(cns) > MAX_SIM_PLOTS
     sim_cns = capped ? cns[1:MAX_SIM_PLOTS] : cns
-    cache = joinpath(app.datadir, "derived", "sim_cache")
+    cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))   # FE_CACHE_DIR keeps runs out of the data dir
 
     # PPE thinning mode: the cross-stand harvest budget decides WHICH plots are cut in each cycle to meet
     # the resource flow target; the plan's thin is then applied only to those plots, in those cycles. Every
     # plot therefore carries its own thin schedule, so the projection runs with a per-plot plan.
-    ppe_act = findfirst(a -> a.kind == "thin" && a.mode == "ppe", plan.actions)
+    is_pan = startswith(engine, "pan-")
+    ppe_act = is_pan ? nothing : findfirst(a -> a.kind == "thin" && a.mode == "ppe", plan.actions)
     ppe_out = nothing
     plan_for = nothing
     if ppe_act !== nothing
@@ -276,7 +278,15 @@ function _simulate_response(geom5070, plan)
                                   pct_of_target = c.pct_of_target, ncut = c.ncut,
                                   nstands = c.nstands) for c in lsc.cycles])
     end
-    res = FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
+    warnings = String[]; engine_info = nothing
+    res = if is_pan
+        # Pan engines take the frontend plan JSON as-is (grow/thin/plant + the LANDIS-style `harvest` kind)
+        r, warnings, engine_info, _ = PanEngine.pan_simulate(sim_cns, acres, raw_plan, engine;
+                                                             params_id = params_id, climate = climate)
+        r
+    else
+        FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
+    end
 
     ncyc = maximum((length(v.metrics) for v in values(res)); init = 0)
     sim_acres = sum(acres[cn] for cn in keys(res); init = 0.0)
@@ -346,6 +356,7 @@ function _simulate_response(geom5070, plan)
        ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist,
        domains = doms,        # auto-scaled color domains per map metric (for the legend)
        ppe = ppe_out,         # PPE thinning mode: the per-cycle budget flow + how many plots it cut
+       engine = engine, warnings = warnings, engine_info = engine_info,
        image = imgmeta)       # cached AOI raster overlay: token, corners (lon/lat), size, metrics
 end
 
@@ -359,6 +370,34 @@ function _simimage_handler(token::Int, metric::String, cycle::Int)
     HTTP.Response(200, ["Content-Type" => "image/png",
                         "Cache-Control" => "public, max-age=31536000, immutable"];
                   body = png)
+end
+
+
+# JSON3 objects → plain Dict/Vector (so they can be re-serialized to the Pan worker)
+_plain(x) = x === nothing ? nothing : x isa JSON3.Object ? Dict{String,Any}(String(k) => _plain(v) for (k, v) in pairs(x)) :
+            x isa JSON3.Array ? Any[_plain(v) for v in x] : x
+# FVS plan parser input without the Pan-only `harvest` actions
+_strip_harvest(p) = (d = _plain(p); d["actions"] = [a for a in get(d, "actions", Any[]) if get(a, "kind", "") != "harvest"]; JSON3.read(JSON3.write(d)))
+
+const SAMPLES = normpath(joinpath(@__DIR__, "..", "samples"))
+function _samples_index()
+    f = joinpath(SAMPLES, "index.json")
+    isfile(f) ? JSON3.read(read(f, String)) : (; params = [], aois = [], bundles = [], climates = [])
+end
+function _sample_file(name::AbstractString)
+    p = normpath(joinpath(SAMPLES, name))
+    (startswith(p, SAMPLES) && isfile(p)) || return HTTP.Response(404, JSON3.write((; error = "no sample $name")))
+    ct = endswith(p, ".yaml") || endswith(p, ".yml") ? "text/yaml" : "application/json"
+    HTTP.Response(200, ["Content-Type" => ct], read(p))
+end
+
+"AOI-weighted climate series for the climate modal (Pan PnET)."
+function _climate_preview_response(geom5070, climate, start_year, years)
+    acres, _ = _resolve_plots(geom5070)
+    cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
+    length(cns) > MAX_SIM_PLOTS && (cns = cns[1:MAX_SIM_PLOTS])
+    isempty(cns) && return (; error = "no plots resolved in the AOI")
+    PanEngine.pan_climate_preview(cns, acres, climate; start_year = start_year, years = years)
 end
 
 function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
@@ -398,7 +437,7 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     @get "/api/meta" function (req)
         (; default_attr = DEFAULT_ATTR, bounds = CONUS_BOUNDS_4326,
            nplots_total = length(app.st.by_tm),
-           sources = SOURCES, engines = ENGINES)
+           sources = SOURCES, engines = ENGINES, pan = PanEngine.pan_status())
     end
 
     # AOI: JSON body {"geometry": <geojson geometry>} (drawn), or raw file upload
@@ -425,8 +464,14 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
         try
             body = JSON3.read(String(req.body))
             geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
-            plan = _parse_plan(body.plan)
-            return _simulate_response(geom, plan)
+            engine = String(get(body, :engine, "fvs"))
+            engine == "fvsjl" && (engine = "fvs")
+            plan = engine == "fvs" ? _parse_plan(body.plan) :
+                   _parse_plan(_strip_harvest(body.plan))    # Pan: parsed only for name/cycles/period
+            pid = get(body, :params_id, nothing)
+            return _simulate_response(geom, plan; engine = engine, raw_plan = _plain(body.plan),
+                                      params_id = pid === nothing ? nothing : String(pid),
+                                      climate = _plain(get(body, :climate, nothing)))
         catch e
             @warn "simulate error" exception = (e, catch_backtrace())
             return HTTP.Response(400, JSON3.write((; error = string(e))))
@@ -446,9 +491,45 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
         end
     end
 
+    # ---- Pan engine (Biomass Succession / PnET / HBAD) ----
+    @get "/api/pan/samples" function (req)
+        _samples_index()
+    end
+    @get "/api/pan/sample" function (req)
+        q = HTTP.queryparams(HTTP.URI(req.target))
+        _sample_file(get(q, "file", ""))
+    end
+    @get "/api/pan/default_params" function (req)
+        q = HTTP.queryparams(HTTP.URI(req.target))
+        try
+            return PanEngine.pan_default_params(get(q, "plugin", "biomass"))
+        catch e
+            return HTTP.Response(400, JSON3.write((; error = sprint(showerror, e))))
+        end
+    end
+    @post "/api/pan/params" function (req)
+        try
+            return PanEngine.pan_load_params(String(req.body))
+        catch e
+            return HTTP.Response(400, JSON3.write((; error = sprint(showerror, e))))
+        end
+    end
+    @post "/api/pan/climate_preview" function (req)
+        try
+            body = JSON3.read(String(req.body))
+            geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
+            return _climate_preview_response(geom, _plain(get(body, :climate, nothing)),
+                                             Int(get(body, :start_year, 2025)), Int(get(body, :years, 100)))
+        catch e
+            @warn "climate preview error" exception = (e, catch_backtrace())
+            return HTTP.Response(400, JSON3.write((; error = sprint(showerror, e))))
+        end
+    end
+
     # static frontend
     staticfiles(PUBLIC, "/")
 
+    PanEngine.autostart!()   # warm the Pan worker in the background (PAN_AUTOSTART=0 to disable)
     @info "Forest Growth Explorer serving — press Ctrl-C to stop" host port public = PUBLIC
 
     # Run Oxygen ASYNC and own the interrupt ourselves. Oxygen's own async=false
