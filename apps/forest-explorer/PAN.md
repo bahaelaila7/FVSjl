@@ -156,3 +156,15 @@ Use v1 as the reference and the alternatives to bracket projection uncertainty.
 - `test/ui_walkthrough.py` — headless browser walk-through with screenshots (needs Playwright + Chromium; on this machine
   `/workspace/fe_pan/.uivenv` + libraries in `/workspace/fe_pan/.uitools/env/lib`, see the script header).
 - `public/mock_pan.js` (`/?mock=1`) — frontend-only mock of the Pan endpoints.
+
+## Stands layer (prototype, 2026-10-19)
+`public/stands.js` + `stands.css`: optional sidebar group "Stands — delineated (prototype)". It shows stand polygons from the standmap
+pipeline (/workspace/standmap; TreeMap 2022 + SOLUS + AlphaEarth 2022/2025 segmentation, split by roads / water / parcel lines; recent
+clear-cuts kept as their own stands).
+- Popup: status, area, harvest year, TreeMap structure (BA, height, QMD, TPA, canopy, softwood share), TreeMap coverage, soils.
+- **Simulate this stand** sets the stand polygon as the AOI, so the existing AOI pipeline (TreeMap pixels → FIA plots → FVSjl / Pan) runs
+  on that stand.
+- Data: `public/stands/<area>.geojson` (git-ignored; regenerate with standmap `scripts/24_export_fe.py`). Prototype area: Baker County,
+  FL (one of the 5 FL parcel counties); 15,341 stands, 128,121 ha.
+- UI check: `test/ui_stands.py` (Playwright; needs `FONTCONFIG_FILE=/workspace/fe_pan/.uitools/env/etc/fonts/fonts.conf` in addition to
+  `LD_LIBRARY_PATH`).

@@ -54,3 +54,4 @@ scratchpad/
 .claude/*.stophook-bak
 # runtime off-switch signal (moot now the Stop hook is disabled outright)
 docs/WESTERN_ROLLOUT_COMPLETE
+apps/forest-explorer/public/stands/*.geojson
