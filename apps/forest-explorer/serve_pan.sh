@@ -5,7 +5,7 @@
 #   $WORKSPACE/fe_pan/apps/forest-explorer        this app
 #   $WORKSPACE/FVSclaude/SQLite_FIADB_ENTIRE.db    FIA_DB         FVSjl master FIA DB (read only)
 #   $WORKSPACE/FVSclaude/treemap                   TREEMAP_DATA   TreeMap raster/VAT/trees (read only)
-#   $WORKSPACE/landis_scen                         PAN_REPO       Pan checkout, branch scenario-engine
+#   $WORKSPACE/landis_fe                           PAN_REPO       Pan checkout, branch fe-engine (scenario engine incl. HBAD v2 = plugin hbad2)
 #   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    PAN_FIA_DB     curated FIA cohorts for Pan (read only)
 #   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    FIA_TRAJ_DB     FIA plots / tree-trajectories layer (read only; default PAN_FIA_DB)
 #   $WORKSPACE/pan_climate/pan_climate.duckdb      PAN_CLIMATE_DB PRISM baseline + forecasts (PnET climate)
@@ -25,7 +25,7 @@ ws="${WORKSPACE:-$(cd "$here/../../.." && pwd)}"
 export FIA_DB="${FIA_DB:-$ws/FVSclaude/SQLite_FIADB_ENTIRE.db}"
 export TREEMAP_DATA="${TREEMAP_DATA:-$ws/FVSclaude/treemap}"
 export FE_CACHE_DIR="${FE_CACHE_DIR:-$here/cache/sim_cache}"
-export PAN_REPO="${PAN_REPO:-$ws/landis_scen}"
+export PAN_REPO="${PAN_REPO:-$ws/landis_fe}"
 export PAN_FIA_DB="${PAN_FIA_DB:-$ws/FIA/FIASQLITE2PGSQL/FIADB.duckdb}"
 export FIA_TRAJ_DB="${FIA_TRAJ_DB:-$PAN_FIA_DB}"
 export PAN_CLIMATE_DB="${PAN_CLIMATE_DB:-$ws/pan_climate/pan_climate.duckdb}"
@@ -47,6 +47,11 @@ fe_depot="$here/.julia_depot_fe"
 export JULIA_DEPOT_PATH="${JULIA_DEPOT_PATH:-$fe_depot:}"
 pan_depot="$PAN_REPO/.julia_depot_wt"
 [[ -d "$ws/landis_parametrization_julia/.julia_depot" ]] && pan_depot="$pan_depot:$ws/landis_parametrization_julia/.julia_depot"
+# a Pan checkout may ship its own depot layering (wt_env.sh exports JULIA_DEPOT_PATH): use it, so already-installed packages are reused
+if [[ -f "$PAN_REPO/wt_env.sh" ]]; then
+    wt_depot="$(bash -c "source '$PAN_REPO/wt_env.sh' >/dev/null 2>&1; printf %s \"\${JULIA_DEPOT_PATH:-}\"")"
+    [[ -n "$wt_depot" ]] && pan_depot="$wt_depot"
+fi
 export PAN_DEPOT_PATH="${PAN_DEPOT_PATH:-$pan_depot:}"     # the Pan worker runs with this depot (src/PanEngine.jl)
 
 # --- install packages when needed ----------------------------------------------------------------------------------------

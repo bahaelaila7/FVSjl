@@ -22,6 +22,34 @@
    "description": "DEFAULT. EPA Region 4 (AL FL GA KY MS NC SC TN, 14 L3 ecoregions) coordinate calibration on all R4 plots; in-sample 45/49/49 of 50; no cross-validation yet"
   },
   {
+   "id": "r4_hbad2_v2j",
+   "file": "params/r4_hbad2_v2j.yaml",
+   "plugin": "hbad2",
+   "name": "Region 4 HBAD v2 (v2j)",
+   "description": "DEFAULT (HBAD v2). Model v2j = joint fit j15; species-aware Sim B objective, recruitment = data fit x global level 0.503, mortality frozen at the Sim A optimum fitted with vigour. Per-species-key parameters; EPA Region 4 coverage"
+  },
+  {
+   "id": "r4_hbad2_v2i",
+   "file": "params/r4_hbad2_v2i.yaml",
+   "plugin": "hbad2",
+   "name": "Region 4 HBAD v2 (v2i)",
+   "description": "Model v2i = joint fit j14: as v2h plus a fitted global recruitment level 0.579. Older roster, kept for comparison"
+  },
+  {
+   "id": "r4_hbad2_v2h",
+   "file": "params/r4_hbad2_v2h.yaml",
+   "plugin": "hbad2",
+   "name": "Region 4 HBAD v2 (v2h)",
+   "description": "Model v2h = joint fit j13: species-aware Sim B objective, recruitment fixed at its data fit. Older roster, kept for comparison"
+  },
+  {
+   "id": "r4_hbad2_v2g",
+   "file": "params/r4_hbad2_v2g.yaml",
+   "plugin": "hbad2",
+   "name": "Region 4 HBAD v2 (v2g)",
+   "description": "Model v2g: fixed parameters of the prototype fit (hbad-v2 branch). Oldest roster; kept for comparison"
+  },
+  {
    "id": "gafl_biomass_v1",
    "file": "params/gafl_biomass_v1.yaml",
    "plugin": "biomass",

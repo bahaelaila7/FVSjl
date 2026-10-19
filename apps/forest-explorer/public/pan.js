@@ -21,13 +21,22 @@ const PanUI = (() => {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const clone = o => (o == null ? o : JSON.parse(JSON.stringify(o)));
+  const FVS_DETAIL = 'Julia port of the USDA Forest Service Forest Vegetation Simulator (FVS, Southern variant; Dixon 2002, Essential FVS) — tree-list growth and yield.';
   const engineById = id => PAN.engines.find(e => e.id === id);
+  const engineDetail = id => { const e = engineById(id); return id === 'fvs' || id === 'fvsjl' || !e ? FVS_DETAIL : (e.detail || ''); };
+  function updateEngineInfo() {
+    const t = el('engineText'), sel = el('engine'); if (!t) return;
+    const d = engineDetail(PAN.engine);
+    t.textContent = d;
+    if (sel) sel.title = (engineLabel() + ': ' + d).slice(0, 600);
+    el('engineHelp').hidden = !d;
+  }
   const isPanId = id => !!id && id !== 'fvs' && id !== 'fvsjl';
   const isPan = () => isPanId(PAN.engine);
   const plugin = () => { const e = engineById(PAN.engine); return e ? e.plugin : null; };
   const curParams = () => { const pl = plugin(); return pl ? (PAN.paramsByPlugin[pl] || null) : null; };
   const engineLabel = (id = PAN.engine) => { const e = engineById(id); return e ? e.label : (id === 'fvs' ? 'FVSjl' : id); };
-  const engineShort = id => ({ fvs: 'FVS', fvsjl: 'FVS', 'pan-biomass': 'BS', 'pan-pnet': 'PnET', 'pan-hbad': 'HBAD' }[id] || id || 'FVS');
+  const engineShort = id => ({ fvs: 'FVS', fvsjl: 'FVS', 'pan-biomass': 'BS', 'pan-pnet': 'PnET', 'pan-hbad': 'HBAD1', 'pan-hbad2': 'HBAD2' }[id] || id || 'FVS');
 
   async function getJSON(url) {
     const r = await fetch(url);
@@ -40,13 +49,12 @@ const PanUI = (() => {
   function init(meta) {
     PAN.meta = meta.pan || { available: false, engines: [], message: 'This backend has no Pan engines.' };
     const avail = !!PAN.meta.available;
-    const list = [{ id: 'fvs', label: 'FVSjl', plugin: null, climate: false, enabled: true }];
-    (PAN.meta.engines || []).forEach(e => list.push({ ...e, enabled: avail }));
+    const list = [{ id: 'fvs', label: 'FVSjl', plugin: null, climate: false, enabled: true, detail: FVS_DETAIL }];
+    (PAN.meta.engines || []).forEach(e => list.push({ ...e, enabled: avail && !e.coming }));
     PAN.engines = list;
     const sel = el('engine');
     sel.innerHTML = list.map(e => `<option value="${esc(e.id)}"${e.enabled ? '' : ' disabled'}
-      title="${esc(e.enabled ? e.label : (PAN.meta.message || 'Pan engines are unavailable on this backend'))}">${esc(e.label)}${e.enabled ? '' : ' (unavailable)'}</option>`).join('');
-    sel.title = avail ? 'Simulation engine' : (PAN.meta.message || 'Pan engines are unavailable');
+      title="${esc(e.coming ? 'Not available yet: not in Pan' : e.enabled ? e.label : (PAN.meta.message || 'Pan engines are unavailable on this backend'))}">${esc(e.label)}${e.enabled || e.coming ? '' : ' (unavailable)'}</option>`).join('');
     sel.value = PAN.engine;
     sel.onchange = () => setEngine(sel.value);
     el('addHarvest').onclick = addHarvest;
@@ -57,6 +65,7 @@ const PanUI = (() => {
     if (avail) loadSamples().then(fillSampleSelects).catch(() => { });
     renderPanBar();
     refreshLabels();
+    updateEngineInfo();
   }
 
   function setEngine(id, quiet) {
@@ -69,7 +78,7 @@ const PanUI = (() => {
     if (typeof renderActions === 'function') renderActions();
     refreshSpecies();
     refreshLabels();
-    updateSubline();
+    updateSubline(); updateEngineInfo();
     if (!quiet) setStatus('engine: ' + engineLabel());
     return true;
   }
@@ -228,7 +237,7 @@ const PanUI = (() => {
 
   function restore(s) {
     const eng = s.engine && engineById(s.engine) ? s.engine : 'fvs';
-    PAN.engine = eng; el('engine').value = eng; updateSubline();
+    PAN.engine = eng; el('engine').value = eng; updateSubline(); updateEngineInfo();
     PAN.climate = s.climate ? clone(s.climate) : null;
     const pr = s.params;
     if (pr && pr.plugin) {
@@ -432,7 +441,7 @@ const PanUI = (() => {
     showWarnings(d);
   }
 
-  return { init, setEngine, isPan, plugin, engineLabel, esc, clone, snapshot, restore, chipTag, scenMeta, approx, refreshLabels,
+  return { init, setEngine, engineDetail, isPan, plugin, engineLabel, esc, clone, snapshot, restore, chipTag, scenMeta, approx, refreshLabels,
            simBody, recoverFromError, preflight, harvestSummary, harvestRow, bindActions, showWarnings, statusWithWarnings,
            postYaml, loadSamples, fillSampleSelects, refreshSpecies, isPanId, engineById, curParams, accept, newHarvest, harvestProblems,
            renderPanBar, setFvsSpecies: l => { PAN.fvsSpl = l; refreshSpecies(); } };

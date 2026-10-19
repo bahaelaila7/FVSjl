@@ -1,13 +1,13 @@
 """
     PanEngine
 
-Second simulation-engine family for Forest Explorer: **Pan** (Biomass Succession, PnET-Succession, HBAD) behind the
+Second simulation-engine family for Forest Explorer: **Pan** (Biomass Succession, PnET-Succession, HBAD v1, HBAD v2) behind the
 same `simulate` seam as FVSjl. Pan runs in its own Julia process (its own project/depot — the two Manifests are not
 compatible), started lazily and kept warm: `tools/pan_worker.jl` of the Pan repo speaks JSON lines over stdin/stdout
 (protocol: Pan repo `docs/scenario_campaign_plan.md`). Results are converted to `FiaSim.PlotResult`, so aggregation,
 rasters, charts and the compare report are shared with FVSjl.
 
-Config (env): `PAN_REPO` (default `/workspace/landis_scen`), `PAN_THREADS` (default `auto`), `PAN_AUTOSTART` (`1`
+Config (env): `PAN_REPO` (default `/workspace/landis_fe`: the refactor branch with the scenario engine and HBAD v2), `PAN_THREADS` (default `auto`), `PAN_AUTOSTART` (`1`
 starts the worker in the background when the server starts), `PAN_WORKER_LOG` (stderr of the worker).
 """
 module PanEngine
@@ -17,14 +17,22 @@ import ..FiaSim
 
 export pan_status, pan_call, pan_simulate, pan_load_params, pan_default_params, pan_climate_preview
 
-pan_repo() = get(ENV, "PAN_REPO", "/workspace/landis_scen")
+pan_repo() = get(ENV, "PAN_REPO", "/workspace/landis_fe")
 worker_log() = get(ENV, "PAN_WORKER_LOG", joinpath(tempdir(), "pan_worker.log"))
 
-const ENGINE_PLUGIN = Dict("pan-biomass" => "biomass", "pan-pnet" => "pnet", "pan-hbad" => "hbad")
+const ENGINE_PLUGIN = Dict("pan-biomass" => "biomass", "pan-pnet" => "pnet", "pan-hbad" => "hbad", "pan-hbad2" => "hbad2")
+# `coming = true`: listed in the engine selector but disabled (no Pan plugin yet); the frontend shows the label as is.
 const PAN_ENGINES = [
-    (; id = "pan-biomass", label = "Pan · Biomass Succession", plugin = "biomass", climate = false),
-    (; id = "pan-pnet",    label = "Pan · PnET-Succession",    plugin = "pnet",    climate = true),
-    (; id = "pan-hbad",    label = "Pan · HBAD",               plugin = "hbad",    climate = false)]
+    (; id = "pan-biomass", label = "Pan · Biomass Succession", plugin = "biomass", climate = false, coming = false,
+       detail = "Pan's Julia re-implementation of the LANDIS-II Biomass Succession extension (LANDIS-II: Scheller et al. 2007, Ecological Modelling 201:409–419; Biomass Succession: Scheller & Mladenoff 2004, Ecological Modelling 180:211–229). Species-age cohorts of aboveground biomass; growth limited by ANPP and competition for growing space (B_MAX), age- and growth-related mortality, establishment by shade tolerance and seed availability. Parameters calibrated to FIA in Pan."),
+    (; id = "pan-pnet", label = "Pan · PnET-Succession", plugin = "pnet", climate = true, coming = false,
+       detail = "Pan's re-implementation of the LANDIS-II PnET-Succession extension (de Bruijn et al. 2014, Ecological Modelling 287:44–57; built on PnET-II, Aber & Federer 1992). Cohort photosynthesis driven by light, temperature, water (soil water balance), VPD and CO₂; carbon allocation to foliage/wood/roots; responds to the climate scenario."),
+    (; id = "pan-hbad", label = "Pan · HBAD v1", plugin = "hbad", climate = false, coming = false,
+       detail = "Pan cohort model of height, basal area and density (N, QMD, height, age) with structural competition (basal area of larger trees, relative density, Reineke self-thinning) and empirical FIA growth/mortality regressions; establishment as in Biomass Succession. Biomass reported via allometry."),
+    (; id = "pan-hbad2", label = "Pan · HBAD v2 (v2j)", plugin = "hbad2", climate = false, coming = false,
+       detail = "Biomass-free process cohort model: state N (trees/ha), QMD, mean height, age; height-structured light competition (overtopping) + crowding; species growth curves for diameter and height; growth-stress, background and age mortality; recruitment from seed source and light; calibrated jointly on FIA remeasured trees (Sim A) and stand trajectories (Sim B). Default parameter set: v2j."),
+    (; id = "pan-hbad3", label = "HBAD3 (process-based) — coming", plugin = "hbad3", climate = false, coming = true,
+       detail = "Process-grounded successor of HBAD v2 (stem-volume growth with pipe-model leaf area and hydraulic limitation, trait-based height, carbon-starvation mortality, water balance). Not in Pan yet.")]
 
 mutable struct Worker
     proc::Base.Process
