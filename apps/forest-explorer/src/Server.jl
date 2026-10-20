@@ -261,71 +261,111 @@ function _landscape_response(geom5070, pol)
        master_years = r.master_years, cycles = r.cycles)
 end
 
-function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_plan = nothing,
-                            params_id = nothing, climate = nothing)
+const MAX_STANDS = 100              # stands per simulation request (delineated-stands vegetation source)
+
+"""
+    _simulate_stands_response(stands, plan; engine, raw_plan, params_id, climate)
+
+Vegetation source "delineated stands": the simulation unit is the STAND. `stands` = `[(id, geometry5070)]`. For each stand
+the existing AOI pipeline resolves its polygon to TreeMap pixels and FIA plots (`_resolve_plots`: plot acres = pixel
+share × pixel area), so a stand's vegetation is the pixel-share-weighted composite of the plots of its pixels. Pan engines
+are called once per stand (the site — majority L4 ecoregion and centroid of the stand's pixels — differs per stand); FVSjl
+simulates the union of the plots once. Results are aggregated per stand and over all stands; no raster is rendered —
+`stands[i].map` holds the per-cycle carbon / ba / volume (area-weighted means) the frontend uses to color the stand polygons.
+Each stand is capped to its `MAX_SIM_PLOTS` largest plots.
+"""
+function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs", raw_plan = nothing,
+                                   params_id = nothing, climate = nothing)
     app = APP[]
-    acres, tm2cn = _resolve_plots(geom5070)
-    total_aoi_acres = sum(values(acres); init = 0.0)
-    # cap to the largest-area plots for a bounded synchronous run
-    cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
-    capped = length(cns) > MAX_SIM_PLOTS
-    sim_cns = capped ? cns[1:MAX_SIM_PLOTS] : cns
-    cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))   # FE_CACHE_DIR keeps runs out of the data dir
-
-    # PPE thinning mode: the cross-stand harvest budget decides WHICH plots are cut in each cycle to meet
-    # the resource flow target; the plan's thin is then applied only to those plots, in those cycles. Every
-    # plot therefore carries its own thin schedule, so the projection runs with a per-plot plan.
+    cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))
     is_pan = startswith(engine, "pan-")
-    ppe_act = is_pan ? nothing : findfirst(a -> a.kind == "thin" && a.mode == "ppe", plan.actions)
-    ppe_out = nothing
-    plan_for = nothing
-    if ppe_act !== nothing
-        a = plan.actions[ppe_act]
-        pol = FiaSim.LandscapePolicy(; common_year = _PPE_YEAR, target_expr = a.target_expr,
-                priority_expr = a.priority_expr, credit_expr = a.credit_expr,
-                cycles = plan.cycles, period = plan.period, mslabel = "ALL")
-        lsc = FiaSim.simulate_landscape(sim_cns, acres, pol; cache_dir = cache)
-        # cycle (1-based projection cycle) => set of plot CNs the budget selected
-        cutmap = Dict{String,Vector{Int}}()
-        for (i, c) in enumerate(lsc.cycles), cn in c.cut
-            push!(get!(cutmap, cn, Int[]), i)
-        end
-        others = [x for x in plan.actions if !(x.kind == "thin" && x.mode == "ppe")]
-        plan_for = function (cn)
-            cyc = get(cutmap, cn, Int[])
-            acts = copy(others)
-            for k in cyc
-                k >= a.cycle || continue                 # the budget starts at the action's cycle
-                push!(acts, FiaSim.PlanAction(; kind = "thin", cycle = k, metric = a.metric,
-                        target = a.target, direction = a.direction, species = a.species,
-                        dbh_lo = a.dbh_lo, dbh_hi = a.dbh_hi))
+    info = map(stands) do (id, g)
+        acres, tm2cn = _resolve_plots(g)
+        cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
+        sim_cns = length(cns) > MAX_SIM_PLOTS ? cns[1:MAX_SIM_PLOTS] : cns
+        (; id, geom = g, acres, tm2cn, sim_cns)
+    end
+    warnings = String[]; engine_info = nothing; ppe_out = nothing
+    res_for = Vector{Dict{String,FiaSim.PlotResult}}()
+    if is_pan
+        for st in info
+            if isempty(st.sim_cns)
+                push!(res_for, Dict{String,FiaSim.PlotResult}()); continue
             end
-            FiaSim.ManagementPlan(; name = plan.name, cycles = plan.cycles, period = plan.period,
-                                    actions = acts)
+            r, w, ei, _ = PanEngine.pan_simulate(st.sim_cns, st.acres, raw_plan, engine; params_id = params_id,
+                                                 climate = climate, sites = _plot_sites(st.geom, st.tm2cn))
+            push!(res_for, r); engine_info = ei
+            for x in w                                  # engine-wide notes once, per-stand notes prefixed with the stand
+                if startswith(x, "Pan volumes"); x in warnings || push!(warnings, x)
+                else push!(warnings, "stand $(st.id): " * x); end
+            end
         end
-        ppe_out = (; variant = lsc.variant, nplots = lsc.nplots, nexcluded = lsc.nexcluded,
-                     cycles = [(; elapsed = c.elapsed, target = c.target, resource = c.resource,
-                                  pct_of_target = c.pct_of_target, ncut = c.ncut,
-                                  nstands = c.nstands) for c in lsc.cycles])
-    end
-    warnings = String[]; engine_info = nothing
-    res = if is_pan
-        # Pan engines take the frontend plan JSON as-is (grow/thin/plant + the LANDIS-style `harvest` kind)
-        r, warnings, engine_info, _ = PanEngine.pan_simulate(sim_cns, acres, raw_plan, engine;
-                                                             params_id = params_id, climate = climate,
-                                                             sites = _plot_sites(geom5070, tm2cn))
-        r
     else
-        FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
+        uacres = Dict{String,Float64}()
+        for st in info, (cn, a) in st.acres; uacres[cn] = get(uacres, cn, 0.0) + a; end
+        ucns = sort(collect(keys(uacres)); by = cn -> -uacres[cn])
+        length(ucns) > MAX_SIM_PLOTS && (ucns = ucns[1:MAX_SIM_PLOTS]; push!(warnings, "FVSjl: the selected stands use more than $(MAX_SIM_PLOTS) distinct plots; the $(MAX_SIM_PLOTS) with the largest area were simulated"))
+        plan_for, ppe_out = _ppe_setup(plan, ucns, uacres, cache)
+        all = FiaSim.simulate_plots(ucns, plan; cache_dir = cache, plan_for = plan_for)
+        for st in info
+            push!(res_for, Dict{String,FiaSim.PlotResult}(cn => all[cn] for cn in st.sim_cns if haskey(all, cn)))
+        end
     end
+    # per stand and overall
+    sid = Int[]; sums = Any[]; allunits = Tuple{FiaSim.PlotResult,Float64}[]
+    nodata = Int[]
+    for (st, res) in zip(info, res_for)
+        units = [(v, st.acres[cn]) for (cn, v) in res]
+        append!(allunits, units)
+        isempty(units) && push!(nodata, st.id)
+        ncyc, cycles, _ = _series(units, plan.period)
+        mapv = Dict{String,Vector{Float64}}()
+        wsum(f, i) = (num = 0.0; den = 0.0;
+            for (v, a) in units
+                i <= length(v.metrics) || continue
+                x = Float64(f(v.metrics[i])); isnan(x) && continue
+                num += x * a; den += a
+            end; den > 0 ? num / den : NaN)
+        for (mname, spec) in SIM_METRICS
+            mapv[mname] = [wsum(m -> getfield(m, spec[1]), i) for i in 1:ncyc]
+        end
+        push!(sums, (; id = st.id, area_ac = round(sum(values(st.acres); init = 0.0); digits = 1), nplots = length(st.acres),
+                       nplots_sim = length(res), cycles = cycles, map = mapv))
+    end
+    ncyc, cycles, dist = _series(allunits, plan.period)
+    doms = Dict{String,Tuple{Float64,Float64}}()
+    for (mname, _) in SIM_METRICS
+        lo = Inf; hi = -Inf
+        for st in sums, x in st.map[mname]
+            isnan(x) && continue
+            lo = min(lo, x); hi = max(hi, x)
+        end
+        isfinite(lo) && hi > lo && (doms[mname] = (floor(lo), ceil(hi)))
+    end
+    isempty(nodata) || push!(warnings, "no TreeMap plots simulated for stand(s) " * join(nodata, ", ") *
+        " (no TreeMap pixels, e.g. harvested; or plots outside the parameter set's ecoregions)")
+    total_ac = sum(st.area_ac for st in sums; init = 0.0)
+    (; plan = plan.name, source = "stands", nstands = length(sums), nplots_aoi = sum(st.nplots for st in sums; init = 0),
+       nplots_sim = length(allunits), capped = false, acres = round(total_ac; digits = 1),
+       sim_acres = round(sum(u[2] for u in allunits; init = 0.0); digits = 1),
+       ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist, domains = doms, ppe = ppe_out,
+       engine = engine, warnings = warnings, engine_info = engine_info, image = nothing,
+       stands = [(; s.id, s.area_ac, s.nplots, s.nplots_sim, s.cycles,
+                    map = Dict(k => [isnan(x) ? nothing : round(x; digits = 2) for x in v] for (k, v) in s.map)) for s in sums])
+end
 
-    ncyc = maximum((length(v.metrics) for v in values(res)); init = 0)
-    sim_acres = sum(acres[cn] for cn in keys(res); init = 0.0)
+"""
+Acre-weighted aggregation of simulation units `[(PlotResult, acres)]` into the per-cycle series of a response:
+`(ncyc, cycles, dist)` — cycles = BA (ft²/ac, area-weighted), total volume (ft³), removed volume, carbon (t, via HA_PER_ACRE);
+dist = per-cycle species × DBH-class tallies (count, BA).
+"""
+function _series(units, period)
+    ncyc = maximum((length(v.metrics) for (v, _) in units); init = 0)
     cycles = map(1:ncyc) do i
-        baw = 0.0; w = 0.0; vol = 0.0; rem = 0.0; ct = 0.0; cl = 0.0; el = (i - 1) * plan.period
-        for (cn, v) in res
+        baw = 0.0; w = 0.0; vol = 0.0; rem = 0.0; ct = 0.0; cl = 0.0; el = (i - 1) * period
+        for (v, a) in units
             i <= length(v.metrics) || continue
-            m = v.metrics[i]; a = acres[cn]
+            m = v.metrics[i]
             baw += m.ba * a; w += a
             vol += m.tcuft * a
             rem += m.rem_tcuft * a
@@ -339,15 +379,14 @@ function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_
            carbon_total = round(ct; digits = 1),
            carbon_live_ag = round(cl; digits = 1))
     end
-
-    # per-cycle species×DBH distribution over the AOI (acres-weighted, from FVS_TreeList)
+    # per-cycle species×DBH distribution (acres-weighted)
     dist = map(1:ncyc) do i
         agg = Dict{Tuple{Int16,Int},NTuple{2,Float64}}()
         syms = Dict{Int16,String}()
-        for (cn, v) in res
+        for (v, a) in units
             i <= length(v.metrics) || continue
             g = get(v.dist, v.metrics[i].year, nothing); g === nothing && continue
-            a = acres[cn]; merge!(syms, v.spsym)
+            merge!(syms, v.spsym)
             for (k, val) in g
                 c, b = get(agg, k, (0.0, 0.0))
                 agg[k] = (c + val[1] * a, b + val[2] * a)
@@ -356,6 +395,76 @@ function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_
         [(; spcd = k[1], symbol = get(syms, k[1], ""), dbh_lo = k[2],
             count = round(v[1]; digits = 1), ba = round(v[2]; digits = 1)) for (k, v) in agg]
     end
+    ncyc, cycles, dist
+end
+
+"""
+PPE thinning mode (FVSjl): the cross-stand harvest budget decides WHICH plots are cut in each cycle to meet the resource
+flow target; the plan's thin is then applied only to those plots, in those cycles. Every plot therefore carries its own
+thin schedule, so the projection runs with a per-plot plan. Returns `(plan_for, ppe_out)`, or `(nothing, nothing)` when
+the plan has no PPE thin.
+"""
+function _ppe_setup(plan, sim_cns, acres, cache)
+    ppe_act = findfirst(a -> a.kind == "thin" && a.mode == "ppe", plan.actions)
+    ppe_act === nothing && return (nothing, nothing)
+    a = plan.actions[ppe_act]
+    pol = FiaSim.LandscapePolicy(; common_year = _PPE_YEAR, target_expr = a.target_expr,
+            priority_expr = a.priority_expr, credit_expr = a.credit_expr,
+            cycles = plan.cycles, period = plan.period, mslabel = "ALL")
+    lsc = FiaSim.simulate_landscape(sim_cns, acres, pol; cache_dir = cache)
+    # cycle (1-based projection cycle) => set of plot CNs the budget selected
+    cutmap = Dict{String,Vector{Int}}()
+    for (i, c) in enumerate(lsc.cycles), cn in c.cut
+        push!(get!(cutmap, cn, Int[]), i)
+    end
+    others = [x for x in plan.actions if !(x.kind == "thin" && x.mode == "ppe")]
+    plan_for = function (cn)
+        cyc = get(cutmap, cn, Int[])
+        acts = copy(others)
+        for k in cyc
+            k >= a.cycle || continue                 # the budget starts at the action's cycle
+            push!(acts, FiaSim.PlanAction(; kind = "thin", cycle = k, metric = a.metric,
+                    target = a.target, direction = a.direction, species = a.species,
+                    dbh_lo = a.dbh_lo, dbh_hi = a.dbh_hi))
+        end
+        FiaSim.ManagementPlan(; name = plan.name, cycles = plan.cycles, period = plan.period,
+                                actions = acts)
+    end
+    ppe_out = (; variant = lsc.variant, nplots = lsc.nplots, nexcluded = lsc.nexcluded,
+                 cycles = [(; elapsed = c.elapsed, target = c.target, resource = c.resource,
+                              pct_of_target = c.pct_of_target, ncut = c.ncut,
+                              nstands = c.nstands) for c in lsc.cycles])
+    plan_for, ppe_out
+end
+
+function _simulate_response(geom5070, plan; engine::AbstractString = "fvs", raw_plan = nothing,
+                            params_id = nothing, climate = nothing)
+    app = APP[]
+    acres, tm2cn = _resolve_plots(geom5070)
+    total_aoi_acres = sum(values(acres); init = 0.0)
+    # cap to the largest-area plots for a bounded synchronous run
+    cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
+    capped = length(cns) > MAX_SIM_PLOTS
+    sim_cns = capped ? cns[1:MAX_SIM_PLOTS] : cns
+    cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))   # FE_CACHE_DIR keeps runs out of the data dir
+
+    # PPE thinning mode (FVSjl only): see `_ppe_setup`
+    is_pan = startswith(engine, "pan-")
+    plan_for, ppe_out = is_pan ? (nothing, nothing) : _ppe_setup(plan, sim_cns, acres, cache)
+    warnings = String[]; engine_info = nothing
+    res = if is_pan
+        # Pan engines take the frontend plan JSON as-is (grow/thin/plant + the LANDIS-style `harvest` kind)
+        r, warnings, engine_info, _ = PanEngine.pan_simulate(sim_cns, acres, raw_plan, engine;
+                                                             params_id = params_id, climate = climate,
+                                                             sites = _plot_sites(geom5070, tm2cn))
+        r
+    else
+        FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
+    end
+
+    units = [(v, acres[cn]) for (cn, v) in res]      # iteration order of `res`: keeps the float sums reproducible
+    ncyc, cycles, dist = _series(units, plan.period)
+    sim_acres = sum(u[2] for u in units; init = 0.0)
 
     # build the per-pixel projected layer (tm_id => per-cycle metrics) for the time slider
     layer = Dict{UInt32,Vector{FiaSim.CycleMetrics}}()
@@ -494,12 +603,19 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     @post "/api/simulate" function (req)
         try
             body = JSON3.read(String(req.body))
-            geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
             engine = String(get(body, :engine, "fvs"))
             engine == "fvsjl" && (engine = "fvs")
             plan = engine == "fvs" ? _parse_plan(body.plan) :
                    _parse_plan(_strip_harvest(body.plan))    # Pan: parsed only for name/cycles/period
             pid = get(body, :params_id, nothing)
+            if haskey(body, :stands) && body.stands !== nothing
+                length(body.stands) in 1:MAX_STANDS || error("select 1–$(MAX_STANDS) stands (got $(length(body.stands)))")
+                stands = [(Int(st.id), Aoi.geom_from_geojson(JSON3.write(st.geometry))) for st in body.stands]
+                return _simulate_stands_response(stands, plan; engine = engine, raw_plan = _plain(body.plan),
+                                                 params_id = pid === nothing ? nothing : String(pid),
+                                                 climate = _plain(get(body, :climate, nothing)))
+            end
+            geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
             return _simulate_response(geom, plan; engine = engine, raw_plan = _plain(body.plan),
                                       params_id = pid === nothing ? nothing : String(pid),
                                       climate = _plain(get(body, :climate, nothing)))
