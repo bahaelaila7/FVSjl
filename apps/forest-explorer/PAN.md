@@ -1,4 +1,4 @@
-# Forest Explorer × Pan (branch `forest-explorer-pan`)
+# Forest Explorer × Pan (branch `forest-explorer-pan`; UI rework on `fe-ui-2`)
 
 This fork adds **Pan** — LANDIS-II-style succession models (Biomass Succession, PnET-Succession) and the HBAD
 height/basal-area/density model, calibrated against FIA — as simulation engines next to **FVSjl**, on the same TreeMap
@@ -22,8 +22,8 @@ checkout (e.g. `~/Documents/projects`). Any single path can still be overridden.
 | `TREEMAP_DATA` | `$WORKSPACE/FVSclaude/treemap` | TreeMap raster/VAT/tree table (read only) |
 | `FIA_DB` | `$WORKSPACE/FVSclaude/SQLite_FIADB_ENTIRE.db` | FVSjl master FIA DB (read only) |
 | `FE_CACHE_DIR` | `./cache/sim_cache` | FVSjl sub-DB cache (kept out of the TreeMap data dir) |
-| `PAN_REPO` | `$WORKSPACE/landis_scen` | Pan checkout (branch `scenario-engine`) — the Pan worker runs from here |
-| `PAN_DEPOT_PATH` | `$PAN_REPO/.julia_depot_wt` (+ `$WORKSPACE/landis_parametrization_julia/.julia_depot` if present) | depot of the Pan worker |
+| `PAN_REPO` | `$WORKSPACE/landis_fe` | Pan checkout (branch `fe-engine` = the refactor with the scenario engine **and HBAD v2**) — the Pan worker runs from here. `PAN_REPO=$WORKSPACE/landis_scen` gives the old scenario-engine branch (HBAD v1 only) |
+| `PAN_DEPOT_PATH` | the `JULIA_DEPOT_PATH` exported by `$PAN_REPO/wt_env.sh` when that file exists, else `$PAN_REPO/.julia_depot_wt` (+ `$WORKSPACE/landis_parametrization_julia/.julia_depot` if present) | depot of the Pan worker |
 | `PAN_FIA_DB` | `$WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb` | curated FIA cohorts for Pan (read only) |
 | `FIA_TRAJ_DB` | `$PAN_FIA_DB` | DuckDB for the optional FIA plots / tree-trajectories layer (read only) |
 | `PAN_CLIMATE_DB` | `$WORKSPACE/pan_climate/pan_climate.duckdb` | PRISM baseline + forecasts (PnET climate) |
@@ -37,17 +37,28 @@ restarted automatically if it dies, and uploaded parameter files are re-sent to 
 
 ## Using it
 1. **AOI**: draw or upload polygons as before (samples: `samples/aois/*.geojson`, e.g. Oconee NF GA).
-2. **Engine** (plan panel): FVSjl, *Pan · Biomass Succession*, *Pan · PnET-Succession*, *Pan · HBAD*. Each scenario keeps its
-   own engine, parameter set and climate.
+2. **Engine** (plan panel): FVSjl, *Pan · Biomass Succession*, *Pan · PnET-Succession*, *Pan · HBAD v1*, *Pan · HBAD v2 (v2j)* and a
+   disabled placeholder *HBAD3 (process-based) — coming*. Each scenario keeps its own engine, parameter set and climate. The
+   *ⓘ About this engine* line under the selector shows the description of the chosen engine (it is also in the report):
+   - **FVSjl** — Julia port of the USDA Forest Service Forest Vegetation Simulator (FVS, Southern variant; Dixon 2002, Essential FVS) — tree-list growth and yield.
+   - **Biomass Succession** — Pan's Julia re-implementation of the LANDIS-II Biomass Succession extension (LANDIS-II: Scheller et al. 2007, Ecological Modelling 201:409–419; Biomass Succession: Scheller & Mladenoff 2004, Ecological Modelling 180:211–229). Species-age cohorts of aboveground biomass; growth limited by ANPP and competition for growing space (B_MAX), age- and growth-related mortality, establishment by shade tolerance and seed availability. Parameters calibrated to FIA in Pan.
+   - **PnET-Succession** — Pan's re-implementation of the LANDIS-II PnET-Succession extension (de Bruijn et al. 2014, Ecological Modelling 287:44–57; built on PnET-II, Aber & Federer 1992). Cohort photosynthesis driven by light, temperature, water (soil water balance), VPD and CO₂; carbon allocation to foliage/wood/roots; responds to the climate scenario.
+   - **HBAD v1** — Pan cohort model of height, basal area and density (N, QMD, height, age) with structural competition (basal area of larger trees, relative density, Reineke self-thinning) and empirical FIA growth/mortality regressions; establishment as in Biomass Succession. Biomass reported via allometry.
+   - **HBAD v2 (v2j)** — biomass-free process cohort model: state N (trees/ha), QMD, mean height, age; height-structured light competition (overtopping) + crowding; species growth curves for diameter and height; growth-stress, background and age mortality; recruitment from seed source and light; calibrated jointly on FIA remeasured trees (Sim A) and stand trajectories (Sim B). Plugin `hbad2` of the refactor Pan (`docs/hbad2_plugin.md`); no climate.
+   - **HBAD3 (coming)** — process-grounded successor of HBAD v2 (stem-volume growth with pipe-model leaf area and hydraulic limitation, trait-based height, carbon-starvation mortality, water balance). Not in Pan yet; the entry is disabled. The texts live in `src/PanEngine.jl` (`PAN_ENGINES[].detail`) and `public/pan.js` (FVSjl).
 3. **Parameter set** (Pan engines): the default is the engine's **EPA Region 4** set (AL FL GA KY MS NC SC TN, 14 L3
    ecoregions; in-sample 46–49 of 50 species groups within ±10 %), unless you upload a YAML file
    (*Upload YAML…*) or pick a sample. The file's header (`pan_params: {plugin: …}`) decides which engine it belongs to; a
    mismatching file is refused with an offer to switch engine. Format and full roster: Pan `docs/scenario_engine.md` §1.
+   HBAD v2 rosters: `r4_hbad2_v2j.yaml` (**default**, current) and the older `r4_hbad2_v2i/v2h/v2g.yaml`, selectable under *Samples…* when the engine is HBAD v2.
    Samples: `r4_{biomass,pnet,hbad}_v1.yaml` (defaults), `gafl_{biomass,pnet,hbad}_v1.yaml` (GA+FL-specific, cross-validated)
    and `gafl_{hbad,biomass,pnet}_alt{1..4}.yaml` — **distinct alternatives** that fit the data about as well as v1 but differ
    in parameters and projections; running a plan with each brackets the projection uncertainty the data cannot resolve
    (see "Alternatives" below).
-4. **Plan**: `+ Thin / harvest` (FVS-style residual BA/TPA/SDI, from below/above, DBH range, species — Pan maps it to a
+4. **Vegetation source** (sidebar, *Data source & display*): *TreeMap 2022 pixels* (the AOI is drawn/uploaded; results are a pixel map) or
+   *Delineated stands — TreeMap-derived (prototype)*; the third entry (*generative vegetation, TreeMap-independent*) is a disabled placeholder.
+   See "Vegetation sources" below.
+5. **Plan**: `+ Thin / harvest` (FVS-style residual BA/TPA/SDI, from below/above, DBH range, species — Pan maps it to a
    harvest), `+ Plant`, and for Pan engines `+ Harvest` (LANDIS Biomass Harvest style):
    - cohort selection by species, age range and DBH range;
    - removal: % of each selected cohort's biomass, clearcut, or a residual BA/TPA/SDI target removed from below, from above
@@ -56,13 +67,13 @@ restarted automatically if it dies, and uploaded parameter files are re-sent to 
    - repeat every N cycles; optional planting right after (species, trees/ac, survival %).
    BA/TPA/SDI/DBH specifications act on Biomass Succession and PnET cohorts through the empirical
    (species, age, biomass) ↔ (TPA, QMD, BA, height) translation; HBAD tracks those variables directly.
-5. **Climate…** (PnET only): baseline (PRISM forecast extrapolation, repeat the last T years, or average of the last K
+6. **Climate…** (PnET only): baseline (PRISM forecast extrapolation, repeat the last T years, or average of the last K
    windows of T years), CO₂ pathway (constant, linear, SSP2-4.5, SSP5-8.5), and any number of changes (variable: mean / min /
    max temperature or precipitation; add °C or % change; step or linear ramp between years; optional months). The modal
    shows AOI-weighted annual charts and a monthly waveform of baseline vs modified; *Reset* restores the default.
-6. **Run scenario**, compare scenarios, report — as before. Engine warnings (plots outside the parameter set's ecoregions,
+7. **Run scenario**, compare scenarios, report — as before. Engine warnings (plots outside the parameter set's ecoregions,
    donors, method notes) appear under the plan and in the status line.
-7. **Session bundle** (sidebar): *Export* writes a JSON with the AOI patches, every scenario's engine, embedded parameter
+8. **Session bundle** (sidebar, accordion *Session bundle & samples*): *Export* writes a JSON with the AOI patches, every scenario's engine, embedded parameter
    YAML, climate settings and plan; *Import…* restores them (scenarios come back un-run). Sample:
    `samples/bundles/ga_fl_demo_bundle.json` (Oconee AOI, 6 scenarios: FVSjl, HBAD grow/thin+clearcut+replant, Biomass
    hardwood selection, PnET baseline vs hot & dry).
@@ -153,8 +164,9 @@ Use v1 as the reference and the alternatives to bracket projection uncertainty.
 - `python3 test/pan_api_smoke.py` — end-to-end API test (meta, samples, parameter upload incl. a bad file, AOI, Pan HBAD /
   Biomass / PnET (baseline and hot & dry) simulations with harvest/thin/plant, FVSjl simulation, engine/parameter mismatch,
   climate preview).
-- `test/ui_walkthrough.py` — headless browser walk-through with screenshots (needs Playwright + Chromium; on this machine
-  `/workspace/fe_pan/.uivenv` + libraries in `/workspace/fe_pan/.uitools/env/lib`, see the script header).
+- `test/ui_walkthrough.py` — headless browser checks (initial state/accordions, engine list + descriptions, one scenario per engine incl. HBAD v2 grow/thin/plant and an FVSjl PPE thin, PPE inside the plan, compare + report with PNG decode, bundle, console errors; PASS/FAIL, exit code). Needs Playwright + Chromium: `LD_LIBRARY_PATH=/workspace/fe_pan/.uitools/env/lib PLAYWRIGHT_BROWSERS_PATH=/workspace/fe_pan/.uitools/pw FONTCONFIG_FILE=/workspace/fe_pan/.uitools/env/etc/fonts/fonts.conf /workspace/fe_pan/.uivenv/bin/python test/ui_walkthrough.py http://127.0.0.1:8089 <outdir>`.
+- `test/ui_stands.py` — stands layer + the stands vegetation source (click / polygon selection, HBAD v2 and FVSjl per stand, stand colors per cycle).
+- Note: Oxygen serves `public/` from memory — restart the server after editing frontend files.
 - `public/mock_pan.js` (`/?mock=1`) — frontend-only mock of the Pan endpoints.
 
 ## Stands layer (prototype, 2026-10-19)
@@ -168,3 +180,55 @@ clear-cuts kept as their own stands).
   FL (one of the 5 FL parcel counties); 15,341 stands, 128,121 ha.
 - UI check: `test/ui_stands.py` (Playwright; needs `FONTCONFIG_FILE=/workspace/fe_pan/.uitools/env/etc/fonts/fonts.conf` in addition to
   `LD_LIBRARY_PATH`).
+
+## UI layout (fe-ui-2)
+Nothing is preallocated for empty content; groups appear when they have something to show.
+- **Sidebar = accordions** (`<details>`, keyboard: Tab to a summary, Enter/Space toggles): *Data source & display* (open: data source, vegetation
+  source; the display attribute / basemap / opacity live in a nested, closed *Display* section), *Area of interest* (open), *Layers: FIA plots,
+  stands* (closed; the two layer groups inside keep their ids `fiaGrp`, `stGrp`), *Session bundle & samples* (closed). Hidden until there is
+  content: *Simulated layer*, *AOI summary*, *Species × DBH class* (shown when an AOI/simulation exists).
+- **Bottom panel**: one accordion *Scenarios & plan*, closed until an AOI exists (then opened). The *Projection* column (chart, metric, time
+  slider) is hidden until a scenario has a result, so the plan uses the full width before that.
+- **PPE harvest budget is part of the scenario** (FVSjl): a collapsible *Landscape harvest budget (PPE)* section of the plan panel (ids
+  unchanged: `lsTarget`, `lsPriority`, `lsCredit`, `lsYear`, `lsCycles`, `lsPeriod`, `runLandscape`). *Preview* runs `/api/landscape` as before;
+  *Add as thin action* writes the same budget into the plan as a Thin action with `mode: ppe` (the existing per-stand scheduling), so it runs
+  with the scenario, appears in the plan summary, in the report's "Harvest scheduling" and in saved plans / bundles. As before it is FVSjl-only.
+- Ids used by the tests are unchanged (`#engine`, `#runSim`, `#status`, `#cards`, `#file`, `#scenarioChips`, ...); new: `#vegSource`,
+  `#standTools`, `#stSelPoly`, `#stSelClear`, `#planDet`, `#planR`, `#engineHelp`/`#engineText`, `#accSource/#accAoi/#accLayers`.
+
+## Vegetation sources and data flow
+**TreeMap 2022 pixels** (default, unchanged): AOI polygons → `/api/aoi` (union MultiPolygon → TreeMap pixels → FIA plots) → `/api/simulate`
+(`geometry`) simulates the plots once per AOI; the result is rendered as a pixel raster per (metric, cycle) (`/simimage/...`).
+
+**Delineated stands — TreeMap-derived (prototype)**: the simulation unit is the **stand** (`public/stands/<area>.geojson`, Baker County FL).
+1. The AOI is a *selection*: click a stand on the map to toggle it (cyan outline), or *Select stands in polygon* (draw a polygon; every stand
+   whose centroid lies inside is added). At most 100 stands. The selection is the AOI (patch list shows `Stand <id>`); `/api/aoi` summarises
+   it as before. Changing the selection clears scenarios (stale), as any AOI change does.
+2. *Run* sends `POST /api/simulate` with `stands: [{id, geometry}]` next to the usual engine/plan/params/climate. For each stand the backend
+   resolves its polygon to TreeMap pixels and plots with the existing `_resolve_plots` (plot acres = pixel share × pixel area), so the stand's
+   vegetation is the **pixel-share-weighted composite of the TreeMap plots of its pixels**; the Pan site (majority L4, centroid) is that of the
+   stand's pixels. Pan engines are called once per stand; FVSjl simulates the union of the plots once. Each stand is capped to its 200 largest plots
+   (FVSjl: 200 distinct plots overall; both are reported as warnings). A PPE thin (FVSjl) budgets across the plots of all selected stands.
+3. Results are aggregated **per stand** (acre-weighted means of live carbon, BA, volume per cycle → `stands[i].map`, plus the stand's cycle
+   series) and over all stands (`cycles`, `dist`, `domains`; `image` is null). Stands without TreeMap pixels (e.g. harvested) are skipped and
+   reported.
+4. The projection map colors the **stand polygons** (GeoJSON source `simstands`) per cycle and metric with the same colour ramps and
+   auto-scaled domain as the raster; the time slider and metric selector work as before; click a stand for its projected values. The
+   report snapshot shows the colored stands.
+Limitations (prototype): the session bundle stores patches only (a stands session re-imports as TreeMap-source patches, un-run); the
+generative (TreeMap-independent) source is not implemented.
+
+## Report
+*Compare → ↓ Report* writes a self-contained HTML: AOI map snapshot, metric charts, species × DBH, endpoints, harvest scheduling (PPE), the
+scenarios (plan, engine, parameter set, vegetation source) and an **Engines** section with the description of every engine used.
+- **Map image fix**: the snapshot was read from the WebGL canvas synchronously at click time, an arbitrary moment at which a drawing buffer can
+  be cleared (blank/transparent PNG), and as a full-DPR PNG it could be many MB. It is now read inside a `render` event of a forced repaint,
+  downscaled to ≤ 1100 px, checked for content (a blank or cross-origin-tainted canvas is detected) and embedded as `<img id="aoiimg">`; if the
+  canvas cannot be read the report draws the AOI outline as an SVG instead of a broken image (with a note). `test/ui_walkthrough.py`
+  downloads the report in the headless browser, decodes the PNG and checks signature, `naturalWidth` and pixel variance.
+
+## Pan engine versions (HBAD v2) and parity with the old worker
+`PAN_REPO` now defaults to the refactor checkout. Biomass Succession and FVSjl results are identical to the old worker on the test AOI; PnET and
+HBAD v1 differ slightly because the refactor fixed order-dependence (Pan commits B32/B37: results used to depend on DuckDB's unordered result
+sets). The old worker is *not* reproducible run to run (HBAD v1 grow-only +40 yr BA 151.1–155.9 ft²/ac over 3 runs of the same request); the new one
+is deterministic. Comparison on a 62-plot AOI (Oconee, 4 cycles x 10 yr, default sets, same requests to the old worker on 8088 and the new one on 8089): Biomass Succession thin+plant and FVSjl thin+plant identical in every cycle; PnET grow-only within 0.2 % (volume 1,203,483 vs 1,204,241 ft3 at +40 yr); HBAD v1 grow-only +40 yr BA 151.0 (new) vs 155.9 / 151.1 (two old runs); HBAD v1 residual-BA harvest from below +40 yr BA 125.5 (new, reproducible) vs 115.7 / 114.5 / 116.6 (three old runs) - the order in which equal cohorts are removed 'from below' changed with the B32/B37 ordering fixes; the same harvest with proportional removal agrees (139.3 new vs 138.0 / 133.8 old).

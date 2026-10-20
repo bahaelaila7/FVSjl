@@ -52,6 +52,8 @@ thin_plant = [{"kind": "thin", "cycle": 1, "metric": "BA", "target": 70, "direct
                "stands": {"rank": "oldest", "area_pct": 30}, "plant_after": {"species": "PITA", "tpa": 600, "survival": 80}}]
 hot = json.load(open(os.path.join(SAMPLES, "climates", "hot_dry_ssp585.json")))
 runs = [("pan-hbad", {"name": "hbad harvest", "cycles": 4, "period": 10, "actions": [harvest]}, None, ids.get("hbad")),
+        ("pan-hbad2", {"name": "hbad2 grow", "cycles": 4, "period": 10, "actions": []}, None, ids.get("hbad2")),
+        ("pan-hbad2", {"name": "hbad2 harvest+plant", "cycles": 4, "period": 10, "actions": thin_plant}, None, ids.get("hbad2")),
         ("pan-biomass", {"name": "bs thin+plant", "cycles": 4, "period": 10, "actions": thin_plant}, None, ids.get("biomass")),
         ("pan-pnet", {"name": "pnet baseline", "cycles": 4, "period": 10, "actions": []}, None, ids.get("pnet")),
         ("pan-pnet", {"name": "pnet hot dry", "cycles": 4, "period": 10, "actions": []}, hot, ids.get("pnet")),
@@ -63,6 +65,18 @@ for eng, plan, cl, pid in runs:
          f"warnings {[w[:80] for w in r.get('warnings') or []][:2]}") if good else str(r)[:300]
     check(f"simulate {eng} '{plan['name']}'", good, d)
     if good: check(f"  {eng} map image + species×DBH", r.get("image") is not None and len(r["dist"][0]) > 0, f"dist rows {len(r['dist'][0])}")
+# delineated-stands source: POST /api/simulate with `stands` (one simulation unit per stand), 2 stands from the Baker County file when present
+sf = os.path.join(HERE, "..", "public", "stands", "baker_fl.geojson")
+if os.path.isfile(sf):
+    fs = [f for f in json.load(open(sf))["features"] if f["properties"]["status"] == 1 and (f["properties"].get("tm_n") or 0) > 0 and 20 < (f["properties"]["area_ha"] or 0) < 120][:2]
+    body = {"stands": [{"id": f["properties"]["stand_id"], "geometry": f["geometry"]} for f in fs], "geometry": fs[0]["geometry"],
+            "plan": {"name": "st", "cycles": 3, "period": 10, "actions": []}, "engine": "pan-hbad2"}
+    st, r = req("/api/simulate", body)
+    good = st == 200 and r.get("nstands") == 2 and len(r["stands"]) == 2 and r.get("image") is None and all(len(s["map"]["ba"]) == 4 for s in r["stands"])
+    check("simulate per stand (delineated stands source, HBAD v2)", good, f"stands {[ (s['id'], s['nplots_sim'], s['map']['ba']) for s in r['stands']]}" if good else str(r)[:300])
+    body["engine"] = "fvs"
+    st, r = req("/api/simulate", body)
+    check("simulate per stand (FVSjl)", st == 200 and r.get("nstands") == 2 and r.get("image") is None, str(r)[:200] if st != 200 else f"{[s['map']['carbon'] for s in r['stands']]}")
 st, r = req("/api/simulate", {"geometry": geom, "plan": {"name": "x", "cycles": 2, "period": 10, "actions": []}, "engine": "pan-hbad", "params_id": ids.get("biomass")})
 check("params/engine mismatch rejected", st == 400, str(r)[:160])
 st, r = req("/api/pan/climate_preview", {"geometry": geom, "climate": hot, "start_year": 2025, "years": 80})
