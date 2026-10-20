@@ -116,11 +116,16 @@ async function boot() {
   el('runSim').onclick = runSim;
   el('newScenario').onclick = newScenario;
   el('compareBtn').onclick = openCompare;
-  el('cmpDownload').onclick = downloadReport;
+  el('cmpDownload').onclick = () => downloadReport().catch(err => setStatus('report error: '+err.message));
   el('cmpClose').onclick = closeCompare;
   el('compareModal').onclick = e => { if(e.target===el('compareModal')) closeCompare(); };
   document.addEventListener('keydown', e => { if(e.key==='Escape' && el('compareModal').style.display==='flex') closeCompare(); });
   el('runLandscape').onclick = runLandscape;
+  el('lsAddThin').onclick = () => {          // the PPE budget as part of the plan: a thin action scheduled by the budget
+    plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',species:'all',dbh_lo:0,dbh_hi:999,mode:'ppe',
+      target_expr:el('lsTarget').value.trim()||'1000',priority_expr:el('lsPriority').value,credit_expr:el('lsCredit').value});
+    renderActions(); setStatus('thin action scheduled by the PPE budget added to the plan');
+  };
   for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init(), () => FiaUI.init(), () => StandsUI.init()]) {
     try { f(); } catch (err) { console.error(err); setStatus('UI init error: ' + err.message); }
   }
@@ -130,11 +135,12 @@ async function boot() {
   el('showSim').onchange = setSimLayer;
   el('simMapMetric').onchange = () => { renderSimLegend(); setSimLayer(); };
   el('simOp').oninput = e => { el('simOpv').textContent=e.target.value+'%';
-    if(map.getLayer('simlayer')) map.setPaintProperty('simlayer','raster-opacity',(+e.target.value)/100); };
+    if(map.getLayer('simlayer')) map.setPaintProperty('simlayer','raster-opacity',(+e.target.value)/100);
+    if(map.getLayer('simstands-fill')) map.setPaintProperty('simstands-fill','fill-opacity',(+e.target.value)/100); };
   el('pCycles').onchange = e => plan.cycles = +e.target.value;
   el('pPeriod').onchange = e => plan.period = +e.target.value;
   renderActions();
-  el('draw').onclick = startDraw;
+  el('draw').onclick = () => startDraw();
   el('clear').onclick = clearAoi;
   el('download').onclick = downloadAoi;
   el('upload').onclick = () => el('file').click();
@@ -188,9 +194,11 @@ const aoiBeforeId = () => (map && map.getLayer('aoi-fill')) ? 'aoi-fill' : undef
 const emptyFC = () => ({type:'FeatureCollection',features:[]});
 
 /* ---------------- polygon draw ---------------- */
-let drawing=false, verts=[], lastClick=0;
-function startDraw(){
+let drawing=false, verts=[], lastClick=0, drawHook=null;
+// startDraw(hook): with a hook the finished polygon is handed to it instead of becoming a patch (stand selection by polygon)
+function startDraw(hook){
   cancelDraw();               // cancel any in-progress draft; KEEP existing patches (additive)
+  drawHook = typeof hook === 'function' ? hook : null;
   drawing=true; verts=[];
   map.getCanvas().style.cursor='crosshair';
   map.doubleClickZoom.disable();
@@ -242,13 +250,22 @@ function updateDrawHint(){
 function finishDraw(){
   if (verts.length < 3){ return; }         // keep drawing until a valid ring
   const geometry = {type:'Polygon',coordinates:[verts.concat([verts[0]])]};
+  const hook = drawHook;
   cancelDraw();
+  if(hook){ hook(geometry); return; }
   aoiParts.push(geometry);                 // ADD a patch to the holding (multi-polygon AOI)
   submitAoiUnion();
 }
 
 // --- multi-patch AOI: the holding is the union of `aoiParts` polygons -------------------
 let aoiParts = [];                         // array of GeoJSON Polygon geometries (patches)
+let vegSource = 'treemap';                 // 'treemap' (pixels) | 'stands' (delineated stands; each aoiParts[i] is stand aoiStandIds[i])
+let aoiStandIds = [];                      // parallel to aoiParts in the stands source
+// StandsUI → AOI: the selected stands become the AOI patches
+function setStandAoi(ids, geoms){
+  aoiParts = geoms.slice(); aoiStandIds = ids.slice();
+  if(aoiParts.length) submitAoiUnion(); else clearAoi();
+}
 let currentAoiGeom = null;                 // the union MultiPolygon actually sent to the API
 // flatten any Polygon/MultiPolygon into a list of Polygon coordinate-arrays
 function polysOf(geom){
@@ -270,13 +287,16 @@ function aoiFeatureCollection(){
 function renderPatchList(){
   const host=el('patchList'); if(!host) return;
   el('patchBadge').hidden = aoiParts.length===0;
-  el('patchBadge').textContent = aoiParts.length + (aoiParts.length===1?' patch':' patches');
+  const unit = vegSource==='stands' ? 'stand' : 'patch';
+  el('patchBadge').textContent = aoiParts.length + ' ' + unit + (aoiParts.length===1?'':(unit==='stand'?'s':'es'));
   host.innerHTML = aoiParts.map((g,i)=>
     `<div class="row" style="justify-content:space-between;align-items:center;font-size:12px;padding:2px 0">
-       <span style="color:var(--muted)">▪ Patch ${i+1}</span>
+       <span style="color:var(--muted)">▪ ${vegSource==='stands' && aoiStandIds[i]!=null ? 'Stand '+aoiStandIds[i] : 'Patch '+(i+1)}</span>
        <button class="rm" data-patch="${i}" title="remove patch">×</button></div>`).join('');
   host.querySelectorAll('[data-patch]').forEach(b=>b.onclick=e=>{
-    aoiParts.splice(+e.currentTarget.dataset.patch,1);
+    const k=+e.currentTarget.dataset.patch;
+    aoiParts.splice(k,1);
+    if(vegSource==='stands'){ aoiStandIds.splice(k,1); StandsUI.setSelection(aoiStandIds); }
     aoiParts.length ? submitAoiUnion() : clearAoi();
   });
 }
@@ -295,7 +315,7 @@ function downloadAoi(){
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 function cancelDraw(){
-  drawing=false; verts=[]; lastClick=0;
+  drawing=false; verts=[]; lastClick=0; drawHook=null;
   map.getCanvas().style.cursor='';
   el('drawhint').style.display='none';
   map.off('click',onDrawClick); map.off('dblclick',onDrawDblClick); map.off('mousemove',onDrawMove);
@@ -304,13 +324,14 @@ function cancelDraw(){
 }
 function clearAoi(){
   cancelDraw();
-  aoiParts = []; currentAoiGeom = null;
+  aoiParts = []; currentAoiGeom = null; aoiStandIds = [];
   if (map.getSource('aoi')) map.getSource('aoi').setData(emptyFC());
   el('download').disabled = true; el('runSim').disabled = true;
   renderPatchList();
   clearScenarios();
   lastSim = null; clearSimLayer(); drawSimChart();
   el('statsGrp').hidden = true; el('chartGrp').hidden = true; el('landscapeGrp').hidden = true;
+  el('planDet').open = false; el('planSub').textContent = 'select an area of interest to start';
 }
 
 /* ---------------- upload (adds patch(es)) ---------------- */
@@ -357,7 +378,7 @@ async function submitAoiUnion(){
 
 function renderResult(d){
   if (map.getSource('aoi')) map.getSource('aoi').setData(aoiFeatureCollection());
-  if (d.bbox) map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
+  if (d.bbox && vegSource!=='stands') map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
                             {padding:60,maxZoom:13,duration:600});
   const cards = [
     ['Plots', fmt(d.nplots), ''],
@@ -411,10 +432,44 @@ function speciesDbhSVG(cells, W=420, H=240, title=''){
     + `<div style="font-size:11px;color:#6b7280;margin-top:2px">${legend}</div>`;
 }
 
-/* PNG snapshot of the map (AOI + basemap + overlay) for the report. Returns a data URI or ''. */
+/* PNG snapshot of the map (basemap + AOI + projected overlay) for the report. Resolves to a data URI, or '' when the
+   canvas cannot be read or is blank. The buffer is read INSIDE a 'render' event of a forced repaint: that is the only moment
+   the WebGL drawing buffer is guaranteed to hold the finished frame (reading it at an arbitrary time can give a cleared
+   buffer = blank/transparent image). The frame is downscaled to <= 1100 px wide (a full-DPR PNG can be many MB) and checked
+   for content; a cross-origin-tainted or blank canvas falls back to '' and the report then draws an SVG outline instead. */
 function mapSnapshot(){
-  try{ map.triggerRepaint(); return map.getCanvas().toDataURL('image/png'); }
-  catch(err){ console.warn('map snapshot failed', err); return ''; }
+  return new Promise(resolve => {
+    let done = false;
+    const finish = v => { if(!done){ done = true; resolve(v); } };
+    const grab = () => {
+      try{
+        const src = map.getCanvas(), sw = src.width, sh = src.height;
+        if(!sw || !sh) return finish('');
+        const k = Math.min(1, 1100/sw), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(sw*k)); c.height = Math.max(1, Math.round(sh*k));
+        const g = c.getContext('2d'); g.fillStyle = '#0e1512'; g.fillRect(0,0,c.width,c.height);
+        g.drawImage(src, 0, 0, c.width, c.height);
+        const d = g.getImageData(0, 0, c.width, c.height).data;           // throws when the canvas is tainted
+        let n = 0, s1 = 0, s2 = 0;
+        for(let i=0;i<d.length;i+=4*13){ const v=(d[i]+d[i+1]+d[i+2])/3; n++; s1+=v; s2+=v*v; }
+        const m = s1/n; if(s2/n - m*m < 4) return finish('');                // blank
+        finish(c.toDataURL('image/png'));
+      }catch(err){ console.warn('map snapshot failed', err); finish(''); }
+    };
+    map.once('render', grab);
+    map.triggerRepaint();
+    setTimeout(() => { if(!done){ map.off('render', grab); grab(); } }, 4000);   // no render event (hidden tab): read what is there
+  });
+}
+/* fallback AOI picture when the canvas snapshot is unavailable: the AOI outlines as an SVG */
+function aoiOutlineSVG(W=760, H=420){
+  const polys = aoiParts.flatMap(polysOf); if(!polys.length) return '';
+  const pts = polys.flatMap(pl => pl[0]); const mx = x => x;
+  let w=180,e=-180,s0=90,n=-90; pts.forEach(([x,y])=>{ w=Math.min(w,x); e=Math.max(e,x); s0=Math.min(s0,y); n=Math.max(n,y); });
+  const kx = Math.cos((s0+n)/2*Math.PI/180), dx=(e-w)*kx||1e-6, dy=(n-s0)||1e-6, sc=Math.min((W-20)/dx,(H-20)/dy);
+  const X = x => 10+((x-w)*kx)*sc, Y = y => H-10-(y-s0)*sc;
+  const paths = polys.map(pl => `<path d="${pl.map(r=>'M'+r.map(([x,y])=>X(x).toFixed(1)+','+Y(y).toFixed(1)).join(' L')+'Z').join(' ')}" fill="#bbf7d0" stroke="#15803d" stroke-width="1.5" fill-rule="evenodd"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px">${paths}</svg>`;
 }
 
 /* species × DBH stacked bar of basal area */
@@ -626,6 +681,12 @@ async function loadPlan(e){
   e.target.value='';
 }
 
+function simRequest(){
+  const b = PanUI.simBody(currentAoiGeom, plan);
+  if(vegSource==='stands' && aoiStandIds.length===aoiParts.length)
+    b.stands = aoiStandIds.map((id,i)=>({id, geometry:aoiParts[i]}));      // simulation unit = stand
+  return b;
+}
 async function runSim(){
   if(!currentAoiGeom){ setStatus('select an AOI first'); return; }
   plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
@@ -649,7 +710,7 @@ async function runSim(){
     let res, d;
     for(let attempt=0; attempt<2; attempt++){
       res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(PanUI.simBody(currentAoiGeom, plan))});
+        body:JSON.stringify(simRequest())});
       d=await res.json();
       if((!res.ok||d.error) && attempt===0 && await PanUI.recoverFromError(d.error)) continue;   // stale params_id -> re-upload once
       break;
@@ -663,12 +724,12 @@ async function runSim(){
       return;
     }
     const nm = el('scenName').value.trim() || `Scenario ${++scenSeq}`;
-    const scen = { name:nm, plan:JSON.parse(JSON.stringify(plan)), result:d, ...PanUI.snapshot() };
+    const scen = { name:nm, plan:JSON.parse(JSON.stringify(plan)), result:d, veg:vegSource, ...PanUI.snapshot() };
     if(updating){ scenarios[activeIdx]=scen; }
     else { scenarios.push(scen); activeIdx=scenarios.length-1; }
     el('scenName').value = nm;
     lastSim=d; drawSimChart(); setupSlider(d); renderScenarioChips(); PanUI.refreshLabels();
-    PanUI.statusWithWarnings(`“${nm}” (${PanUI.engineLabel(scen.engine)}): ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`, d);
+    PanUI.statusWithWarnings(`“${nm}” (${PanUI.engineLabel(scen.engine)}): ${d.stands?fmt(d.nstands)+' stands · ':''}${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`, d);
   }catch(err){ setStatus('simulate error: '+err.message); }
   finally{ clearInterval(poll); el('runSim').disabled=false; el('simprog').style.display='none'; }
 }
@@ -701,7 +762,7 @@ function renderSimLegend(){
 function setupSlider(d){
   const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
   el('timerow').style.display = (d.ncycles>1) ? 'flex' : 'none';
-  el('simLayerGrp').hidden = !d.image; el('showSim').checked = true;
+  el('simLayerGrp').hidden = !(d.image || d.stands); el('showSim').checked = true;
   renderSimLegend();
   updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle();
 }
@@ -730,7 +791,16 @@ function updateSimTime(){
   if(el('simLayerWhen')) el('simLayerWhen').textContent = t;
 }
 function setSimLayer(){
-  if(!map || !lastSim || !lastSim.image) return;
+  if(!map || !lastSim) return;
+  if(lastSim.stands){                                // delineated stands: color the stand polygons
+    if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer');
+    if(!el('showSim').checked){ StandsUI.clearSim(); return; }
+    const m = effSimMetric(), meta = SIM_MAP_META[m]||SIM_MAP_META.carbon;
+    StandsUI.showSim(lastSim, m, simCycle, (+el('simOp').value)/100||0.92, meta.cmap, (lastSim.domains||{})[m]||[0,1]);
+    return;
+  }
+  StandsUI.clearSim();
+  if(!lastSim.image) return;
   const im = lastSim.image;
   if(!el('showSim').checked){                        // dedicated toggle, independent of the whole-map layer
     if(map.getLayer('simlayer')) map.removeLayer('simlayer');
@@ -759,7 +829,7 @@ function setSimLayer(){
 function clearSimLayer(){
   if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; }
   el('timerow').style.display='none'; el('simLayerGrp').hidden=true;
-  if(map){ if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer'); }
+  if(map){ if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer'); StandsUI.clearSim(); }
 }
 function onSlider(v){ simCycle=+v; el('simSlider').value=simCycle; updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle(); }
 function toggleSimPlay(){
@@ -771,7 +841,9 @@ function toggleSimPlay(){
 
 function drawSimChart(){
   const svg=el('simChart'); if(!svg) return; svg.innerHTML='';
-  el('simEmpty').style.display = (lastSim && lastSim.cycles && lastSim.cycles.length) ? 'none' : 'block';
+  const has = !!(lastSim && lastSim.cycles && lastSim.cycles.length);
+  el('simEmpty').style.display = has ? 'none' : 'block';
+  el('planR').hidden = !has; el('planBody').classList.toggle('solo', !has);      // projection column only when there is something to show
   if(!lastSim || !lastSim.cycles || !lastSim.cycles.length) return;
   const metric=el('simMetric').value;
   const pts=lastSim.cycles.map(c=>({x:c.elapsed, y:+c[metric]||0}));
@@ -797,6 +869,8 @@ function drawSimChart(){
 function onAoiReady(cells){
   el('runSim').disabled = false;
   el('landscapeGrp').hidden = PanUI.isPan();      // PPE budget is FVS-only
+  el('planDet').open = true;
+  el('planSub').textContent = vegSource==='stands' ? `${aoiParts.length} stand${aoiParts.length===1?'':'s'} selected` : 'ready — add actions and run';
   // seed the plant species picker with the AOI's own species + common western codes
   const dl=el('splist'); if(!dl) return;
   const seen=new Set(), out=[];
@@ -912,19 +986,23 @@ function renderCompare(){
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px">${charts}</div>
      <div style="margin-top:14px">${compareTableHTML()}</div>`;
 }
-function downloadReport(){
+async function downloadReport(){
+  const vegLabel = s => (s.veg==='stands' || (s.result && s.result.stands)) ? 'vegetation: delineated stands (TreeMap-derived), simulated per stand' : 'vegetation: TreeMap 2022 pixels';
+  const engIds = [...new Set(cmpS().map(s=>s.engine||'fvs'))];
+  const engHTML = '<h2>Engines</h2><ul>'+engIds.map(id=>`<li><b>${PanUI.esc(PanUI.engineLabel(id))}</b> — ${PanUI.esc(PanUI.engineDetail(id))}</li>`).join('')+'</ul>';
   const plans = cmpS().map((s,i)=>
-    `<li><b style="color:${scenColor(i)}">${PanUI.esc(s.name)}</b> — ${PanUI.esc(planSummary(s.plan))} · ${s.plan.cycles}×${s.plan.period}yr<br><span class="muted">${PanUI.esc(PanUI.scenMeta(s))}</span>${(s.result&&s.result.warnings&&s.result.warnings.length)?`<br><span class="muted">warnings: ${s.result.warnings.map(PanUI.esc).join('; ')}</span>`:''}</li>`).join('');
+    `<li><b style="color:${scenColor(i)}">${PanUI.esc(s.name)}</b> — ${PanUI.esc(planSummary(s.plan))} · ${s.plan.cycles}×${s.plan.period}yr<br><span class="muted">${PanUI.esc(vegLabel(s))}</span><br><span class="muted">${PanUI.esc(PanUI.scenMeta(s))}</span>${(s.result&&s.result.warnings&&s.result.warnings.length)?`<br><span class="muted">warnings: ${s.result.warnings.map(PanUI.esc).join('; ')}</span>`:''}</li>`).join('');
   const aoi = el('cards') ? el('cards').innerText.replace(/\n+/g,' · ') : '';
   const charts = activeMetrics().map(m =>
     `<div class="chart"><h3>${cmpLabel(m)} over time</h3>${compareChartSVG(m, 760, 300)}</div>`).join('');
 
   // AOI snapshot — the map exactly as it is on screen (basemap + patches + any projected overlay)
-  const snap = mapSnapshot();
-  const snapHTML = snap
-    ? `<h2>Area of interest</h2><img src="${snap}" alt="AOI snapshot" style="width:100%;border:1px solid #e5e7eb;border-radius:6px">
-       <div class="muted" style="margin-top:4px">${aoiParts.length} patch(es)${aoi?' · '+aoi:''}</div>`
-    : '';
+  const snap = await mapSnapshot();
+  const unitWord = vegSource==='stands' ? 'stand(s)' : 'patch(es)';
+  const snapHTML = `<h2>Area of interest</h2>`
+    + (snap ? `<img id="aoiimg" src="${snap}" alt="AOI map snapshot" style="width:100%;border:1px solid #e5e7eb;border-radius:6px">`
+            : `${aoiOutlineSVG()}<div class="muted">(map snapshot unavailable in this browser — AOI outline only)</div>`)
+    + `<div class="muted" style="margin-top:4px">${aoiParts.length} ${unitWord}${aoi?' · '+aoi:''}</div>`;
 
   // species × DBH: the inventory now, then each scenario's END state (per-cycle `dist` from the projection)
   const endDist = s => (s.result && s.result.dist && s.result.dist.length)
@@ -967,7 +1045,8 @@ function downloadReport(){
     ${sppHTML}
     <h2>Endpoints</h2>${compareTableHTML()}
     ${ppeHTML ? '<h2>Harvest scheduling</h2>'+ppeHTML : ''}
-    <h2>Scenarios</h2><ul>${plans}</ul></body></html>`;
+    <h2>Scenarios</h2><ul>${plans}</ul>
+    ${engHTML}</body></html>`;
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url;
   a.download=`scenario-comparison-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.html`;
