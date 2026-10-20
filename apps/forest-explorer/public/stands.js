@@ -23,7 +23,7 @@ const StandsUI = (() => {
 
   function colorExpr() {
     if (S.color === 'status') return ['match', ['get', 'status'], 1, STATUS[1][1], 2, STATUS[2][1], 3, STATUS[3][1], 4, STATUS[4][1], '#888'];
-    const ramps = { BALIVE: [0, 150], STANDHT: [0, 100], QMD: [0, 16], CANOPYPCT: [0, 100] };
+    const ramps = { BALIVE: [0, 150], STANDHT: [0, 100], QMD: [0, 16], CANOPYPCT: [0, 100], GEN_BA: [0, 150], GEN_TPA: [0, 600], GEN_QMD: [0, 16], GEN_BA_SD: [0, 100] };
     const [lo, hi] = ramps[S.color];
     return ['case', ['==', ['typeof', ['get', S.color]], 'number'],
       ['interpolate', ['linear'], ['get', S.color], lo, '#f7fcb9', (lo + hi) / 2, '#41ab5d', hi, '#004529'], '#bbbbbb'];
@@ -31,7 +31,7 @@ const StandsUI = (() => {
   function legend() {
     const el = $('stLegend'); if (!el) return;
     if (S.color === 'status') { el.innerHTML = Object.values(STATUS).map(([l, c]) => `<span class="stkey"><i style="background:${c}"></i>${esc(l)}</span>`).join(''); return; }
-    const u = { BALIVE: 'ft²/ac', STANDHT: 'ft', QMD: 'in', CANOPYPCT: '%' }[S.color];
+    const u = { BALIVE: 'ft²/ac', STANDHT: 'ft', QMD: 'in', CANOPYPCT: '%', GEN_BA: 'ft²/ac', GEN_TPA: 'trees/ac', GEN_QMD: 'in', GEN_BA_SD: 'ft²/ac' }[S.color];
     el.innerHTML = `<span class="stramp"></span> ${esc(S.color)} (${u}); grey = no TreeMap pixels (e.g. harvested)`;
   }
   async function load() {
@@ -59,7 +59,8 @@ const StandsUI = (() => {
     const rows = [['status', st], ['area', f1(p.area_ha) + ' ha'], p.loss_year ? ['harvest (loss) year', p.loss_year] : null,
       ['basal area', f1(p.BALIVE) + ' ft²/ac'], ['stand height', f1(p.STANDHT) + ' ft'], ['QMD', f1(p.QMD) + ' in'], ['live TPA', f1(p.TPA_LIVE)],
       ['canopy cover', f1(p.CANOPYPCT) + ' %'], ['softwood share (BA)', f1(100 * (p.SOFTWOOD_FRAC ?? NaN)) + ' %'],
-      ['TreeMap pixels', f1(100 * (p.tm_frac ?? 0)) + ' % of the stand'], ['TreeMap plots', `${p.tm_n ?? 0} (main ${f1(100 * (p.tm_share ?? 0))} %)`],
+      ['TreeMap pixels', f1(100 * (p.tm_frac ?? 0)) + ' % of the stand'],
+      p.GEN_BA != null ? ['generative (prototype)', `BA ${f1(p.GEN_BA)} ± ${f1(p.GEN_BA_SD)} ft²/ac · ${f1(p.GEN_TPA)} TPA · QMD ${f1(p.GEN_QMD)} in`] : null, ['TreeMap plots', `${p.tm_n ?? 0} (main ${f1(100 * (p.tm_share ?? 0))} %)`],
       ['available water 0–30 cm', p.awc030 == null ? '–' : `${f1(300 * p.awc030)} mm (${(+p.awc030).toFixed(3)} cm/cm)`], ['clay / sand 0–30 cm', `${f1(p.clay030)} / ${f1(p.sand030)} %`]].filter(Boolean);
     return `<div class="stpop"><b>Stand ${p.stand_id}</b><table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>
       <button type="button" class="btn" id="stSim" ${p.status === 2 && !(p.tm_frac > 0) ? 'title="harvested stand: no TreeMap pixels; the AOI pipeline has no vegetation for it yet (donors pending)"' : ''}>Simulate this stand</button></div>`;
@@ -203,7 +204,9 @@ const StandsUI = (() => {
       stand</b> makes it the AOI.</div>
       <label class="field" for="stArea">Area</label><select id="stArea">${AREAS.map(a => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select>
       <label class="field" for="stColor">Color by</label><select id="stColor"><option value="status">status</option><option value="BALIVE">basal area</option>
-      <option value="STANDHT">stand height</option><option value="QMD">QMD</option><option value="CANOPYPCT">canopy cover</option></select>
+      <option value="STANDHT">stand height</option><option value="QMD">QMD</option><option value="CANOPYPCT">canopy cover</option>
+      <optgroup label="Generative vegetation (prototype, TreeMap-independent)"><option value="GEN_BA">basal area — generative</option><option value="GEN_TPA">trees per acre — generative</option>
+      <option value="GEN_QMD">QMD — generative</option><option value="GEN_BA_SD">basal area — sample spread</option></optgroup></select>
       <div id="stLegend" class="hint" style="margin-top:6px"></div><div class="hint" id="stStatus" role="status" aria-live="polite"></div></div>`;
     host.parentNode.insertBefore(g, host);
     $('stOn').addEventListener('change', e => toggle(e.target.checked));
