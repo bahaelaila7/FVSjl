@@ -180,6 +180,33 @@ function _resolve_plots(geom5070)
     acres, tm2cn
 end
 
+"""
+Per-stand engine notes (stands mode, one Pan run per stand) → one summary line per kind of note, plus the per-stand lines as `details`.
+The donor note ("k plots (p % of the area) have no curated FIA cohorts …") becomes one area-weighted line over the selected stands.
+"""
+function _summarise_stand_notes!(warnings, details, notes, nstands, total_acres)
+    isempty(notes) && return
+    donor_re = r"^(\d+) plots \(([\d.]+) % of the area\) have no curated FIA cohorts"
+    donor_st = Set{Any}(); donor_plots = 0; donor_acres = 0.0; other = Dict{String,Vector{Any}}()
+    for (sid, acres, x) in notes
+        push!(details, "stand $(sid): " * x)
+        m = match(donor_re, x)
+        if m !== nothing
+            push!(donor_st, sid); donor_plots += parse(Int, m[1]); donor_acres += acres * parse(Float64, m[2]) / 100
+        else
+            key = replace(x, r"[\d.]+" => "#"); push!(get!(other, key, Any[]), (sid, x))
+        end
+    end
+    if !isempty(donor_st)
+        push!(warnings, "$(length(donor_st)) of $(nstands) stands include FIA plots without curated cohorts (mostly pre-2008 visits; $(donor_plots) plot-uses, " *
+                        "$(round(100 * donor_acres / max(total_acres, 1e-9); digits=1)) % of the selected area): their vegetation comes from TreeMap donor plots of the same forest type")
+    end
+    for (_, v) in other
+        push!(warnings, length(v) == 1 ? "stand $(v[1][1]): $(v[1][2])" : "$(length(v)) stands: $(v[1][2]) (see details)")
+    end
+    nothing
+end
+
 const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "EPA_ECOREGIONS", "us_eco_l4", "us_eco_l4_no_st.shp")))
 
 "Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
@@ -285,7 +312,7 @@ function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs",
         sim_cns = length(cns) > MAX_SIM_PLOTS ? cns[1:MAX_SIM_PLOTS] : cns
         (; id, geom = g, acres, tm2cn, sim_cns)
     end
-    warnings = String[]; engine_info = nothing; ppe_out = nothing
+    warnings = String[]; details = String[]; stand_notes = Tuple{Any,Float64,String}[]; engine_info = nothing; ppe_out = nothing
     res_for = Vector{Dict{String,FiaSim.PlotResult}}()
     if is_pan
         for st in info
@@ -295,11 +322,12 @@ function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs",
             r, w, ei, _ = PanEngine.pan_simulate(st.sim_cns, st.acres, raw_plan, engine; params_id = params_id,
                                                  climate = climate, sites = _plot_sites(st.geom, st.tm2cn))
             push!(res_for, r); engine_info = ei
-            for x in w                                  # engine-wide notes once, per-stand notes prefixed with the stand
+            for x in w                                  # engine-wide notes once, per-stand notes collected and summarised below
                 if startswith(x, "Pan volumes"); x in warnings || push!(warnings, x)
-                else push!(warnings, "stand $(st.id): " * x); end
+                else push!(stand_notes, (st.id, sum(values(st.acres); init=0.0), x)); end
             end
         end
+        _summarise_stand_notes!(warnings, details, stand_notes, length(info), sum(sum(values(st.acres); init=0.0) for st in info))
     else
         uacres = Dict{String,Float64}()
         for st in info, (cn, a) in st.acres; uacres[cn] = get(uacres, cn, 0.0) + a; end
@@ -349,7 +377,7 @@ function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs",
        nplots_sim = length(allunits), capped = false, acres = round(total_ac; digits = 1),
        sim_acres = round(sum(u[2] for u in allunits; init = 0.0); digits = 1),
        ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist, domains = doms, ppe = ppe_out,
-       engine = engine, warnings = warnings, engine_info = engine_info, image = nothing,
+       engine = engine, warnings = warnings, warning_details = details, engine_info = engine_info, image = nothing,
        stands = [(; s.id, s.area_ac, s.nplots, s.nplots_sim, s.cycles,
                     map = Dict(k => [isnan(x) ? nothing : round(x; digits = 2) for x in v] for (k, v) in s.map)) for s in sums])
 end

@@ -433,7 +433,9 @@ const PanUI = (() => {
     const box = el('simWarn'), w = (d && d.warnings) || [];
     if (!w.length) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
-    box.innerHTML = `<b>${w.length} warning${w.length === 1 ? '' : 's'} from the engine</b><ul>${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+    const det = (d && d.warning_details) || [];
+    box.innerHTML = `<b>${w.length} warning${w.length === 1 ? '' : 's'} from the engine</b><ul>${w.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` +
+      (det.length ? `<details><summary>per-stand details (${det.length})</summary><ul>${det.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
   }
   function statusWithWarnings(msg, d) {
     const w = (d && d.warnings) || [];
