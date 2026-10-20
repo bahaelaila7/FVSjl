@@ -180,7 +180,7 @@ function _resolve_plots(geom5070)
     acres, tm2cn
 end
 
-const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", "/workspace/EPA_ECOREGIONS/us_eco_l4/us_eco_l4_no_st.shp"))
+const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "EPA_ECOREGIONS", "us_eco_l4", "us_eco_l4_no_st.shp")))
 
 "Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
 function _plot_sites(geom5070, tm2cn)

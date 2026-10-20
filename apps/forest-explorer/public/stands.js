@@ -1,5 +1,5 @@
 'use strict';
-/* Optional layer "Stands (delineated)": stand polygons from the standmap pipeline (/workspace/standmap: TreeMap + SOLUS + AlphaEarth
+/* Optional layer "Stands (delineated)": stand polygons from the standmap pipeline (standmap project: TreeMap + SOLUS + AlphaEarth
    2022/2025 segmentation, cut by roads / water / parcels, recent clear-cuts kept as their own stands). Static GeoJSON per prototype area
    (public/stands/<area>.geojson, EPSG:4326). Click a stand → its attributes; "Simulate this stand" makes the stand polygon the AOI, so the
    existing AOI pipeline (TreeMap pixels → FIA plots → FVSjl / Pan) runs on exactly that stand.

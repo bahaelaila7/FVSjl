@@ -17,7 +17,7 @@ module FiaTrajectories
 
 using DuckDB, DBInterface, DataFrames, JSON3, HTTP, Oxygen
 
-const DEFAULT_DB = "/workspace/FIA/FIASQLITE2PGSQL/FIADB.duckdb"
+const DEFAULT_DB = joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "FIA", "FIASQLITE2PGSQL", "FIADB.duckdb")   # <workspace root>/FIA/...
 db_path() = get(ENV, "FIA_TRAJ_DB", get(ENV, "PAN_FIA_DB", DEFAULT_DB))
 
 const MAX_POINTS = 5000

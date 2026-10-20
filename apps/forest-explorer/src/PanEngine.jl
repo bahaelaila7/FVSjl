@@ -7,7 +7,7 @@ compatible), started lazily and kept warm: `tools/pan_worker.jl` of the Pan repo
 (protocol: Pan repo `docs/scenario_campaign_plan.md`). Results are converted to `FiaSim.PlotResult`, so aggregation,
 rasters, charts and the compare report are shared with FVSjl.
 
-Config (env): `PAN_REPO` (default `/workspace/landis_fe`: the refactor branch with the scenario engine and HBAD v2), `PAN_THREADS` (default `auto`), `PAN_AUTOSTART` (`1`
+Config (env): `PAN_REPO` (default `<workspace root>/landis_fe`: the refactor branch with the scenario engine and HBAD v2), `PAN_THREADS` (default `auto`), `PAN_AUTOSTART` (`1`
 starts the worker in the background when the server starts), `PAN_WORKER_LOG` (stderr of the worker).
 """
 module PanEngine
@@ -17,7 +17,7 @@ import ..FiaSim
 
 export pan_status, pan_call, pan_simulate, pan_load_params, pan_default_params, pan_climate_preview
 
-pan_repo() = get(ENV, "PAN_REPO", "/workspace/landis_fe")
+pan_repo() = get(ENV, "PAN_REPO", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "landis_fe"))   # default: <workspace root>/landis_fe (root = the folder holding fe_pan, or WORKSPACE)
 worker_log() = get(ENV, "PAN_WORKER_LOG", joinpath(tempdir(), "pan_worker.log"))
 
 const ENGINE_PLUGIN = Dict("pan-biomass" => "biomass", "pan-pnet" => "pnet", "pan-hbad" => "hbad", "pan-hbad2" => "hbad2")
