@@ -31,8 +31,8 @@ const PAN_ENGINES = [
        detail = "Pan cohort model of height, basal area and density (N, QMD, height, age) with structural competition (basal area of larger trees, relative density, Reineke self-thinning) and empirical FIA growth/mortality regressions; establishment as in Biomass Succession. Biomass reported via allometry."),
     (; id = "pan-hbad2", label = "Pan · HBAD v2 (v2j)", plugin = "hbad2", climate = false, coming = false,
        detail = "Biomass-free process cohort model: state N (trees/ha), QMD, mean height, age; height-structured light competition (overtopping) + crowding; species growth curves for diameter and height; growth-stress, background and age mortality; recruitment from seed source and light; calibrated jointly on FIA remeasured trees (Sim A) and stand trajectories (Sim B). Default parameter set: v2j."),
-    (; id = "pan-hbad3p", label = "Pan · HBAD3P (process-based)", plugin = "hbad3p", climate = false, coming = false,
-       detail = "Process-grounded successor of HBAD v2 (Pan plugin hbad3p, parameters fitted on GA+FL remeasurements: P3_GAFL). Cohort state N, QMD, height, age, crown ratio with 5 vigour sub-cohorts; stem-volume growth with pipe-model leaf area (crown ratio), light from height-structured overtopping, hydraulic height limitation, water supply (period AET/PET); height from a trait H-D curve with shade elongation; carbon-starvation, background and age mortality (+ drought anomaly; zero in projections, W = the plot normal); Reineke self-thinning; recruitment = fecundity x light window x seed source. Per species only growth efficiency and fecundity are fitted; everything else is global or a species trait (max height, shade tolerance, longevity). Starts from the TREES of the plot visit (4 subplot sites, densities per forested area). Not yet climate-scenario driven.")]
+    (; id = "pan-hbad3p", label = "Pan · HBAD3P (process-based)", plugin = "hbad3p", climate = true, coming = false,
+       detail = "Process-grounded successor of HBAD v2 (Pan plugin hbad3p, parameters fitted on GA+FL remeasurements: P3_GAFL). Cohort state N, QMD, height, age, crown ratio with 5 vigour sub-cohorts; stem-volume growth with pipe-model leaf area (crown ratio), light from height-structured overtopping, hydraulic height limitation, water supply (period AET/PET); height from a trait H-D curve with shade elongation; carbon-starvation, background and age mortality (+ drought anomaly against the plot's 1991–2020 normal); Reineke self-thinning; recruitment = fecundity x light window x seed source. Per species only growth efficiency and fecundity are fitted; everything else is global or a species trait (max height, shade tolerance, longevity). Starts from the TREES of the plot visit (4 subplot sites, densities per forested area). Climate scenario: acts through the water index only (growing-season AET/PET of a monthly soil bucket: precipitation, Thornthwaite PET from temperature, soil AWC), on growth (W^ω) and drought mortality; no direct temperature or CO₂ effect.")]
 
 mutable struct Worker
     proc::Base.Process
@@ -165,7 +165,7 @@ function pan_simulate(cns::Vector{String}, acres::AbstractDict, plan, engine::Ab
     r = try
         _with_params(params_id) do
             pan_call("simulate"; on_progress = prog, plugin = plugin, params_id = params_id, plots = plots, plan = plan,
-                     climate = (plugin == "pnet" ? climate : nothing))
+                     climate = (plugin in ("pnet", "hbad3p") ? climate : nothing))
         end
     finally
         FiaSim._PROG.running[] = false

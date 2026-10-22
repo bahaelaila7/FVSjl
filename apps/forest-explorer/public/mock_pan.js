@@ -15,7 +15,7 @@
     { id: 'pan-pnet', label: 'Pan · PnET-Succession', plugin: 'pnet', climate: true },
     { id: 'pan-hbad', label: 'Pan · HBAD v1', plugin: 'hbad', climate: false },
     { id: 'pan-hbad2', label: 'Pan · HBAD v2 (process-based)', plugin: 'hbad2', climate: false },
-    { id: 'pan-hbad3p', label: 'Pan · HBAD3P (process-based)', plugin: 'hbad3p', climate: false },
+    { id: 'pan-hbad3p', label: 'Pan · HBAD3P (process-based)', plugin: 'hbad3p', climate: true },
   ];
   const yamlOf = (plugin, name, extra = '') => `pan_params:\n  plugin: ${plugin}\n  name: ${name}\n  description: mock ${plugin} set\nspecies: [PITA, QUAL, LIST, PIEL, QUNI]\n${extra}`;
   const SAMPLE_FILES = {
