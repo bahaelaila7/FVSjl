@@ -73,10 +73,11 @@ const ProtoUI = (() => {
   function onClick(L, e) {
     const f = e.features && e.features[0]; if (!f) return;
     if (typeof StandsUI !== 'undefined' && StandsUI.isSim && StandsUI.isSim()) return;
+    const isStands = (L.props || []).some(p => p.name === 'status') && f.properties.stand_id != null;
+    if (e.originalEvent && e.originalEvent.shiftKey && isStands && typeof StandsUI !== 'undefined') { StandsUI.addFromProto(L.id, f.properties.stand_id); return; }
     const rows = Object.entries(f.properties).map(([k, v]) => { const p = propOf(L, k);
       const lab = p ? `${p.label}${p.unit ? ' (' + p.unit + ')' : ''}` : k; return `<tr><td>${esc(lab)}</td><td>${esc(fmt(v))}</td></tr>`; }).join('');
-    if (S.popup) S.popup.remove();
-    S.popup = new maplibregl.Popup({ maxWidth: '340px' }).setLngLat(e.lngLat).setHTML(`<div class="stpop"><b>${esc(L.label)}</b><table>${rows}</table></div>`).addTo(map);
+    InfoUI.show(e.lngLat, L.label, `<div class="stpop"><table>${rows}</table>${isStands ? '<div class="hint">Shift-click to add this stand to the simulation selection.</div>' : ''}</div>`);
   }
   function fitTo(L) {
     if (L.type === 'image') { const c = L.coordinates; map.fitBounds([[c[0][0], c[2][1]], [c[1][0], c[0][1]]], { padding: 30, duration: 600 }); return; }
@@ -101,9 +102,10 @@ const ProtoUI = (() => {
     const groups = [...new Set(man.layers.map(L => L.group))];
     const g = document.createElement('details'); g.className = 'grp fia'; g.id = 'pxGrp';
     g.innerHTML = `<summary><h2>Prototype layers (research)</h2></summary><div class="fbody">
-      <div class="hint">Results of the standmap / HBAD3P prototypes (built ${esc(man.built || '?')}). Rebuild with <code>standmap/scripts/fe_proto_layers.py</code>, then restart the server.</div>
+      <div class="hint">Results of the standmap / HBAD3P prototypes (built ${esc(man.built || '?')}). Rebuild with <code>standmap/scripts/fe_proto_layers.py</code>, then restart the server.
+      <b>Shift-click</b> a stand of a stand layer to simulate it (adds it to the stands selection).</div>${InfoUI.selectHtml()}
       ${groups.map(gr => `<h3>${esc(gr)}</h3>` + man.layers.filter(L => L.group === gr).map(rowHtml).join('')).join('')}</div>`;
-    host.parentNode.insertBefore(g, host);
+    host.parentNode.insertBefore(g, host); InfoUI.wire(g);
     for (const L of man.layers) {
       $('pxo-' + L.id).addEventListener('change', e => { const st = S.state.get(L.id); st.on = e.target.checked; $('pxctl-' + L.id).hidden = !st.on;
         try { if (st.on) add(L); else remove(L); } catch (err) { console.error(err); setStatus('prototype layer error: ' + err.message); } });

@@ -6,9 +6,40 @@
    Vegetation source "Delineated stands" (#vegSource = stands): clicking a stand toggles it into the SELECTION, "Select stands in polygon" adds every
    stand whose centroid lies inside a drawn polygon; the selection is the AOI (app.js setStandAoi) and the simulation unit is the stand
    (POST /api/simulate with `stands`). After a run, showSim() colors the selected stand polygons per cycle (instead of the pixel raster). */
+/* Shared "info on click" display (stands + prototype layers): popup at the click | a draggable info box | off. Remembered per browser. */
+const InfoUI = (() => {
+  const KEY = 'feInfoMode'; let mode = 'popup', box = null, popup = null;
+  try { mode = localStorage.getItem(KEY) || 'popup'; } catch (e) { /* storage unavailable: default */ }
+  function ensureBox() {
+    if (box) return box;
+    box = document.createElement('div'); box.className = 'infobox'; box.hidden = true;
+    box.innerHTML = '<div class="infobox-h" title="Drag to move"><span class="infobox-t"></span><button type="button" class="infobox-x" aria-label="Close">×</button></div><div class="infobox-b"></div>';
+    map.getContainer().appendChild(box);
+    box.querySelector('.infobox-x').onclick = () => { box.hidden = true; };
+    const h = box.querySelector('.infobox-h'); let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+    h.addEventListener('mousedown', ev => { if (ev.target.classList.contains('infobox-x')) return; drag = true; sx = ev.clientX; sy = ev.clientY; ox = box.offsetLeft; oy = box.offsetTop; ev.preventDefault(); });
+    window.addEventListener('mousemove', ev => { if (drag) { box.style.left = (ox + ev.clientX - sx) + 'px'; box.style.top = (oy + ev.clientY - sy) + 'px'; } });
+    window.addEventListener('mouseup', () => { drag = false; });
+    return box;
+  }
+  /* show the info; returns the element holding the html (to wire buttons) or null when off */
+  function show(lngLat, title, html) {
+    if (mode === 'off') return null;
+    if (popup) { popup.remove(); popup = null; }
+    if (mode === 'box') { const b = ensureBox(); b.querySelector('.infobox-t').textContent = title; b.querySelector('.infobox-b').innerHTML = html; b.hidden = false; return b; }
+    popup = new maplibregl.Popup({ maxWidth: '340px' }).setLngLat(lngLat).setHTML(html).addTo(map); return popup.getElement();
+  }
+  function close() { if (popup) { popup.remove(); popup = null; } if (box) box.hidden = true; }
+  function setMode(m) { mode = m; try { localStorage.setItem(KEY, m); } catch (e) { /* not persisted */ } close(); document.querySelectorAll('.infoModeSel').forEach(s => { s.value = m; }); }
+  const selectHtml = () => `<label class="field">Info on click</label><select class="infoModeSel" title="Where the attributes of a clicked stand / feature appear">
+    <option value="popup"${mode === 'popup' ? ' selected' : ''}>popup at the click</option><option value="box"${mode === 'box' ? ' selected' : ''}>info box (drag to move)</option>
+    <option value="off"${mode === 'off' ? ' selected' : ''}>off</option></select>`;
+  function wire(root) { root.querySelectorAll('.infoModeSel').forEach(s => { s.onchange = e => setMode(e.target.value); }); }
+  return { show, close, setMode, selectHtml, wire };
+})();
 const StandsUI = (() => {
   const SRC = 'stands', L_FILL = 'stands-fill', L_LINE = 'stands-line', L_SEL = 'stands-sel';
-  const AREAS = [{ id: 'baker_fl', label: 'Baker County, FL (prototype)', url: '/stands/baker_fl.geojson' }];
+  const AREAS = [{ id: 'baker_fl', label: 'Baker County, FL (prototype)', url: '/stands/baker_fl.geojson' }];   // + every stand run of /proto/manifest.json (init)
   const STATUS = { 1: ['forest', '#2e7d32'], 2: ['harvested (loss since 2017)', '#e65100'], 3: ['regenerating', '#f9a825'], 4: ['forest (not in TreeMap)', '#6a1b9a'] };
   const S = { on: false, data: null, area: AREAS[0], popup: null, color: 'status', sel: new Set(), byId: new Map(), cent: null, timer: null, simOn: false, simPopup: null };
   const MAX_SEL = 100;                                           // server limit (MAX_STANDS)
@@ -48,7 +79,7 @@ const StandsUI = (() => {
     if (!map.getLayer(L_PICKL)) map.addLayer({ id: L_PICKL, type: 'line', source: SRC, filter: pickFilter(), paint: { 'line-color': '#00e5ff', 'line-width': 2.5 } }, before);
     if (!map.getLayer(L_SEL)) map.addLayer({ id: L_SEL, type: 'line', source: SRC, filter: ['==', ['get', 'stand_id'], -1], paint: { 'line-color': '#00e5ff', 'line-width': 3 } }, before);
   }
-  function removeLayers() { for (const l of [L_SEL, L_PICKL, L_PICK, L_LINE, L_FILL]) if (map.getLayer(l)) map.removeLayer(l); if (map.getSource(SRC)) map.removeSource(SRC); if (S.popup) S.popup.remove(); }
+  function removeLayers() { for (const l of [L_SEL, L_PICKL, L_PICK, L_LINE, L_FILL]) if (map.getLayer(l)) map.removeLayer(l); if (map.getSource(SRC)) map.removeSource(SRC); InfoUI.close(); }
   function bbox(fc) {
     let w = 180, s = 90, e = -180, n = -90;
     const walk = c => { if (typeof c[0] === 'number') { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); } else c.forEach(walk); };
@@ -108,18 +139,21 @@ const StandsUI = (() => {
   }
   function clearSelection() { S.sel.clear(); refreshPick(); clearTimeout(S.timer); setStandAoi([], []); }
   function setSelection(ids) { S.sel = new Set(ids); refreshPick(); }                // from app.js (patch list ×): no commit
+  async function shiftAdd(id) {                                  // shift-click: add / remove a stand to the simulation selection (switches to stands mode)
+    if (!isStandsMode()) { const vs = $('vegSource'); if (vs) vs.value = 'stands'; await setVegSource('stands'); }
+    toggleStand(id);
+  }
   function onClick(e) {
     const f = e.features && e.features[0]; if (!f) return;
-    if (isStandsMode() && !S.simOn) { toggleStand(f.properties.stand_id); return; }
     if (S.simOn) return;                                          // projected stands: the sim popup answers the click
+    if ((e.originalEvent && e.originalEvent.shiftKey) || isStandsMode()) { shiftAdd(f.properties.stand_id); return; }
     map.setFilter(L_SEL, ['==', ['get', 'stand_id'], f.properties.stand_id]);
-    if (S.popup) S.popup.remove();
-    S.popup = new maplibregl.Popup({ maxWidth: '320px' }).setLngLat(e.lngLat).setHTML(popupHtml(f.properties)).addTo(map);
-    const b = document.getElementById('stSim');
+    const root = InfoUI.show(e.lngLat, `Stand ${f.properties.stand_id}`, popupHtml(f.properties));
+    const b = root && root.querySelector('#stSim');
     if (b) b.onclick = () => {
       const full = S.data.features.find(x => x.properties.stand_id === f.properties.stand_id);   // full-resolution geometry (not the tile-clipped one)
       aoiParts = [full.geometry]; submitAoiUnion();                                               // the stand becomes the AOI (app.js)
-      if (S.popup) S.popup.remove();
+      InfoUI.close();
       setStatus(`stand ${f.properties.stand_id} (${f1(f.properties.area_ha)} ha) set as the AOI — choose an engine and Simulate`);
     };
   }
@@ -202,7 +236,9 @@ const StandsUI = (() => {
       <div class="fbody"><div class="hint">Stand polygons segmented from TreeMap 2022, SOLUS soils and AlphaEarth 2022/2025 embeddings, split by roads,
       water and parcel lines; recent clear-cuts (Hansen loss since 2017) form their own stands. Click a stand for its attributes; <b>Simulate this
       stand</b> makes it the AOI.</div>
-      <label class="field" for="stArea">Area</label><select id="stArea">${AREAS.map(a => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select>
+      <div class="hint"><b>Shift-click</b> stands to add (or remove) them to the simulation selection — up to ${MAX_SEL}; each stand is simulated on its own.</div>
+      ${InfoUI.selectHtml()}
+      <label class="field" for="stArea">Area / stand run</label><select id="stArea">${AREAS.map(a => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select>
       <label class="field" for="stColor">Color by</label><select id="stColor"><option value="status">status</option><option value="BALIVE">basal area</option>
       <option value="STANDHT">stand height</option><option value="QMD">QMD</option><option value="CANOPYPCT">canopy cover</option>
       <optgroup label="Generative vegetation (prototype, TreeMap-independent)"><option value="GEN_BA">basal area — generative</option><option value="GEN_TPA">trees per acre — generative</option>
@@ -211,7 +247,14 @@ const StandsUI = (() => {
     host.parentNode.insertBefore(g, host);
     $('stOn').addEventListener('change', e => toggle(e.target.checked));
     $('stColor').addEventListener('change', e => { S.color = e.target.value; if (map.getLayer(L_FILL)) map.setPaintProperty(L_FILL, 'fill-color', colorExpr()); legend(); });
-    $('stArea').addEventListener('change', e => { S.area = AREAS.find(a => a.id === e.target.value); S.data = null; if (S.on) { removeLayers(); toggle(true); } });
+    $('stArea').addEventListener('change', e => { S.area = AREAS.find(a => a.id === e.target.value); S.data = null; S.sel.clear(); refreshPick(); if (S.on) { removeLayers(); toggle(true); } });
+    InfoUI.wire(g);
+    fetch('/proto/manifest.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(man => {   // prototype stand runs as further areas
+      if (!man) return;
+      for (const L of man.layers) if (L.type === 'fill' && (L.props || []).some(p => p.name === 'status') && !AREAS.some(a => a.id === 'proto:' + L.id))
+        AREAS.push({ id: 'proto:' + L.id, label: 'Prototype — ' + L.label, url: L.url });
+      $('stArea').innerHTML = AREAS.map(a => `<option value="${a.id}"${a.id === S.area.id ? ' selected' : ''}>${esc(a.label)}</option>`).join('');
+    }).catch(() => {});
     map.on('click', L_FILL, onClick);
     map.on('click', L_SIMF, onSimClick);
     $('vegSource').addEventListener('change', e => setVegSource(e.target.value));
@@ -220,5 +263,15 @@ const StandsUI = (() => {
     map.on('mouseenter', L_FILL, () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', L_FILL, () => map.getCanvas().style.cursor = '');
   }
-  return { init, setSelection, showSim, clearSim, isSim: () => S.simOn };
+  /* shift-click on a prototype stand layer (proto.js): show that stand run in this panel and add the stand to the simulation selection */
+  async function addFromProto(layerId, standId) {
+    const a = AREAS.find(x => x.id === 'proto:' + layerId); if (!a) return;
+    if (S.area.id !== a.id) {
+      S.area = a; S.data = null; S.sel.clear(); refreshPick(); $('stArea').value = a.id;
+      if (S.on) removeLayers();
+      $('stOn').checked = true; await toggle(true);
+    }
+    await shiftAdd(standId);
+  }
+  return { init, setSelection, showSim, clearSim, isSim: () => S.simOn, addFromProto };
 })();

@@ -11,3 +11,10 @@
 .pxctl { margin: 4px 0 0 22px; } .pxsel { width: 100%; margin-bottom: 4px; } .pxop { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
 .pxfit { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
 .pxramp { display: inline-block; width: 90px; height: 9px; vertical-align: middle; border: 1px solid #999; border-radius: 2px; }
+
+/* draggable info box (InfoUI, stands.js) */
+.infobox { position: absolute; top: 70px; right: 60px; z-index: 5; width: 330px; max-height: 60vh; overflow: auto; background: #fff; border: 1px solid #bbb;
+  border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.25); font-size: 12px; }
+.infobox-h { cursor: move; display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: #2e3b2f; color: #fff; font-weight: 600; user-select: none; }
+.infobox-x { background: none; border: 0; color: #fff; font-size: 16px; cursor: pointer; line-height: 1; }
+.infobox-b { padding: 6px 8px; }
