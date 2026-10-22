@@ -43,7 +43,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const man = JSON.parse(fs.readFileSync(path.join(PUB, 'proto/manifest.json'))); const L = man.layers.find(l => l.id === 'stands_base');
   const pf = JSON.parse(fs.readFileSync(path.join(PUB, L.url))).features[5].properties;
   const cb = $('pxo-' + L.id); cb.checked = true; cb.dispatchEvent(new w.Event('change'));
-  click('proto-' + L.id + '-f', pf, true); await sleep(1500);
+  click('proto-' + L.id + '-f', pf, true); for (let k = 0; k < 40 && !(aoi && aoi.includes(pf.stand_id)); k++) await sleep(250);   // the layer load (17 MB) + 500 ms debounce
   ok($('stArea').value === 'proto:' + L.id && aoi && aoi.includes(pf.stand_id), `prototype layer shift-click: Stands run ${$('stArea').value}, stand ${pf.stand_id} selected (${aoi && aoi.length})`);
   console.log('ALL UI CHECKS PASS');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
