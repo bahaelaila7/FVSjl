@@ -20,7 +20,7 @@ export pan_status, pan_call, pan_simulate, pan_load_params, pan_default_params, 
 pan_repo() = get(ENV, "PAN_REPO", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "landis_fe"))   # default: <workspace root>/landis_fe (root = the folder holding fe_pan, or WORKSPACE)
 worker_log() = get(ENV, "PAN_WORKER_LOG", joinpath(tempdir(), "pan_worker.log"))
 
-const ENGINE_PLUGIN = Dict("pan-biomass" => "biomass", "pan-pnet" => "pnet", "pan-hbad" => "hbad", "pan-hbad2" => "hbad2")
+const ENGINE_PLUGIN = Dict("pan-biomass" => "biomass", "pan-pnet" => "pnet", "pan-hbad" => "hbad", "pan-hbad2" => "hbad2", "pan-hbad3p" => "hbad3p")
 # `coming = true`: listed in the engine selector but disabled (no Pan plugin yet); the frontend shows the label as is.
 const PAN_ENGINES = [
     (; id = "pan-biomass", label = "Pan · Biomass Succession", plugin = "biomass", climate = false, coming = false,
@@ -31,8 +31,8 @@ const PAN_ENGINES = [
        detail = "Pan cohort model of height, basal area and density (N, QMD, height, age) with structural competition (basal area of larger trees, relative density, Reineke self-thinning) and empirical FIA growth/mortality regressions; establishment as in Biomass Succession. Biomass reported via allometry."),
     (; id = "pan-hbad2", label = "Pan · HBAD v2 (v2j)", plugin = "hbad2", climate = false, coming = false,
        detail = "Biomass-free process cohort model: state N (trees/ha), QMD, mean height, age; height-structured light competition (overtopping) + crowding; species growth curves for diameter and height; growth-stress, background and age mortality; recruitment from seed source and light; calibrated jointly on FIA remeasured trees (Sim A) and stand trajectories (Sim B). Default parameter set: v2j."),
-    (; id = "pan-hbad3", label = "HBAD3 (process-based) — coming", plugin = "hbad3", climate = false, coming = true,
-       detail = "Process-grounded successor of HBAD v2 (stem-volume growth with pipe-model leaf area and hydraulic limitation, trait-based height, carbon-starvation mortality, water balance). Not in Pan yet.")]
+    (; id = "pan-hbad3p", label = "Pan · HBAD3P (process-based)", plugin = "hbad3p", climate = false, coming = false,
+       detail = "Process-grounded successor of HBAD v2 (Pan plugin hbad3p, parameters fitted on GA+FL remeasurements: P3_GAFL). Cohort state N, QMD, height, age, crown ratio with 5 vigour sub-cohorts; stem-volume growth with pipe-model leaf area (crown ratio), light from height-structured overtopping, hydraulic height limitation, water supply (period AET/PET); height from a trait H-D curve with shade elongation; carbon-starvation, background and age mortality (+ drought anomaly; zero in projections, W = the plot normal); Reineke self-thinning; recruitment = fecundity x light window x seed source. Per species only growth efficiency and fecundity are fitted; everything else is global or a species trait (max height, shade tolerance, longevity). Starts from the TREES of the plot visit (4 subplot sites, densities per forested area). Not yet climate-scenario driven.")]
 
 mutable struct Worker
     proc::Base.Process

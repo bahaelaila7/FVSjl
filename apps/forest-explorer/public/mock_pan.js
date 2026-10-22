@@ -15,7 +15,7 @@
     { id: 'pan-pnet', label: 'Pan · PnET-Succession', plugin: 'pnet', climate: true },
     { id: 'pan-hbad', label: 'Pan · HBAD v1', plugin: 'hbad', climate: false },
     { id: 'pan-hbad2', label: 'Pan · HBAD v2 (process-based)', plugin: 'hbad2', climate: false },
-    { id: 'pan-hbad3', label: 'HBAD3 (process-based) — coming', plugin: 'hbad3', climate: false, coming: true },
+    { id: 'pan-hbad3p', label: 'Pan · HBAD3P (process-based)', plugin: 'hbad3p', climate: false },
   ];
   const yamlOf = (plugin, name, extra = '') => `pan_params:\n  plugin: ${plugin}\n  name: ${name}\n  description: mock ${plugin} set\nspecies: [PITA, QUAL, LIST, PIEL, QUNI]\n${extra}`;
   const SAMPLE_FILES = {
@@ -53,7 +53,7 @@
   function parseParams(t) {
     const m = /pan_params:\s*[\r\n]+\s+plugin:\s*["']?(\w+)/.exec(t);
     if (!m) return { error: 'missing pan_params header (mock parser)' };
-    if (!['biomass', 'pnet', 'hbad', 'hbad2'].includes(m[1])) return { error: 'unknown plugin ' + m[1] };
+    if (!['biomass', 'pnet', 'hbad', 'hbad2', 'hbad3p'].includes(m[1])) return { error: 'unknown plugin ' + m[1] };
     const nm = /name:\s*(.+)/.exec(t);
     const info = {
       params_id: 'mock-' + (++pid), plugin: m[1], name: nm ? nm[1].trim() : 'uploaded', description: 'mock parse',

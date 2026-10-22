@@ -36,7 +36,7 @@ const PanUI = (() => {
   const plugin = () => { const e = engineById(PAN.engine); return e ? e.plugin : null; };
   const curParams = () => { const pl = plugin(); return pl ? (PAN.paramsByPlugin[pl] || null) : null; };
   const engineLabel = (id = PAN.engine) => { const e = engineById(id); return e ? e.label : (id === 'fvs' ? 'FVSjl' : id); };
-  const engineShort = id => ({ fvs: 'FVS', fvsjl: 'FVS', 'pan-biomass': 'BS', 'pan-pnet': 'PnET', 'pan-hbad': 'HBAD1', 'pan-hbad2': 'HBAD2' }[id] || id || 'FVS');
+  const engineShort = id => ({ fvs: 'FVS', fvsjl: 'FVS', 'pan-biomass': 'BS', 'pan-pnet': 'PnET', 'pan-hbad': 'HBAD1', 'pan-hbad2': 'HBAD2', 'pan-hbad3p': 'HBAD3P' }[id] || id || 'FVS');
 
   async function getJSON(url) {
     const r = await fetch(url);
