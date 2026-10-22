@@ -126,7 +126,7 @@ async function boot() {
       target_expr:el('lsTarget').value.trim()||'1000',priority_expr:el('lsPriority').value,credit_expr:el('lsCredit').value});
     renderActions(); setStatus('thin action scheduled by the PPE budget added to the plan');
   };
-  for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init(), () => FiaUI.init(), () => StandsUI.init()]) {
+  for (const f of [() => PanUI.init(meta), () => ClimateUI.init(), () => BundleUI.init(), () => FiaUI.init(), () => StandsUI.init(), () => ProtoUI.init()]) {
     try { f(); } catch (err) { console.error(err); setStatus('UI init error: ' + err.message); }
   }
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };

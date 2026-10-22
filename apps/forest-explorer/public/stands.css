@@ -5,3 +5,9 @@
 .stpop table { border-collapse: collapse; font-size: 12px; margin: 4px 0 6px; }
 .stpop td { padding: 1px 6px 1px 0; vertical-align: top; }
 .stpop td:first-child { color: #666; }
+
+/* prototype layers panel (proto.js) */
+.pxrow { margin: 6px 0 8px; } .pxlab { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.pxctl { margin: 4px 0 0 22px; } .pxsel { width: 100%; margin-bottom: 4px; } .pxop { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+.pxfit { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
+.pxramp { display: inline-block; width: 90px; height: 9px; vertical-align: middle; border: 1px solid #999; border-radius: 2px; }
