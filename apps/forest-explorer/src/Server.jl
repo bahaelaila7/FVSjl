@@ -209,7 +209,6 @@ end
 
 const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "EPA_ECOREGIONS", "us_eco_l4", "us_eco_l4_no_st.shp")))
 
-"Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
 "EPA L4 id (NA_L3CODE.US_L4CODE) of the polygon containing a point (EPSG:5070 metres); \"\" if none or the shapefile is missing."
 function _l4_at(x::Float64, y::Float64)
     p = ECO_L4_SHP[]; isfile(p) || return ""
@@ -250,6 +249,7 @@ function _gen_stand(id::Int, geom5070)
     (; cn, acres = ArchGDAL.geomarea(geom5070) / 4046.8564224, site = (l4 = _l4_at(x, y), lon = ArchGDAL.getx(p, 0), lat = ArchGDAL.gety(p, 0)), cohorts = coh)
 end
 
+"Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
 function _plot_sites(geom5070, tm2cn)
     app = APP[]
     sites = try
