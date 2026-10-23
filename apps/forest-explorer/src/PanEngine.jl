@@ -143,11 +143,12 @@ function _with_params(f, params_id)
 end
 
 "Plot records for the worker: CN, acres and — when known — the AOI location of its pixels (l4, lon, lat)."
-function _plot_records(cns, acres, sites)
+function _plot_records(cns, acres, sites, cohorts = nothing)
     map(cns) do cn
         d = Dict{String,Any}("cn" => cn, "acres" => Float64(acres[cn]))
         s = sites === nothing ? nothing : get(sites, cn, nothing)
         s === nothing || (d["l4"] = s.l4; d["lon"] = s.lon; d["lat"] = s.lat)
+        cohorts === nothing || (d["cohorts"] = get(cohorts, cn, Any[]))     # TreeMap-independent stand: its own cohort table (Pan scenario_generative.jl)
         d
     end
 end
@@ -156,10 +157,10 @@ end
     pan_simulate(cns, acres, plan_json, engine; params_id=nothing, climate=nothing, sites=nothing) -> (Dict{cn => FiaSim.PlotResult}, warnings, engine_info, status_counts)
 """
 function pan_simulate(cns::Vector{String}, acres::AbstractDict, plan, engine::AbstractString; params_id = nothing, climate = nothing,
-                      sites = nothing)
+                      sites = nothing, cohorts = nothing)
     plugin = get(ENGINE_PLUGIN, engine, nothing)
     plugin === nothing && error("unknown Pan engine $engine")
-    plots = _plot_records(cns, acres, sites)
+    plots = _plot_records(cns, acres, sites, cohorts)
     prog(d, n) = (FiaSim._PROG.total[] = n; FiaSim._PROG.done[] = d)
     FiaSim._PROG.total[] = 1; FiaSim._PROG.done[] = 0; FiaSim._PROG.running[] = true
     r = try

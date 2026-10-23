@@ -210,6 +210,46 @@ end
 const ECO_L4_SHP = Ref(get(ENV, "ECO_L4_SHP", joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "EPA_ECOREGIONS", "us_eco_l4", "us_eco_l4_no_st.shp")))
 
 "Location of each plot inside the AOI (majority EPA L4 of its pixels + their centroid, lon/lat) — Pan's site, see Raster.aoi_sites."
+"EPA L4 id (NA_L3CODE.US_L4CODE) of the polygon containing a point (EPSG:5070 metres); \"\" if none or the shapefile is missing."
+function _l4_at(x::Float64, y::Float64)
+    p = ECO_L4_SHP[]; isfile(p) || return ""
+    ArchGDAL.read(p) do ds
+        lyr = ArchGDAL.getlayer(ds, 0); ArchGDAL.setspatialfilter!(lyr, x - 1, y - 1, x + 1, y + 1)
+        pt = ArchGDAL.createpoint(x, y)
+        for f in lyr
+            ArchGDAL.contains(ArchGDAL.getgeom(f), pt) && return string(ArchGDAL.getfield(f, "NA_L3CODE"), ".", ArchGDAL.getfield(f, "US_L4CODE"))
+        end
+        ""
+    end
+end
+
+# generative stand cohorts (standmap g07_fe_attach.py: public/stands/<area>_cohorts.json), all areas merged, re-read when a file changes
+const _GEN_COHORTS = Ref{Any}((Dict{String,Float64}(), Dict{Int,Any}()))
+function _gen_cohorts()
+    dir = joinpath(PUBLIC, "stands"); fs = isdir(dir) ? filter(f -> endswith(f, "_cohorts.json"), readdir(dir; join = true)) : String[]
+    stamp = Dict(f => mtime(f) for f in fs)
+    stamp == _GEN_COHORTS[][1] && return _GEN_COHORTS[][2]
+    d = Dict{Int,Any}()
+    for f in fs
+        j = JSON3.read(read(f, String))
+        for (k, v) in pairs(j.stands); d[parse(Int, String(k))] = v; end
+    end
+    _GEN_COHORTS[] = (stamp, d); d
+end
+
+"""A generative stand as one Pan plot: cn "stand:<id>", acres of the polygon, location = EPA L4 + lon/lat of its centroid, cohorts = the stand's
+generative cohorts (sym, age, trees per forested ha, QMD cm, height m, crown ratio; 2025). No TreeMap lookup."""
+function _gen_stand(id::Int, geom5070)
+    cn = "stand:$(id)"; c = ArchGDAL.centroid(geom5070); x, y = ArchGDAL.getx(c, 0), ArchGDAL.gety(c, 0)
+    src = ArchGDAL.importEPSG(5070); dst = ArchGDAL.importEPSG(4326)
+    ArchGDAL.GDAL.osrsetaxismappingstrategy(dst.ptr, ArchGDAL.GDAL.OAMS_TRADITIONAL_GIS_ORDER)
+    p = ArchGDAL.createpoint(x, y); ArchGDAL.createcoordtrans(ct -> ArchGDAL.transform!(p, ct), src, dst)
+    rows = get(_gen_cohorts(), id, nothing)
+    coh = rows === nothing ? nothing : [Dict("sym" => String(r[1]), "age" => Float64(r[2]), "tph" => Float64(r[3]), "qmd_cm" => Float64(r[4]),
+                                             "ht_m" => Float64(r[5]), "cr" => Float64(r[6])) for r in rows]
+    (; cn, acres = ArchGDAL.geomarea(geom5070) / 4046.8564224, site = (l4 = _l4_at(x, y), lon = ArchGDAL.getx(p, 0), lat = ArchGDAL.gety(p, 0)), cohorts = coh)
+end
+
 function _plot_sites(geom5070, tm2cn)
     app = APP[]
     sites = try
@@ -302,11 +342,17 @@ simulates the union of the plots once. Results are aggregated per stand and over
 Each stand is capped to its `MAX_SIM_PLOTS` largest plots.
 """
 function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs", raw_plan = nothing,
-                                   params_id = nothing, climate = nothing)
+                                   params_id = nothing, climate = nothing, vegetation::AbstractString = "treemap")
     app = APP[]
     cache = get(ENV, "FE_CACHE_DIR", joinpath(app.datadir, "derived", "sim_cache"))
-    is_pan = startswith(engine, "pan-")
+    is_pan = startswith(engine, "pan-"); gen = vegetation == "generative"
+    gen && !is_pan && error("generative stand vegetation runs on the Pan engines only (select a Pan engine)")
+    gen_of = Dict{String,Any}()
     info = map(stands) do (id, g)
+        if gen                                       # the stand's own generative cohorts: one plot per stand, no TreeMap
+            s = _gen_stand(id, g); gen_of[s.cn] = s
+            return (; id, geom = g, acres = Dict(s.cn => s.acres), tm2cn = Dict{Int,String}(), sim_cns = (isempty(s.site.l4) ? String[] : [s.cn]))
+        end
         acres, tm2cn = _resolve_plots(g)
         cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
         sim_cns = length(cns) > MAX_SIM_PLOTS ? cns[1:MAX_SIM_PLOTS] : cns
@@ -319,8 +365,12 @@ function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs",
             if isempty(st.sim_cns)
                 push!(res_for, Dict{String,FiaSim.PlotResult}()); continue
             end
-            r, w, ei, _ = PanEngine.pan_simulate(st.sim_cns, st.acres, raw_plan, engine; params_id = params_id,
-                                                 climate = climate, sites = _plot_sites(st.geom, st.tm2cn))
+            r, w, ei, _ = gen ?
+                PanEngine.pan_simulate(st.sim_cns, st.acres, raw_plan, engine; params_id = params_id, climate = climate,
+                                       sites = Dict(cn => gen_of[cn].site for cn in st.sim_cns),
+                                       cohorts = Dict(cn => something(gen_of[cn].cohorts, Any[]) for cn in st.sim_cns)) :
+                PanEngine.pan_simulate(st.sim_cns, st.acres, raw_plan, engine; params_id = params_id,
+                                       climate = climate, sites = _plot_sites(st.geom, st.tm2cn))
             push!(res_for, r); engine_info = ei
             for x in w                                  # engine-wide notes once, per-stand notes collected and summarised below
                 if startswith(x, "Pan volumes"); x in warnings || push!(warnings, x)
@@ -370,8 +420,12 @@ function _simulate_stands_response(stands, plan; engine::AbstractString = "fvs",
         end
         isfinite(lo) && hi > lo && (doms[mname] = (floor(lo), ceil(hi)))
     end
-    isempty(nodata) || push!(warnings, "no TreeMap plots simulated for stand(s) " * join(nodata, ", ") *
-        " (no TreeMap pixels, e.g. harvested; or plots outside the parameter set's ecoregions)")
+    isempty(nodata) || push!(warnings, (gen ? "not simulated (no L4 ecoregion at the centroid, or outside the parameter set's ecoregions): stand(s) " :
+        "no TreeMap plots simulated for stand(s) ") * join(nodata, ", ") * (gen ? "" : " (no TreeMap pixels, e.g. harvested; or plots outside the parameter set's ecoregions)"))
+    if gen
+        nno = count(s -> s.cohorts === nothing, values(gen_of))
+        nno > 0 && push!(warnings, "$nno stand(s) have no generative cohorts (not in the generative map, or bare); they start empty (regeneration only)")
+    end
     total_ac = sum(st.area_ac for st in sums; init = 0.0)
     (; plan = plan.name, source = "stands", nstands = length(sums), nplots_aoi = sum(st.nplots for st in sums; init = 0),
        nplots_sim = length(allunits), capped = false, acres = round(total_ac; digits = 1),
@@ -641,7 +695,8 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
                 stands = [(Int(st.id), Aoi.geom_from_geojson(JSON3.write(st.geometry))) for st in body.stands]
                 return _simulate_stands_response(stands, plan; engine = engine, raw_plan = _plain(body.plan),
                                                  params_id = pid === nothing ? nothing : String(pid),
-                                                 climate = _plain(get(body, :climate, nothing)))
+                                                 climate = _plain(get(body, :climate, nothing)),
+                                                 vegetation = String(something(get(body, :vegetation, nothing), "treemap")))
             end
             geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
             return _simulate_response(geom, plan; engine = engine, raw_plan = _plain(body.plan),

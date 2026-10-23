@@ -46,7 +46,7 @@ const StandsUI = (() => {
   const L_PICK = 'stands-pick', L_PICKL = 'stands-pickline', SIM_SRC = 'simstands', L_SIMF = 'simstands-fill', L_SIML = 'simstands-line';
   const RAMPS = { greens: ['#f7fcf5', '#c7e9c0', '#74c476', '#238b45', '#00441b'], viridis: ['#440154', '#414487', '#2a788e', '#22a884', '#7ad151', '#fde725'],
                   magma: ['#000004', '#3b0f70', '#8c2981', '#de4968', '#fe9f6d', '#fcfdbf'] };
-  const isStandsMode = () => typeof vegSource !== 'undefined' && vegSource === 'stands';
+  const isStandsMode = () => typeof vegSource !== 'undefined' && (vegSource === 'stands' || vegSource === 'stands-gen');
   const $ = id => document.getElementById(id);
   const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const f1 = v => (v == null || Number.isNaN(+v)) ? '–' : (+v).toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -174,10 +174,11 @@ const StandsUI = (() => {
     const had = aoiParts.length;
     S.sel.clear(); clearSim();
     vegSource = v; clearAoi(); refreshPick();
-    const st = v === 'stands';
+    const st = v === 'stands' || v === 'stands-gen', gen = v === 'stands-gen';
     $('aoiTools').hidden = st; $('standTools').hidden = !st;
     $('aoihint').innerHTML = st
-      ? 'Vegetation source <b>delineated stands</b>: the AOI is the set of selected stands. Each stand is simulated on its own (vegetation = the pixel-share-weighted composite of the TreeMap plots of its pixels) and results are shown per stand.'
+      ? (gen ? 'Vegetation source <b>delineated stands — generative vegetation</b>: the AOI is the set of selected stands. Each stand starts from its own generative cohorts (species, age, trees/ha, QMD, height, crown ratio of 2025; no TreeMap) and runs on the selected Pan engine; results are shown per stand.'
+           : 'Vegetation source <b>delineated stands</b>: the AOI is the set of selected stands. Each stand is simulated on its own (vegetation = the pixel-share-weighted composite of the TreeMap plots of its pixels) and results are shown per stand.')
       : 'Build the holding from one or more <b>patches</b> — draw each (click vertices, double-click to finish) or upload a <b>GeoJSON</b> / <b>zipped shapefile</b>. Patches need not be contiguous; the AOI resolves to the union of their FIA plots.';
     $('vegHint').textContent = st
       ? 'Stands (prototype, TreeMap-derived): click stands on the map to select them, or select all stands inside a drawn polygon. Results color the stand polygons per cycle.'

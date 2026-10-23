@@ -259,7 +259,8 @@ function finishDraw(){
 
 // --- multi-patch AOI: the holding is the union of `aoiParts` polygons -------------------
 let aoiParts = [];                         // array of GeoJSON Polygon geometries (patches)
-let vegSource = 'treemap';                 // 'treemap' (pixels) | 'stands' (delineated stands; each aoiParts[i] is stand aoiStandIds[i])
+let vegSource = 'treemap';                 // 'treemap' (pixels) | 'stands' (delineated stands; each aoiParts[i] is stand aoiStandIds[i]) | 'stands-gen' (stands, generative vegetation)
+const isStandSrc = () => vegSource==='stands' || vegSource==='stands-gen';
 let aoiStandIds = [];                      // parallel to aoiParts in the stands source
 // StandsUI → AOI: the selected stands become the AOI patches
 function setStandAoi(ids, geoms){
@@ -287,16 +288,16 @@ function aoiFeatureCollection(){
 function renderPatchList(){
   const host=el('patchList'); if(!host) return;
   el('patchBadge').hidden = aoiParts.length===0;
-  const unit = vegSource==='stands' ? 'stand' : 'patch';
+  const unit = isStandSrc() ? 'stand' : 'patch';
   el('patchBadge').textContent = aoiParts.length + ' ' + unit + (aoiParts.length===1?'':(unit==='stand'?'s':'es'));
   host.innerHTML = aoiParts.map((g,i)=>
     `<div class="row" style="justify-content:space-between;align-items:center;font-size:12px;padding:2px 0">
-       <span style="color:var(--muted)">▪ ${vegSource==='stands' && aoiStandIds[i]!=null ? 'Stand '+aoiStandIds[i] : 'Patch '+(i+1)}</span>
+       <span style="color:var(--muted)">▪ ${isStandSrc() && aoiStandIds[i]!=null ? 'Stand '+aoiStandIds[i] : 'Patch '+(i+1)}</span>
        <button class="rm" data-patch="${i}" title="remove patch">×</button></div>`).join('');
   host.querySelectorAll('[data-patch]').forEach(b=>b.onclick=e=>{
     const k=+e.currentTarget.dataset.patch;
     aoiParts.splice(k,1);
-    if(vegSource==='stands'){ aoiStandIds.splice(k,1); StandsUI.setSelection(aoiStandIds); }
+    if(isStandSrc()){ aoiStandIds.splice(k,1); StandsUI.setSelection(aoiStandIds); }
     aoiParts.length ? submitAoiUnion() : clearAoi();
   });
 }
@@ -378,7 +379,7 @@ async function submitAoiUnion(){
 
 function renderResult(d){
   if (map.getSource('aoi')) map.getSource('aoi').setData(aoiFeatureCollection());
-  if (d.bbox && vegSource!=='stands') map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
+  if (d.bbox && !isStandSrc()) map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
                             {padding:60,maxZoom:13,duration:600});
   const cards = [
     ['Plots', fmt(d.nplots), ''],
@@ -683,8 +684,9 @@ async function loadPlan(e){
 
 function simRequest(){
   const b = PanUI.simBody(currentAoiGeom, plan);
-  if(vegSource==='stands' && aoiStandIds.length===aoiParts.length)
+  if(isStandSrc() && aoiStandIds.length===aoiParts.length)
     b.stands = aoiStandIds.map((id,i)=>({id, geometry:aoiParts[i]}));      // simulation unit = stand
+  if(isStandSrc()) b.vegetation = vegSource==='stands-gen' ? 'generative' : 'treemap';   // generative = the stand's own cohorts (no TreeMap)
   return b;
 }
 async function runSim(){
@@ -870,7 +872,7 @@ function onAoiReady(cells){
   el('runSim').disabled = false;
   el('landscapeGrp').hidden = PanUI.isPan();      // PPE budget is FVS-only
   el('planDet').open = true;
-  el('planSub').textContent = vegSource==='stands' ? `${aoiParts.length} stand${aoiParts.length===1?'':'s'} selected` : 'ready — add actions and run';
+  el('planSub').textContent = isStandSrc() ? `${aoiParts.length} stand${aoiParts.length===1?'':'s'} selected` : 'ready — add actions and run';
   // seed the plant species picker with the AOI's own species + common western codes
   const dl=el('splist'); if(!dl) return;
   const seen=new Set(), out=[];
@@ -998,7 +1000,7 @@ async function downloadReport(){
 
   // AOI snapshot — the map exactly as it is on screen (basemap + patches + any projected overlay)
   const snap = await mapSnapshot();
-  const unitWord = vegSource==='stands' ? 'stand(s)' : 'patch(es)';
+  const unitWord = isStandSrc() ? 'stand(s)' : 'patch(es)';
   const snapHTML = `<h2>Area of interest</h2>`
     + (snap ? `<img id="aoiimg" src="${snap}" alt="AOI map snapshot" style="width:100%;border:1px solid #e5e7eb;border-radius:6px">`
             : `${aoiOutlineSVG()}<div class="muted">(map snapshot unavailable in this browser — AOI outline only)</div>`)
