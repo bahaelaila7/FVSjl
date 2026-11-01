@@ -278,7 +278,7 @@ const FiaUI = (() => {
       ? (r.derivative ? 'Lines: growth rate Δy/Δx between successive visits of each tree.'
         : 'Lines = contiguous trajectories · <b>dashed</b> = phantom back-fill · dots = single-measurement trees' +
           (r.imputed ? ' · open points = imputed (phantom / interpolated)' : '') +
-          ' · terminal marker: ○ alive · ▽ dead-natural · ✕ dead-disturbance · ▣ harvest (filled = explicit) · ◇ disappeared')
+          ' · terminal marker: ○ alive · ▽ dead-natural · ✕ dead-disturbance · ▣ cut (filled = recorded AGENTCD 80, open = inferred) · ◇ disappeared (filled = land use change) · ○ also censored')
       : `Dots = each tree's <b>${esc(r.repr)}</b> real measurement (one point per tree).`;
     if (r.fit) note += ' · dashed black line = OLS fit in the displayed axis space.';
     const warn = r.sampled ? `<div class="warnl">${r.n_match.toLocaleString()} trees match — showing a random sample of ${r.n_plotted.toLocaleString()}. Raise “Max trajectories” to see more.</div>` : '';

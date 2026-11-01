@@ -53,7 +53,7 @@ struct Summary
     sp_ids::Vector{Vector{UInt16}}     # sorted ids into `sp_names`
     lu::Vector{UInt8}                   # bit masks (index into the option lists below)
     ce::Vector{UInt8}
-    tf::Vector{UInt8}
+    tf::Vector{UInt16}                  # 13 terminal fates (curated censoring / land-use classes)
     og::Vector{UInt8}
     sh::Vector{UInt8}
     cy::Vector{UInt32}
@@ -135,7 +135,7 @@ function _build_summary()
     species = [_lst(x) for x in df.sps]
     sp_ids = [sort!(UInt16[spid[s] for s in sp]) for sp in species]
     mk(col, opts, conv = identity) = UInt64[_mask([conv(v) for v in _lst(x)], opts) for x in df[!, col]]
-    lu = UInt8.(mk(:lu, lu_opts)); ce = UInt8.(mk(:ce, ce_opts)); tf = UInt8.(mk(:tf, tf_opts))
+    lu = UInt8.(mk(:lu, lu_opts)); ce = UInt8.(mk(:ce, ce_opts)); tf = UInt16.(mk(:tf, tf_opts))
     og = UInt8.(mk(:og, og_opts, v -> round(Int, parse(Float64, v)))); sh = UInt8.(mk(:sh, sh_opts))
     cy = UInt32.(mk(:cy, cy_opts, v -> parse(Int, v)))
     e3 = String[_s(x) for x in df.epa_l3]; e4 = String[_s(x) for x in df.epa_l4]; es = String[_s(x) for x in df.ecosubcd]
@@ -306,7 +306,8 @@ const GREY = "#808080"
 
 const FATE_MARK = Dict("alive_censored" => ("circle", false), "dead_natural" => ("triangle-down", true),
                        "dead_disturbance" => ("cross", true), "silvicultural_death" => ("square", true),
-                       "harvest_inferred" => ("square", false), "disappeared_inferred_removal" => ("diamond", false))
+                       "harvest_inferred" => ("square", false), "disappeared_inferred_removal" => ("diamond", false),
+                       "diverted_landuse" => ("diamond", true))   # censored_* -> the default open circle, like alive_censored
 
 _r(x) = round(Float64(x); sigdigits = 7)
 
