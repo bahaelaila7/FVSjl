@@ -53,7 +53,7 @@ struct Summary
     sp_ids::Vector{Vector{UInt16}}     # sorted ids into `sp_names`
     lu::Vector{UInt8}                   # bit masks (index into the option lists below)
     ce::Vector{UInt8}
-    tf::Vector{UInt16}                  # 13 terminal fates (curated censoring / land-use classes)
+    tf::Vector{UInt16}                  # curated censoring and land-use fates exceed 8 classes
     og::Vector{UInt8}
     sh::Vector{UInt8}
     cy::Vector{UInt32}
