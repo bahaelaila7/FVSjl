@@ -17,7 +17,7 @@ module FiaTrajectories
 
 using DuckDB, DBInterface, DataFrames, JSON3, HTTP, Oxygen
 
-const DEFAULT_DB = joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "FIA", "FIASQLITE2PGSQL", "FIADB.duckdb")   # <workspace root>/FIA/...
+const DEFAULT_DB = joinpath(get(ENV, "WORKSPACE", normpath(joinpath(@__DIR__, "..", "..", "..", ".."))), "FIA", "truth", "fia_truth_r4.duckdb")   # <workspace root>/FIA/...
 db_path() = get(ENV, "FIA_TRAJ_DB", get(ENV, "PAN_FIA_DB", DEFAULT_DB))
 
 const MAX_POINTS = 5000
@@ -305,7 +305,7 @@ end
 const GREY = "#808080"
 
 const FATE_MARK = Dict("alive_censored" => ("circle", false), "dead_natural" => ("triangle-down", true),
-                       "dead_disturbance" => ("cross", true), "harvest_explicit" => ("square", true),
+                       "dead_disturbance" => ("cross", true), "silvicultural_death" => ("square", true),
                        "harvest_inferred" => ("square", false), "disappeared_inferred_removal" => ("diamond", false))
 
 _r(x) = round(Float64(x); sigdigits = 7)

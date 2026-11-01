@@ -6,8 +6,8 @@
 #   $WORKSPACE/FVSclaude/SQLite_FIADB_ENTIRE.db    FIA_DB         FVSjl master FIA DB (read only)
 #   $WORKSPACE/FVSclaude/treemap                   TREEMAP_DATA   TreeMap raster/VAT/trees (read only)
 #   $WORKSPACE/landis_fe                           PAN_REPO       Pan checkout, branch fe-engine (scenario engine incl. HBAD v2 = plugin hbad2)
-#   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    PAN_FIA_DB     curated FIA cohorts for Pan (read only)
-#   $WORKSPACE/FIA/FIASQLITE2PGSQL/FIADB.duckdb    FIA_TRAJ_DB     FIA plots / tree-trajectories layer (read only; default PAN_FIA_DB)
+#   $WORKSPACE/FIA/truth/fia_truth_r4.duckdb    PAN_FIA_DB     the single curated FIA truth for Pan (read only)
+#   $WORKSPACE/FIA/truth/fia_truth_r4.duckdb    FIA_TRAJ_DB     FIA plots / tree-trajectories layer (read only; default PAN_FIA_DB)
 #   $WORKSPACE/pan_climate/pan_climate.duckdb      PAN_CLIMATE_DB PRISM baseline + forecasts (PnET climate)
 #   $WORKSPACE/landis_region4/data_r4/{plot_soil_r4.csv, pnet_climate_r4_l4.jld2, co2_annual.csv}
 #                                                  PAN_SOIL_CSV, PAN_PNET_CLIMATE, PAN_CO2_CSV
@@ -26,7 +26,7 @@ export FIA_DB="${FIA_DB:-$ws/FVSclaude/SQLite_FIADB_ENTIRE.db}"
 export TREEMAP_DATA="${TREEMAP_DATA:-$ws/FVSclaude/treemap}"
 export FE_CACHE_DIR="${FE_CACHE_DIR:-$here/cache/sim_cache}"
 export PAN_REPO="${PAN_REPO:-$ws/landis_fe}"
-export PAN_FIA_DB="${PAN_FIA_DB:-$ws/FIA/FIASQLITE2PGSQL/FIADB.duckdb}"
+export PAN_FIA_DB="${PAN_FIA_DB:-$ws/FIA/truth/fia_truth_r4.duckdb}"
 export FIA_TRAJ_DB="${FIA_TRAJ_DB:-$PAN_FIA_DB}"
 export PAN_CLIMATE_DB="${PAN_CLIMATE_DB:-$ws/pan_climate/pan_climate.duckdb}"
 export PAN_SOIL_CSV="${PAN_SOIL_CSV:-$ws/landis_region4/data_r4/plot_soil_r4.csv}"
