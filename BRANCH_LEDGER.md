@@ -19,12 +19,13 @@ master**. `0 absent` = fully merged. `N absent` on a branch whose feature is pre
 alternative version of a feature master already has), not an unmerged fix. A coherent block of
 absent lines forming a feature master lacks = a genuine KEEP.
 
-## Result: the only genuinely-unmerged code was `b94eceda`. Keep-set = `master`, `forest-explorer`.
+## Result: the only genuinely-unmerged code was `b94eceda`. Keep-set = `master`, `forest-explorer`, `forest-explorer-pan`.
 
 - **`b94eceda`** (branch `ie-climate-treemult`): the climate AUTOES-ABIRTH line (1/1 absent) —
   the one real unmerged fix; **merged properly into master this session** (see git log). Branch
   then redundant.
 - **`forest-explorer`**: the Forest Growth Explorer webapp (`apps/`) — active, KEEP.
+- **`forest-explorer-pan`**: Forest Explorer work owned by ANOTHER agent (USER 2026-11-09) — KEEP; never delete, merge, rebase or edit it.
 - **All other ~58 branches**: MERGED or SUPERSEDED or STALE → delete-safe (pending owner prune).
 
 ## Per-branch (added src code-lines / absent-in-master → verdict)
@@ -79,6 +80,7 @@ copy anything worth keeping (instrumented-oracle recipes) into the repo or `/wor
 |---|---|---|---|---|
 | `bm-regime-close` | (integration) | ACTIVE — integration | `/workspace/.wt-bm` | delete after master merge |
 | `forest-explorer` | 9fccd030 | ACTIVE — Forest Growth Explorer webapp; USER 2026-09-20: keep its development on this branch in its OWN worktree so the main checkout stays on master | `/workspace/.wt-explorer` | KEEP (long-lived) |
+| `forest-explorer-pan` | e354e4c1 | ACTIVE — owned by another agent (USER 2026-11-09: leave it alone) | (the other agent's) | KEEP — hands off |
 | `bm-cyc0-vol` | a18802df | merged (R6 MRULES, LHTDRG/HTDBH dub, SF_HS) | `.wt-bm-vol` | delete |
 | `bm-thinprsc` | d9e098b2 | no commits (found the g16 `-std=legacy` oracle bug); worktree = **master-equivalent BASELINE** used for base-vs-tip comparisons | `.wt-bm-prsc` | delete (keep worktree until BM closed) |
 | `bm-plant-seedling` | 50dded40 | merged (BM strp estab, PLANT cycle-date) | `.wt-bm-plant` | delete |
@@ -164,7 +166,7 @@ volume-dump + LPMPB set). The merged tree is byte-identical to that tip.
 
 Worktrees now merged or throwaway and safe to prune with the owner's approval:
 `.wt-isort`, `.wt-kt`, `.wt-crnw`, `.wt-oc`, `.wt-dead`, `.wt-em`, `.wt-embisect`.
-`forest-explorer` (`.wt-explorer`) remains the only KEEP.
+`forest-explorer` (`.wt-explorer`) and `forest-explorer-pan` (another agent's, added 2026-11-09) are the KEEPs.
 
 Three goldens were reconciled **from measurement**, both directions recorded in each case rather
 than only the loosening — see the commits: KT's inert-seam self-snapshot, KT's absolute tolerances
@@ -287,3 +289,11 @@ with em-climate's merge and are gated by its full suite:
 
 See docs/PORT_STATUS.md, "KT/CI/TT LSTART REGCAL…" and "FVS_Fuels (FUELSOUT) gating…".
 
+
+---
+
+## Addendum 2026-11-09 — `forest-explorer-pan`
+
+| branch | tip | owner | verdict |
+|---|---|---|---|
+| `forest-explorer-pan` | e354e4c1 | another agent (USER 2026-11-09) | **KEEP — hands off**: excluded from every prune; never delete, merge, rebase, check out or edit it |
