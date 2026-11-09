@@ -297,3 +297,23 @@ See docs/PORT_STATUS.md, "KT/CI/TT LSTART REGCAL…" and "FVS_Fuels (FUELSOUT) g
 | branch | tip | owner | verdict |
 |---|---|---|---|
 | `forest-explorer-pan` | e354e4c1 | another agent (USER 2026-11-09) | **KEEP — hands off**: excluded from every prune; never delete, merge, rebase, check out or edit it |
+
+---
+
+## Addendum 2026-11-09 — tidy-up (USER: "tidy up repo branches")
+
+Done on master `b9365a10`:
+
+- **Worktrees:** 203 removed (`git worktree remove` one by one, never `prune`). Before each removal its uncommitted diff
+  (`*.uncommitted.patch`) and its untracked non-ignored scratch (`*.untracked.tar.xz`) were archived to
+  `/workspace/.archive/wt_scratch_1109/` (127 MB). The list with HEAD SHAs is in `/workspace/.postswap/tidy1109/removed.txt`. Kept:
+  `/workspace/FVSjl` (master), `.wt-explorer` (forest-explorer), `.wt-fiaeast` (fia-east, the sweep lanes' engine),
+  `.wt-fiadig` (fia-east-2), `.wt-westtail4` (west-tail-4), and `/workspace/fe_pan` (fia-truth, another agent's —
+  its metadata is left alone even though git marks it prunable here).
+- **Branches:** 238 deleted that were ancestors of master (their commits stay in master's history). The 59 unmerged
+  ones — all classified merged-by-cherry-pick, superseded or stale above, plus the August `worktree-agent-*` branches —
+  were deleted only after being kept as `refs/archive/<name>`, so nothing is lost:
+  `git for-each-ref refs/archive` lists them, `git branch <name> refs/archive/<name>` restores one. Full before-list
+  with SHAs: `/workspace/.postswap/tidy1109/allbranches_before.txt`.
+- **Branches left:** `master`, `forest-explorer`, `forest-explorer-pan` and `fia-truth` (another agent's — hands
+  off), `fia-east` (sweep engine), `fia-east-2` and `west-tail-4` (in progress).
